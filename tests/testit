@@ -1,0 +1,10 @@
+#!/bin/bash
+set -e
+
+this_dir=$(dirname $0)
+cd $this_dir
+
+#find ../ -type f -name "*.pyc" -not -path '../envs/*' -delete
+#find ../ -type d -name "__pycache__" -not -path '../envs/*' -delete
+
+python -B $this_dir/testit.py $* || exit 1
