@@ -17,8 +17,8 @@ from setuptools import find_packages
 import os
 import versioneer
 
-
-packages = [
+packages = ["toksearch_d3d"]
+packages += [
     os.path.join("toksearch_d3d", package) for package in find_packages("toksearch_d3d")
 ]
 
