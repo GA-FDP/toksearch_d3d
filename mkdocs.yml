@@ -1,0 +1,66 @@
+# Copyright 2024 General Atomics
+# 
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+# 
+#    http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+site_name: TokSearch DIII-D
+site_url: https://ga-fdp.github.io/toksearch_d3d/
+site_author: Brian Sammuli
+
+repo_name: GA-FDP/toksearch_d3d
+repo_url: https://github.com/GA-FDP/toksearch_d3d
+edit_uri: ""
+
+
+plugins:
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [python]
+          options:
+            docstring_style: google
+            show_source: false
+  - mkdocs-jupyter:
+      execute: false
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+
+
+nav:
+  #- Home: index.md
+  - API:
+    - "PTDATA Data Access": ptdata.md
+
+theme:
+  name: material
+  palette:
+    scheme: slate
+    primary: black
+    accent: indigo
+  logo: ts_just_logo.svg
+  favicon: favicon.ico
+    #features:
+    #  - navigation.tabs
+    #  - navigation.tabs.sticky
+    #
+
+# Customization
+extra:
+  version:
+    provider: mike
