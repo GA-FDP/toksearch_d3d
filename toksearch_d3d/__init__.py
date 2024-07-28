@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .ptdata.signal import PtDataSignal
-from .ptdata.signal import RDataSignal
+from .signal.ptdata import PtDataSignal
+from .signal.ptdata import RDataSignal
 
 from . import _version
 __version__ = _version.get_versions()['version']
