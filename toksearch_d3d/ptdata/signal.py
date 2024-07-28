@@ -28,8 +28,6 @@ class PtDataSignal(Signal):
         self.keep_header = keep_header
         self.fetch_times = fetch_times
         self.with_units = fetch_units
-        self._cached_results = {}
-        self._cached_headers = {}
 
         if self.fetch_times:
             dims = ["times"]
@@ -37,7 +35,8 @@ class PtDataSignal(Signal):
             dims = None
         self.set_dims(dims)
 
-    def initialize(self, shot):
+
+    def gather(self, shot):
 
         dims = self.dims
         fetch_units = self.with_units
@@ -50,7 +49,7 @@ class PtDataSignal(Signal):
         results = fetcher.fetch(fetch_times=fetch_times, ical=self.ical)
 
         if self.keep_header:
-            self._cached_headers[shot] = fetcher.header
+            results["header"] = fetcher.header
 
         if fetch_units:
             results["units"] = {}
@@ -60,33 +59,8 @@ class PtDataSignal(Signal):
             if fetch_times:
                 results["units"][dims[0]] = "ms"
 
-        self._cached_results[shot] = results
+        return results
 
-    def fetch(self, shot):
-        result = super().fetch(shot)
-        if self.keep_header:
-            result["header"] = self._cached_headers.pop(shot, None)
-
-        return result
-
-    def clear_state(self, shot):
-        self._cached_results.pop(shot, None)
-
-    def fetch_data(self, shot):
-        return self._cached_results[shot]["data"]
-
-    def fetch_units(self, shot):
-        return self._cached_results[shot]["units"]
-
-    def fetch_dims(self, shot):
-        dims_dict = {}
-        for dim in self.dims:
-            try:
-                dims_dict[dim] = self._cached_results[shot][dim]
-            except KeyError:
-                pass
-
-        return dims_dict
 
     def cleanup_shot(self, shot):
         pass

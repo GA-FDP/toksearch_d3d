@@ -14,7 +14,6 @@
 
 name: toksearch_d3d
 channels:
-  - file:///opt/fdp/channel
   - ga-fdp
   - conda-forge
 dependencies:
