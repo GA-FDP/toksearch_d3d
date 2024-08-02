@@ -36,12 +36,14 @@ typedef enum {
     SQLITE_INDEX_ENV_VAR_NOT_SET
 } IndexErrorCodes;
 
+// The cache of open databases
+static sqlite3 *db_cache[MAX_DB_COUNT] = {NULL};
+
 static sqlite3* openDatabase(int shot);
 static sqlite3* getDb(int shot);
 static void setDb(int shot, sqlite3 *db);
 static int calculateIndex(int shot);
 
-static sqlite3 *db_cache[MAX_DB_COUNT];
 
 static sqlite3* getDb(int shot) {
     int index = calculateIndex(shot);

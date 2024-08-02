@@ -16,12 +16,12 @@ LDFLAGS := $(addprefix -L, $(LIBDIR))
 CFLAGS = -std=gnu99 -fPIC $(INCLUDE_FLAGS) -g
 
 .PHONY: all
-all: libptdata_sqlite.so
+all: libindex_plugin.so
 
 .PHONY: clean
 clean:
 	rm -f *.o *.so get_index
 
-libptdata_sqlite.so: $(SRC_LIBPTDATA_SQLITE_C:.c=.o)
+libindex_plugin.so: $(SRC_LIBPTDATA_SQLITE_C:.c=.o)
 	$(CC) -shared -o $@ $^ $(LDFLAGS) $(LDLIBS) -lsqlite3
 
