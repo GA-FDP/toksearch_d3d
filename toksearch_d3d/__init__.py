@@ -14,6 +14,7 @@
 
 from .signal.ptdata import PtDataSignal
 from .signal.ptdata import RDataSignal
+from .signal.cake import CakeSignal
 
 from . import _version
 __version__ = _version.get_versions()['version']
