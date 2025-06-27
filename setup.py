@@ -1,11 +1,11 @@
 # Copyright 2024 General Atomics
-# 
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# 
+#
 #    http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -22,9 +22,13 @@ packages += [
     os.path.join("toksearch_d3d", package) for package in find_packages("toksearch_d3d")
 ]
 
+cli_script = "toksearch_d3d.fdp.cli:main"
+entry_points = {"console_scripts": [f"fdp = {cli_script}"]}
+
 setup(
     version=versioneer.get_version(),
     name="toksearch_d3d",
     packages=packages,
+    entry_points=entry_points,
     zip_safe=False,
 )

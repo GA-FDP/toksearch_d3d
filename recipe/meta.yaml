@@ -38,4 +38,4 @@ test:
     source_files:
         - tests
     commands:
-        - cd tests; python testit.py
+        - cd tests; fdp run python testit.py
