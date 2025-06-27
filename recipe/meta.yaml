@@ -30,8 +30,9 @@ requirements:
 
     run:
         - python
-        - toksearch>=2.0.3
+        - toksearch>=2.1
         - ptdata
+        - xrootd
 
 
 test:

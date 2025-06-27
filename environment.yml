@@ -18,4 +18,5 @@ channels:
   - conda-forge
 dependencies:
   - ptdata
-  - toksearch>=2.0.0  
+  - toksearch>=2.1
+  - xrootd
