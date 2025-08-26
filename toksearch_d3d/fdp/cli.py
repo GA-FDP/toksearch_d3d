@@ -89,16 +89,17 @@ class FdpFileSystem:
 
         return paths
 
-
 def get_mds_path_vars(bearer_token: str) -> dict[str, str]:
 
     archive_dir = ARCHIVES_DIR
     mds_archive_dir = ARCHIVES_DIR / "mdsplus"
 
-    codes_mds_path = "codes/~t/~j~i/~h~g/~f~e/~d~c"
-    usershots_path = "usershots/~t"
-    models_path = "models/~t"
+    codes_mds_path = f"{mds_archive_dir}/codes/~t/~j~i/~h~g/~f~e/~d~c"
+    usershots_path = f"{mds_archive_dir}/usershots/~t"
+    models_path = f"{mds_archive_dir}/models/~t"
+    shots_mds_path = f"{mds_archive_dir}/shots/~t/~f~e/~d~c"
 
+    generic_paths_var = ";".join([codes_mds_path, usershots_path, models_path, shots_mds_path])
 
     fs = FdpFileSystem(XRD_SERVER, bearer_token)
 
@@ -113,20 +114,16 @@ def get_mds_path_vars(bearer_token: str) -> dict[str, str]:
 
     # efit and other between-shot directories
     mds_codes_dirs = fs.ls(Path(mds_archive_dir, "codes"), dirs_only=True)
-    mds_codes_tree_path = f"{mds_archive_dir}/{usershots_path};{mds_archive_dir}/{codes_mds_path};{mds_archive_dir}/{models_path}"
-    _set_paths(mds_codes_dirs, mds_codes_tree_path)
+    _set_paths(mds_codes_dirs, generic_paths_var)
 
 
     # D3D tree and subtrees
     mds_shots_dirs = fs.ls(Path(mds_archive_dir, "shots"), dirs_only=True)
-    shots_mds_path = "shots/~t/~f~e/~d~c"
-    mds_shots_tree_path = f"{mds_archive_dir}/{usershots_path};{mds_archive_dir}/{shots_mds_path};{mds_archive_dir}/{models_path}"
-    _set_paths(mds_shots_dirs, mds_shots_tree_path)
+    _set_paths(mds_shots_dirs, generic_paths_var)
 
     # User shots
     mds_usershots_dirs = fs.ls(Path(mds_archive_dir, "usershots"), dirs_only=True)
-    mds_usershots_tree_path = f"{mds_archive_dir}/{usershots_path}"
-    _set_paths(mds_usershots_dirs, mds_usershots_tree_path)
+    _set_paths(mds_usershots_dirs, generic_paths_var)
 
     return path_vars 
 
