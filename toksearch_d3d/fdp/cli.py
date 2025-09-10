@@ -67,10 +67,8 @@ DEFAULT_CONFIG = {
 
 
 class FdpFileSystem:
-    def __init__(self, server: str, bearer_token: str):
+    def __init__(self, server: str):
         self.server = server
-
-        os.environ["BEARER_TOKEN"] = bearer_token
 
         self.xrd_fs = client.FileSystem(server)
 
@@ -89,7 +87,7 @@ class FdpFileSystem:
 
         return paths
 
-def get_mds_path_vars(bearer_token: str) -> dict[str, str]:
+def get_mds_path_vars() -> dict[str, str]:
 
     archive_dir = ARCHIVES_DIR
     mds_archive_dir = ARCHIVES_DIR / "mdsplus"
@@ -101,7 +99,7 @@ def get_mds_path_vars(bearer_token: str) -> dict[str, str]:
 
     generic_paths_var = ";".join([codes_mds_path, usershots_path, models_path, shots_mds_path])
 
-    fs = FdpFileSystem(XRD_SERVER, bearer_token)
+    fs = FdpFileSystem(XRD_SERVER)
 
 
     path_vars = {}
@@ -128,26 +126,6 @@ def get_mds_path_vars(bearer_token: str) -> dict[str, str]:
     return path_vars 
 
 
-def create_environment(bearer_token: str) -> dict[str, str]:
-    
-    env = os.environ.copy()
-
-    env |= DEFAULT_CONFIG
-
-    if not bearer_token:
-        home_dir = Path.home()
-        token_file = home_dir / ".fdp" / "token"
-   
-        with open(token_file, "r") as f:
-            bearer_token = f.read().strip()
-
-    env["BEARER_TOKEN"] = bearer_token
-
-
-    mds_path_vars = get_mds_path_vars(bearer_token)
-    env |= mds_path_vars
-
-    return env
 
 ##############################################################################
 # 
@@ -157,8 +135,10 @@ def create_environment(bearer_token: str) -> dict[str, str]:
 
 def do_run(args):
     passthrough_args = args.command_args
-    env = create_environment(args.bearer_token)
 
+    mds_path_vars = get_mds_path_vars()
+    os.environ |= mds_path_vars
+    
     if args.debug:
         command_str = " ".join(passthrough_args)
         print(f"Running command: {command_str}")
@@ -168,16 +148,13 @@ def do_run(args):
 
 
     comm = passthrough_args
-    result = subprocess.run(comm, env=env)
+    result = subprocess.run(comm, env=os.environ)
     sys.exit(result.returncode)
 
 
 
 def do_ls(args):
-    env = create_environment(args.bearer_token)
-
-    fs = FdpFileSystem(XRD_SERVER, args.bearer_token)
-
+    fs = FdpFileSystem(XRD_SERVER)
 
     if args.path == "/":
         listing = [Path(FDP_ROOT).name]
@@ -216,6 +193,22 @@ def main():
     ls_parser.set_defaults(func=do_ls)
 
     args = parser.parse_args()
+
+    ################# Environment setup ####################
+    os.environ |= DEFAULT_CONFIG
+    
+    bearer_token = args.bearer_token
+    if not bearer_token:
+        home_dir = Path.home()
+        token_file = home_dir / ".fdp" / "token"
+   
+        with open(token_file, "r") as f:
+            bearer_token = f.read().strip()
+
+    os.environ["BEARER_TOKEN"] = bearer_token
+    #######################################################
+
+    # Now run it
     args.func(args)
 
 if __name__ == "__main__":
