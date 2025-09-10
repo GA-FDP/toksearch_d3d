@@ -109,14 +109,16 @@ class CakeSignal(MdsSignal):
             msg = f"Invalid treename {treename}. Must eq, efit, prof, or omfit_profs"
             raise Exception(msg)
 
-
         return super().gather(upload_id)
 
     def cleanup(self):
+        global _conn_cache
+
         if _conn_cache:
             try:
                 _conn_cache.close()
             except Exception as e:
                 print(f"Warning - Failed to close connection cache: {e}")
+        _conn_cache = None
         super().cleanup()
 
