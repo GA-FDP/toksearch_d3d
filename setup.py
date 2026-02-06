@@ -13,22 +13,9 @@
 # limitations under the License.
 
 from setuptools import setup
-from setuptools import find_packages
-import os
 import versioneer
-
-packages = ["toksearch_d3d"]
-packages += [
-    os.path.join("toksearch_d3d", package) for package in find_packages("toksearch_d3d")
-]
-
-cli_script = "toksearch_d3d.fdp.cli:main"
-entry_points = {"console_scripts": [f"fdp = {cli_script}"]}
 
 setup(
     version=versioneer.get_version(),
-    name="toksearch_d3d",
-    packages=packages,
-    entry_points=entry_points,
-    zip_safe=False,
+    cmdclass=versioneer.get_cmdclass(),
 )
