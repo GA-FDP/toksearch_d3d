@@ -12,16 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-[project]
+[workspace]
 name = "toksearch_d3d"
 channels = ["ga-fdp", "conda-forge"]
 platforms = ["linux-64"]
 
 [dependencies]
 python = ">=3.9"
-ptdata = "*"
-toksearch = ">=2.1"
-xrootd = "*"
+ptdata = ">=1.4"
+toksearch = ">=2.4"
 
 [pypi-dependencies]
 toksearch_d3d = { path = ".", editable = true }

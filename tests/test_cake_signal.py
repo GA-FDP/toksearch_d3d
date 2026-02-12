@@ -15,24 +15,25 @@
 import unittest
 import os
 
-from toksearch_d3d import CakeSignal
-
-
-class TestCakeSignal(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.eq_ptname = r"\ipmhd"
-        cls.prof_ptname = r"\OMFIT_PROFS::TOP:ZEFF"
-        cls.shot =165920
-
-
-    def test_fetch_eq(self):
-        results = CakeSignal(self.eq_ptname, "eq").fetch(self.shot)
-        self.assertGreater(len(results["data"]), 1)
-        self.assertGreater(len(results["times"]), 1)
-
-
-    def test_fetch_profile(self):
-        results = CakeSignal(self.prof_ptname, "prof").fetch(self.shot)
-        self.assertGreater(len(results["data"]), 1)
-        self.assertGreater(len(results["times"]), 1)
+# TODO: CakeSignal tests need to be reworked to use something other than sqlite
+# from toksearch_d3d import CakeSignal
+#
+#
+# class TestCakeSignal(unittest.TestCase):
+#     @classmethod
+#     def setUpClass(cls):
+#         cls.eq_ptname = r"\ipmhd"
+#         cls.prof_ptname = r"\OMFIT_PROFS::TOP:ZEFF"
+#         cls.shot =165920
+#
+#
+#     def test_fetch_eq(self):
+#         results = CakeSignal(self.eq_ptname, "eq").fetch(self.shot)
+#         self.assertGreater(len(results["data"]), 1)
+#         self.assertGreater(len(results["times"]), 1)
+#
+#
+#     def test_fetch_profile(self):
+#         results = CakeSignal(self.prof_ptname, "prof").fetch(self.shot)
+#         self.assertGreater(len(results["data"]), 1)
+#         self.assertGreater(len(results["times"]), 1)
