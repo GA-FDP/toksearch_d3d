@@ -35,13 +35,13 @@ class TestPtDataSignal(unittest.TestCase):
         results = PtDataSignal(self.ptname).fetch(self.shot)
         self.assertGreater(len(results["data"]), 1)
         self.assertGreater(len(results["times"]), 1)
-        self.assertEquals(results["units"]["data"], "amps")
-        self.assertEquals(results["units"]["times"], "ms")
+        self.assertEqual(results["units"]["data"], "amps")
+        self.assertEqual(results["units"]["times"], "ms")
 
     def test_ptdatasource_without_times(self):
         results = PtDataSignal(self.ptname, fetch_times=False).fetch(self.shot)
         self.assertGreater(len(results["data"]), 1)
-        self.assertEquals(results["units"]["data"], "amps")
+        self.assertEqual(results["units"]["data"], "amps")
         self.assertNotIn("times", results)
         self.assertNotIn("times", results["units"])
 
