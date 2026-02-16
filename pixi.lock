@@ -261,7 +261,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/terminado-0.18.1-pyhc90fa1f_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/tinycss2-1.5.1-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/tk-8.6.13-noxft_h366c992_103.conda
-      - conda: https://conda.anaconda.org/ga-fdp/linux-64/toksearch-2.4.0-pyhb4eb014_0.conda
+      - conda: https://conda.anaconda.org/ga-fdp/linux-64/toksearch-2.4.1-py312h2e77849_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/tomli-2.4.0-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/tornado-6.5.3-py312h4c3975b_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/traitlets-5.14.3-pyhd8ed1ab_1.conda
@@ -3887,10 +3887,9 @@ packages:
   purls: []
   size: 3301196
   timestamp: 1769460227866
-- conda: https://conda.anaconda.org/ga-fdp/linux-64/toksearch-2.4.0-pyhb4eb014_0.conda
-  build_number: 1
-  sha256: 5df27b1047be884f0a4f1b2965668c3b1c18f68122d656b9d8b4068614d42acd
-  md5: a7e974f54a2531b3ee22f2510e42ebb0
+- conda: https://conda.anaconda.org/ga-fdp/linux-64/toksearch-2.4.1-py312h2e77849_0.conda
+  sha256: 94573f119ec844ad43927dcc7890365d5075fd2577fe79008e6cc87f0354ed81
+  md5: 2e9a81c84cc9a73293c80c67211aa28f
   depends:
   - python
   - mdsplus-xrdcl >=0.2.0
@@ -3907,13 +3906,13 @@ packages:
   - jupyter
   - fsspec
   - zarr 3.*
-  - __glibc >=2.28,<3.0.a0
   - libgcc >=15
+  - __glibc >=2.28,<3.0.a0
   - python_abi 3.12.* *_cp312
   - numpy >=1.26.4,<2.0a0
   license: Apache-2.0
-  size: 5263480
-  timestamp: 1770905542992
+  size: 5263186
+  timestamp: 1770972570109
 - pypi: ./
   name: toksearch-d3d
   version: 0.1.5+4.g6bb247f.dirty
