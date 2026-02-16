@@ -82,7 +82,7 @@ DEFAULT_CONFIG = {
     ),
     # PTData Config
     "D3DATA": "yes",
-    "PTDATA_LOC": "${PTDATA_LOC:-1}",  # Do NOT go out to athena by default
+    "PTDATA_LOC": os.getenv("PTDATA_LOC", "1"),  # Do NOT go out to athena by default
     "PTDATA_JSON_INDEX_DIR": str(Path(OSDF_SERVER)
     / "fdp-d3d/archives/index/json/json_indexes_2026-01-13_12:22:11"),
     "PTDATA_LIBRARY": str(lib_dir / "libd3.so"),
