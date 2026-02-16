@@ -19,7 +19,7 @@ platforms = ["linux-64"]
 
 [dependencies]
 python = ">=3.9"
-ptdata = ">=1.4"
+ptdata = ">=1.4.1"
 toksearch = ">=2.4.1"
 pelicanfs = "*"
 fsspec = ">=2024.12.0"

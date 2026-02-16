@@ -35,7 +35,7 @@ requirements:
   run:
     - python
     - toksearch >=2.4.1
-    - ptdata >=1.4
+    - ptdata >=1.4.1
     - pelicanfs
     - fsspec >=2024.12.0
 

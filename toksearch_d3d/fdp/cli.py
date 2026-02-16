@@ -43,8 +43,8 @@ def get_default_xrd_pluginconfdir():
 
 OSDF_SERVER = "pelican://osg-htc.org:443"
 
-FDP_ROOT = Path(OSDF_SERVER) / "fdp-d3d"
-ARCHIVES_DIR = FDP_ROOT / "archives"
+FDP_ROOT = f"{OSDF_SERVER}/fdp-d3d"
+ARCHIVES_DIR = f"{FDP_ROOT}/archives"
 
 # Resolve the active Python environment’s directories
 python_executable_path = Path(sys.executable)
@@ -65,7 +65,7 @@ DEFAULT_CONFIG = {
     # pymssql TLS requirement
     "TDSVER": "7.0",
     # Cake metadata DB
-    "CAKE_DB_PATH": str(FDP_ROOT / "metadata" / "iri_logs.db"),
+    "CAKE_DB_PATH": f"{FDP_ROOT}/metadata/iri_logs.db",
     # Shared-library and certificate locations
     "X509_CERT_FILE": str(env_dir / "ssl" / "cacert.pem"),
     # Prepend the active env’s bin directory to PATH
@@ -83,10 +83,9 @@ DEFAULT_CONFIG = {
     # PTData Config
     "D3DATA": "yes",
     "PTDATA_LOC": os.getenv("PTDATA_LOC", "1"),  # Do NOT go out to athena by default
-    "PTDATA_JSON_INDEX_DIR": str(Path(OSDF_SERVER)
-    / "fdp-d3d/archives/index/json/json_indexes_2026-01-13_12:22:11"),
+    "PTDATA_JSON_INDEX_DIR": f"{ARCHIVES_DIR}/index/json/json_indexes_2026-01-13_12:22:11",
     "PTDATA_LIBRARY": str(lib_dir / "libd3.so"),
-    "PTDATA_PLUGIN_LIB": "libjson_index_plugin.so",
+    "PTDATA_PLUGIN_LIB": str(lib_dir / "libjson_index_plugin.so"),
     "SYS_D3_DELIM": ";",
 }
 
