@@ -37,6 +37,7 @@ requirements:
     - toksearch >=2.4.1
     - ptdata >=1.4
     - pelicanfs
+    - fsspec >=2024.12.0
 
 tests:
   - script:
