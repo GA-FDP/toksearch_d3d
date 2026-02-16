@@ -1,12 +1,12 @@
 from pathlib import Path
 import argparse
+import shlex
 import sys
 import os
 import subprocess
-import sh
+import warnings
 
-from XRootD import client
-from XRootD.client.flags import DirListFlags, StatInfoFlags
+from pelicanfs.core import PelicanFileSystem as PelicanFS
 
 
 ##############################################################################
@@ -94,26 +94,18 @@ DEFAULT_CONFIG = {
 class FdpFileSystem:
     def __init__(self, server: str):
         self.server = server
-
-        self.xrd_fs = client.FileSystem(server)
+        self.fs = PelicanFS(server)
 
     def ls(self, path: str | Path, dirs_only: bool = False) -> list[Path]:
+        entries = self.fs.ls(str(path), detail=True)
 
-        _, listings = self.xrd_fs.dirlist(str(path), DirListFlags.STAT)
-
-        if not listings:
+        if not entries:
             return []
 
         if dirs_only:
-            paths = [
-                Path(listing.name)
-                for listing in listings
-                if listing.statinfo.flags & StatInfoFlags.IS_DIR
-            ]
-        else:
-            paths = [Path(listing.name) for listing in listings]
+            entries = [e for e in entries if e["type"] == "directory"]
 
-        return paths
+        return [Path(e["name"]).name for e in entries]
 
 
 ##############################################################################
@@ -138,8 +130,16 @@ def do_run(args):
     sys.exit(result.returncode)
 
 
+def do_env(args):
+    for key, value in DEFAULT_CONFIG.items():
+        print(f"export {key}={shlex.quote(value)}")
+    bearer_token = os.environ.get("BEARER_TOKEN", "")
+    if bearer_token:
+        print(f"export BEARER_TOKEN={shlex.quote(bearer_token)}")
+
+
 def do_ls(args):
-    fs = FdpFileSystem(XRD_SERVER)
+    fs = FdpFileSystem(OSDF_SERVER)
 
     if args.path == "/":
         listing = [Path(FDP_ROOT).name]
@@ -179,6 +179,11 @@ def main():
     )
     run_parser.set_defaults(func=do_run)
 
+    env_parser = subparsers.add_parser(
+        "env", help="Print environment variables for shell eval"
+    )
+    env_parser.set_defaults(func=do_env)
+
     ls_parser = subparsers.add_parser("ls", help="List files on the FDP")
     ls_parser.add_argument(
         "--dirs-only", "-d", action="store_true", help="Only show subdirectories"
@@ -201,7 +206,7 @@ def main():
             with open(token_file, "r") as f:
                 bearer_token = f.read().strip()
         except:
-            warning.warn("No BEARER_TOKEN specified. This will cause problems with FDP access.")
+            warnings.warn("No BEARER_TOKEN specified. This will cause problems with FDP access.")
 
     os.environ["BEARER_TOKEN"] = bearer_token
     #######################################################

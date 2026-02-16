@@ -21,6 +21,7 @@ platforms = ["linux-64"]
 python = ">=3.9"
 ptdata = ">=1.4"
 toksearch = ">=2.4"
+pelicanfs = "*"
 
 [pypi-dependencies]
 toksearch_d3d = { path = ".", editable = true }
