@@ -3,4 +3,13 @@ set -euo pipefail
 
 export PKG_VERSION=$(pixi run python ../print_version.py)
 
-rattler-build build -c ga-fdp -c conda-forge --channel-priority=disabled
+echo "Building version: ${PKG_VERSION}"
+
+OUTPUT_DIR="${1:-${HOME}/outdir}"
+mkdir -p "${OUTPUT_DIR}"
+
+rattler-build build \
+  -c ga-fdp \
+  -c conda-forge \
+  --channel-priority=disabled \
+  --output-dir "${OUTPUT_DIR}"

@@ -42,11 +42,8 @@ tests:
   - script:
       env:
         BEARER_TOKEN: ${{ env.get("BEARER_TOKEN", default="") }}
-        XRD_PLUGINCONFDIR: $PREFIX/etc/xrootd/client.plugins.d
-        XRDCP_ALLOW_HTTP: "true"
-        XRD_PELICANUSEAUTHHEADERS: "true"
       content:
-        - cd tests && python testit.py
+        - fdp run bash -c 'cd tests && python testit.py'
     files:
       source:
         - tests/
