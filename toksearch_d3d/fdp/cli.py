@@ -6,7 +6,8 @@ import os
 import subprocess
 import warnings
 
-from pelicanfs.core import PelicanFileSystem as PelicanFS
+from XRootD import client
+from XRootD.client.flags import DirListFlags, StatInfoFlags
 
 
 ##############################################################################
@@ -42,6 +43,7 @@ def get_default_xrd_pluginconfdir():
 
 
 OSDF_SERVER = "pelican://osg-htc.org:443"
+ORIGIN_SERVER = "root://fdp-d3d-origin.nationalresearchplatform.org:8443"
 
 FDP_ROOT = f"{OSDF_SERVER}/fdp-d3d"
 ARCHIVES_DIR = f"{FDP_ROOT}/archives"
@@ -93,18 +95,18 @@ DEFAULT_CONFIG = {
 class FdpFileSystem:
     def __init__(self, server: str):
         self.server = server
-        self.fs = PelicanFS(server)
+        self.xrd_fs = client.FileSystem(server)
 
     def ls(self, path: str | Path, dirs_only: bool = False) -> list[Path]:
-        entries = self.fs.ls(str(path), detail=True)
+        _, listings = self.xrd_fs.dirlist(str(path), DirListFlags.STAT)
 
-        if not entries:
+        if not listings:
             return []
 
         if dirs_only:
-            entries = [e for e in entries if e["type"] == "directory"]
+            listings = [l for l in listings if l.statinfo.flags & StatInfoFlags.IS_DIR]
 
-        return [Path(e["name"]).name for e in entries]
+        return [Path(l.name) for l in listings]
 
 
 ##############################################################################
@@ -138,7 +140,7 @@ def do_env(args):
 
 
 def do_ls(args):
-    fs = FdpFileSystem(OSDF_SERVER)
+    fs = FdpFileSystem(ORIGIN_SERVER)
 
     if args.path == "/":
         listing = [Path(FDP_ROOT).name]
