@@ -27,10 +27,10 @@ def get_default_xrd_pluginconfdir():
     def _plugin_conf_path(base_dir):
         return os.path.join(base_dir, "etc", "xrootd", "client.plugins.d")
 
-    if prefix is not None:
-        return _plugin_conf_path(prefix)
-    elif conda_prefix is not None:
+    if conda_prefix is not None:
         return _plugin_conf_path(conda_prefix)
+    elif prefix is not None:
+        return _plugin_conf_path(prefix)
     else:
 
         val = os.getenv("XRD_PLUGINCONFDIR", None)
