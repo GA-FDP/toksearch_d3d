@@ -25,6 +25,9 @@ license = "Apache-2.0"
 requires-python = ">=3.9"
 dependencies = []
 
+[project.optional-dependencies]
+imas = ["imas_composer", "awkward>=2.0"]
+
 [project.scripts]
 fdp = "toksearch_d3d.fdp.cli:main"
 

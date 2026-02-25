@@ -16,5 +16,10 @@ from .signal.ptdata import PtDataSignal
 from .signal.ptdata import RDataSignal
 from .signal.cake import CakeSignal
 
+try:
+    from .signal.imas import ImasSignal, ImasBatchSignal
+except ImportError:
+    pass
+
 from . import _version
 __version__ = _version.get_versions()['version']

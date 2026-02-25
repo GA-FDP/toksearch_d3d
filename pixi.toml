@@ -24,3 +24,4 @@ toksearch = ">=2.4.5"
 
 [pypi-dependencies]
 toksearch_d3d = { path = ".", editable = true }
+imas_composer = { path = "../imas_composer", editable = true }
