@@ -34,7 +34,7 @@ requirements:
     - versioneer
   run:
     - python
-    - toksearch >=2.4.1
+    - toksearch >=2.4.5
     - ptdata >=1.4.3
 
 tests:
