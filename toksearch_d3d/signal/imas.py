@@ -289,7 +289,7 @@ class ImasSignal(Signal):
                 try:
                     arr = np.asarray(dim_val[i])
                     scale = self._dim_scales.get(dim_name, 1.0)
-                    entry[dim_name] = arr * scale if scale != 1.0 else arr
+                    entry[dim_name] = arr * scale 
                 except Exception:
                     pass
             result[key] = entry
@@ -336,7 +336,7 @@ class ImasSignal(Signal):
             if val is not None:
                 arr = _to_numpy(val)
                 scale = self._dim_scales.get(dim_name, 1.0)
-                out[dim_name] = arr * scale if scale != 1.0 else arr
+                out[dim_name] = arr * scale
 
         return out
 
