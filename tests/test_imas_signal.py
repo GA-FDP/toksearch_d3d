@@ -224,3 +224,35 @@ class TestImasSignalRaggedEquilibrium(unittest.TestCase):
         z = self._gather('equilibrium.time_slice.boundary.outline.z')['data']
         self.assertIsInstance(z, np.ndarray)
         self.assertEqual(len(z), len(r))
+
+
+SHOTS = [202161, 202159, 202160]
+
+
+class TestImasSignalMultiprocessing(unittest.TestCase):
+    """ImasSignal fetched in a Pipeline using multiprocessing (num_workers=2)."""
+
+    def test_multiprocessing_pipeline(self):
+        """Two workers each fetch ip and q95 for multiple shots; all results are valid ndarrays."""
+        from toksearch import Pipeline
+        from toksearch_d3d import ImasSignal
+
+        # Each ImasSignal creates its own ImasComposer so pickling to worker
+        # processes is straightforward — no shared state across workers.
+        pipeline = Pipeline(SHOTS)
+        pipeline.fetch('ip', ImasSignal('equilibrium.time_slice.global_quantities.ip'))
+        pipeline.fetch('q95', ImasSignal('equilibrium.time_slice.global_quantities.q_95'))
+        records = pipeline.compute_multiprocessing(num_workers=2)
+
+        self.assertEqual(len(records), len(SHOTS))
+        for rec in records:
+            for key in ('ip', 'q95'):
+                self.assertIn(key, rec)
+                self.assertIn('errors', rec)
+                data = rec[key]['data']
+                times = rec[key]['times']
+                self.assertIsInstance(data, np.ndarray)
+                self.assertIsInstance(times, np.ndarray)
+                self.assertEqual(data.ndim, 1)
+                self.assertGreater(len(data), 0)
+                self.assertEqual(len(times), len(data))
