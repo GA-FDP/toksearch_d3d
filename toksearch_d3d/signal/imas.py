@@ -113,10 +113,16 @@ class ImasSignal(Signal):
 
         When ``split_by='channel'``, each channel entry receives its slice of
         every resolved dim array.
+    dim_scales:
+        Dict mapping dimension name → numeric scale factor applied to the
+        fetched array before it is returned.  Default: ``{'times': 1000.0}``,
+        which converts IMAS time arrays from seconds to milliseconds (matching
+        the PTData / toksearch convention).  Pass ``{'times': 1.0}`` (or omit
+        ``'times'``) to keep raw IMAS seconds.
     units:
         Dict included verbatim as the ``'units'`` key in every per-channel
         entry when ``split_by='channel'``.  Keys are dimension names, e.g.
-        ``{'data': 'm^-3', 'times': 's'}``.  Defaults to ``{}``.
+        ``{'data': 'm^-3', 'times': 'ms'}``.  Defaults to ``{}``.
 
     Examples
     --------
@@ -143,14 +149,14 @@ class ImasSignal(Signal):
                 'r': 'thomson_scattering.channel.position.r',
                 'z': 'thomson_scattering.channel.position.z',
             },
-            units={'data': 'm^-3', 'times': 's', 'r': 'm', 'z': 'm'},
+            units={'data': 'm^-3', 'times': 'ms', 'r': 'm', 'z': 'm'},
         )
         result = sig.gather(202161)
         # result = {
         #   'TS_core_r+0_0': {
-        #       'data': array(...), 'times': array(...),
+        #       'data': array(...), 'times': array(...),  # times in ms (default)
         #       'r': float, 'z': float,
-        #       'units': {'data': 'm^-3', 'times': 's', 'r': 'm', 'z': 'm'},
+        #       'units': {'data': 'm^-3', 'times': 'ms', 'r': 'm', 'z': 'm'},
         #   },
         #   ...
         # }
@@ -169,6 +175,7 @@ class ImasSignal(Signal):
         max_resolve_iterations=10,
         split_by=None,
         dims=None,
+        dim_scales=None,
         units=None,
     ):
         super().__init__()
@@ -184,6 +191,7 @@ class ImasSignal(Signal):
         self._max_iter = max_resolve_iterations
         self._split_by = split_by
         self._dims = dims if dims is not None else {"times": "auto"}
+        self._dim_scales = dim_scales if dim_scales is not None else {"times": 1000.0}
         self._units = units if units is not None else {}
         self._parse_location(location)
 
@@ -279,7 +287,9 @@ class ImasSignal(Signal):
             entry = {'data': np.asarray(row), 'units': dict(self._units)}
             for dim_name, dim_val in dim_vals.items():
                 try:
-                    entry[dim_name] = np.asarray(dim_val[i])
+                    arr = np.asarray(dim_val[i])
+                    scale = self._dim_scales.get(dim_name, 1.0)
+                    entry[dim_name] = arr * scale if scale != 1.0 else arr
                 except Exception:
                     pass
             result[key] = entry
@@ -324,7 +334,9 @@ class ImasSignal(Signal):
                 continue
             val = self._fetch_dim(dim_path, shot, raw_data)
             if val is not None:
-                out[dim_name] = _to_numpy(val)
+                arr = _to_numpy(val)
+                scale = self._dim_scales.get(dim_name, 1.0)
+                out[dim_name] = arr * scale if scale != 1.0 else arr
 
         return out
 

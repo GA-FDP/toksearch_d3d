@@ -62,6 +62,23 @@ class TestImasSignal(unittest.TestCase):
         self.assertIn('times', result)
         self.assertIsInstance(result['times'], np.ndarray)
 
+    def test_equilibrium_times_default_ms(self):
+        """Default dim_scales converts IMAS seconds to milliseconds."""
+        result = self._gather('equilibrium.time_slice.global_quantities.ip')
+        # DIII-D shots run ~0–6000 ms; raw IMAS times are in seconds (<10).
+        self.assertGreater(result['times'].max(), 100.0)
+
+    def test_equilibrium_times_seconds_override(self):
+        """dim_scales={'times': 1.0} returns raw IMAS seconds."""
+        sig = self.ImasSignal(
+            'equilibrium.time_slice.global_quantities.ip',
+            composer=self.composer,
+            dim_scales={'times': 1.0},
+        )
+        result = sig.gather(SHOT)
+        self.assertIn('times', result)
+        self.assertLess(result['times'].max(), 10.0)
+
     # --- shape checks ---
 
     def test_equilibrium_ip_1d(self):
@@ -177,7 +194,7 @@ class TestImasSignalThomson(unittest.TestCase):
             'thomson_scattering.channel.n_e.data',
             split_by='channel',
             dims={'times': 'auto'},
-            units={'data': 'm^-3', 'times': 's'},
+            units={'data': 'm^-3', 'times': 'ms'},
         )
         self.assertIsInstance(result, dict)
         self.assertGreater(len(result), 0)
@@ -186,13 +203,14 @@ class TestImasSignalThomson(unittest.TestCase):
             # data
             self.assertIsInstance(entry['data'], np.ndarray)
             self.assertEqual(entry['data'].ndim, 1)
-            # times
+            # times — default dim_scales converts to ms
             self.assertIn('times', entry)
             self.assertIsInstance(entry['times'], np.ndarray)
             self.assertEqual(entry['times'].ndim, 1)
             self.assertEqual(len(entry['times']), len(entry['data']))
+            self.assertGreater(entry['times'].max(), 100.0)
             # units
-            self.assertEqual(entry['units'], {'data': 'm^-3', 'times': 's'})
+            self.assertEqual(entry['units'], {'data': 'm^-3', 'times': 'ms'})
 
 
 class TestImasSignalRaggedEquilibrium(unittest.TestCase):
