@@ -115,3 +115,112 @@ class TestImasSignal(unittest.TestCase):
         self.assertIn('q95', records[0])
         self.assertIsInstance(records[0]['ip']['data'], np.ndarray)
         self.assertIsInstance(records[0]['q95']['data'], np.ndarray)
+
+
+class TestImasSignalThomson(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        from toksearch_d3d import ImasSignal
+        from imas_composer import ImasComposer
+        cls.ImasSignal = ImasSignal
+        cls.composer = ImasComposer()
+
+    def _gather(self, ids_path, **kwargs):
+        sig = self.ImasSignal(ids_path, composer=self.composer, **kwargs)
+        return sig.gather(SHOT)
+
+    # --- scalar / position fields (regular numpy) ---
+
+    def test_position_r(self):
+        """channel.position.r must be a non-empty 1D float array."""
+        result = self._gather('thomson_scattering.channel.position.r')
+        self.assertIsInstance(result['data'], np.ndarray)
+        self.assertEqual(result['data'].ndim, 1)
+        self.assertGreater(len(result['data']), 0)
+
+    def test_position_z(self):
+        """channel.position.z must have the same length as position.r."""
+        r = self._gather('thomson_scattering.channel.position.r')['data']
+        z = self._gather('thomson_scattering.channel.position.z')['data']
+        self.assertIsInstance(z, np.ndarray)
+        self.assertEqual(len(z), len(r))
+
+    # --- ragged measurement fields (default: object array) ---
+
+    def test_ne_data_object_array(self):
+        """channel.n_e.data must be a numpy object array; each element is a 1-D float array."""
+        result = self._gather('thomson_scattering.channel.n_e.data')
+        data = result['data']
+        self.assertIsInstance(data, np.ndarray)
+        self.assertEqual(data.dtype, object)
+        self.assertGreater(len(data), 0)
+        for ch in data:
+            self.assertIsInstance(ch, np.ndarray)
+            self.assertEqual(ch.ndim, 1)
+
+    def test_te_data_object_array(self):
+        """channel.t_e.data must be a numpy object array; each element is a 1-D float array."""
+        result = self._gather('thomson_scattering.channel.t_e.data')
+        data = result['data']
+        self.assertIsInstance(data, np.ndarray)
+        self.assertEqual(data.dtype, object)
+        self.assertGreater(len(data), 0)
+        for ch in data:
+            self.assertIsInstance(ch, np.ndarray)
+            self.assertEqual(ch.ndim, 1)
+
+    # --- split_by='channel' ---
+
+    def test_ne_data_split_by_channel(self):
+        """split_by='channel' returns full per-channel dicts with data/times/units."""
+        result = self._gather(
+            'thomson_scattering.channel.n_e.data',
+            split_by='channel',
+            times_ids_path='auto',
+            units={'data': 'm^-3', 'times': 's'},
+        )
+        self.assertIsInstance(result, dict)
+        self.assertGreater(len(result), 0)
+        for name, entry in result.items():
+            self.assertIsInstance(name, str)
+            # data
+            self.assertIsInstance(entry['data'], np.ndarray)
+            self.assertEqual(entry['data'].ndim, 1)
+            # times
+            self.assertIn('times', entry)
+            self.assertIsInstance(entry['times'], np.ndarray)
+            self.assertEqual(entry['times'].ndim, 1)
+            self.assertEqual(len(entry['times']), len(entry['data']))
+            # units
+            self.assertEqual(entry['units'], {'data': 'm^-3', 'times': 's'})
+
+
+class TestImasSignalRaggedEquilibrium(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        from toksearch_d3d import ImasSignal
+        from imas_composer import ImasComposer
+        cls.ImasSignal = ImasSignal
+        cls.composer = ImasComposer()
+
+    def _gather(self, ids_path):
+        sig = self.ImasSignal(ids_path, composer=self.composer)
+        return sig.gather(SHOT)
+
+    def test_boundary_outline_r(self):
+        """boundary.outline.r must be a numpy object array; each element is a 1-D float array."""
+        result = self._gather('equilibrium.time_slice.boundary.outline.r')
+        data = result['data']
+        self.assertIsInstance(data, np.ndarray)
+        self.assertEqual(data.dtype, object)
+        self.assertGreater(len(data), 0)
+        for ts in data:
+            self.assertIsInstance(ts, np.ndarray)
+            self.assertEqual(ts.ndim, 1)
+
+    def test_boundary_outline_z(self):
+        """boundary.outline.z must have the same number of time slices as r."""
+        r = self._gather('equilibrium.time_slice.boundary.outline.r')['data']
+        z = self._gather('equilibrium.time_slice.boundary.outline.z')['data']
+        self.assertIsInstance(z, np.ndarray)
+        self.assertEqual(len(z), len(r))
