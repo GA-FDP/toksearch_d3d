@@ -17,7 +17,7 @@ from .signal.ptdata import RDataSignal
 from .signal.cake import CakeSignal
 
 try:
-    from .signal.imas import ImasSignal, ImasBatchSignal
+    from .signal.imas import ImasSignal
 except ImportError:
     pass
 

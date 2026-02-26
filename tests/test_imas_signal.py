@@ -13,29 +13,30 @@
 # limitations under the License.
 
 """
-Tests for ImasSignal and ImasBatchSignal.
+Tests for ImasSignal.
 
-Unit tests (TestImasSignalImport) run without MDSplus access.
-Integration tests require TOKSEARCH_INTEGRATION=yes, a valid BEARER_TOKEN,
-and MDSplus access to atlas.gat.com (or equivalent).
+Requires imas_composer to be installed and the FDP environment to be active
+(default_tree_path, BEARER_TOKEN, PTDATA_LOC, etc. set by `fdp run`).
 """
 
-import os
 import unittest
+import numpy as np
 
-
-SHOT = 200000
-_INTEGRATION = True
+SHOT = 202161
 
 
 class TestImasSignalImport(unittest.TestCase):
     def test_import(self):
         """toksearch_d3d should import cleanly; ImasSignal present when imas_composer installed."""
         import toksearch_d3d  # must not raise regardless of imas_composer presence
-        from toksearch_d3d import ImasSignal, ImasBatchSignal
+        from toksearch_d3d import ImasSignal
+
+    def test_imasbatchsignal_removed(self):
+        """ImasBatchSignal should no longer be exported."""
+        import toksearch_d3d
+        self.assertFalse(hasattr(toksearch_d3d, 'ImasBatchSignal'))
 
 
-@unittest.skipUnless(_INTEGRATION, 'Set TOKSEARCH_INTEGRATION=yes to run integration tests')
 class TestImasSignal(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -44,38 +45,63 @@ class TestImasSignal(unittest.TestCase):
         cls.ImasSignal = ImasSignal
         cls.composer = ImasComposer()
 
-    def test_gather_returns_data(self):
-        """ImasSignal.gather() returns a dict with 'data' key."""
-        sig = self.ImasSignal('equilibrium.time_slice.global_quantities.ip',
-                              composer=self.composer)
-        result = sig.gather(SHOT)
-        self.assertIn('data', result)
+    def _gather(self, ids_path):
+        sig = self.ImasSignal(ids_path, composer=self.composer)
+        return sig.gather(SHOT)
 
-    def test_equilibrium_ip_shape(self):
-        """Plasma current Ip should be a 1D time-series."""
-        sig = self.ImasSignal('equilibrium.time_slice.global_quantities.ip',
-                              composer=self.composer)
-        result = sig.gather(SHOT)
-        self.assertEqual(result['data'].ndim, 1)
+    # --- type checks ---
 
-    def test_equilibrium_profile_2d(self):
-        """profiles_1d.psi should be a 2D array (n_time, n_rho)."""
-        sig = self.ImasSignal('equilibrium.time_slice.profiles_1d.psi',
-                              composer=self.composer)
-        result = sig.gather(SHOT)
-        self.assertEqual(result['data'].ndim, 2)
+    def test_gather_returns_ndarray(self):
+        """gather() 'data' must be a numpy ndarray."""
+        result = self._gather('equilibrium.time_slice.global_quantities.ip')
+        self.assertIsInstance(result['data'], np.ndarray)
 
-    def test_times_present_for_time_varying_field(self):
-        """gather() should include 'times' aligned with 'data' for a time-varying field."""
-        sig = self.ImasSignal('equilibrium.time_slice.global_quantities.ip',
-                              composer=self.composer)
-        result = sig.gather(SHOT)
+    def test_equilibrium_times_ndarray(self):
+        """gather() 'times' must be a numpy ndarray when present."""
+        result = self._gather('equilibrium.time_slice.global_quantities.ip')
         self.assertIn('times', result)
-        self.assertEqual(result['times'].ndim, 1)
+        self.assertIsInstance(result['times'], np.ndarray)
+
+    # --- shape checks ---
+
+    def test_equilibrium_ip_1d(self):
+        """Plasma current Ip must be a non-empty 1D time-series."""
+        result = self._gather('equilibrium.time_slice.global_quantities.ip')
+        self.assertEqual(result['data'].ndim, 1)
+        self.assertGreater(len(result['data']), 0)
+
+    def test_equilibrium_times_aligned_with_ip(self):
+        """'times' length must match 'data' length for Ip."""
+        result = self._gather('equilibrium.time_slice.global_quantities.ip')
         self.assertEqual(len(result['times']), len(result['data']))
 
-    def test_shared_composer_in_pipeline(self):
-        """Two ImasSignal objects sharing one ImasComposer should both succeed in a Pipeline."""
+    def test_equilibrium_q95_1d(self):
+        """q95 must be a non-empty 1D array."""
+        result = self._gather('equilibrium.time_slice.global_quantities.q_95')
+        self.assertIsInstance(result['data'], np.ndarray)
+        self.assertEqual(result['data'].ndim, 1)
+        self.assertGreater(len(result['data']), 0)
+
+    def test_equilibrium_profile_2d(self):
+        """profiles_1d.psi must be 2D (n_time × n_rho)."""
+        result = self._gather('equilibrium.time_slice.profiles_1d.psi')
+        self.assertIsInstance(result['data'], np.ndarray)
+        self.assertEqual(result['data'].ndim, 2)
+        n_time, n_rho = result['data'].shape
+        self.assertGreater(n_time, 0)
+        self.assertGreater(n_rho, 0)
+
+    def test_equilibrium_time_itself(self):
+        """equilibrium.time must be a 1D ndarray."""
+        result = self._gather('equilibrium.time')
+        self.assertIsInstance(result['data'], np.ndarray)
+        self.assertEqual(result['data'].ndim, 1)
+        self.assertGreater(len(result['data']), 0)
+
+    # --- pipeline integration ---
+
+    def test_pipeline_two_signals(self):
+        """Two ImasSignal objects sharing one ImasComposer succeed in a Pipeline."""
         from toksearch import Pipeline
         pipeline = Pipeline([SHOT])
         pipeline.fetch('ip', self.ImasSignal(
@@ -87,22 +113,5 @@ class TestImasSignal(unittest.TestCase):
         records = pipeline.compute_serial()
         self.assertIn('ip', records[0])
         self.assertIn('q95', records[0])
-
-
-@unittest.skipUnless(_INTEGRATION, 'Set TOKSEARCH_INTEGRATION=yes to run integration tests')
-class TestImasBatchSignal(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        from toksearch_d3d import ImasBatchSignal
-        cls.ImasBatchSignal = ImasBatchSignal
-        cls.paths = [
-            'equilibrium.time',
-            'equilibrium.time_slice.global_quantities.ip',
-        ]
-
-    def test_gather_returns_all_paths(self):
-        """ImasBatchSignal.gather() returns a dict keyed by IDS path."""
-        sig = self.ImasBatchSignal(self.paths)
-        result = sig.gather(SHOT)
-        for p in self.paths:
-            self.assertIn(p, result, msg=f"Missing key: {p}")
+        self.assertIsInstance(records[0]['ip']['data'], np.ndarray)
+        self.assertIsInstance(records[0]['q95']['data'], np.ndarray)
