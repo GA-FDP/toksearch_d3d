@@ -176,7 +176,7 @@ class TestImasSignalThomson(unittest.TestCase):
         result = self._gather(
             'thomson_scattering.channel.n_e.data',
             split_by='channel',
-            times_ids_path='auto',
+            dims={'times': 'auto'},
             units={'data': 'm^-3', 'times': 's'},
         )
         self.assertIsInstance(result, dict)

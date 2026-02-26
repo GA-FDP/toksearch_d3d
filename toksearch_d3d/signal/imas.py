@@ -55,8 +55,8 @@ class ImasSignal(Signal):
     """Fetch a single IMAS IDS field as a toksearch Signal.
 
     Wraps imas_composer's three-stage resolve/fetch/compose cycle and exposes
-    the result through the standard Signal interface (gather returns
-    ``{'data': array, 'times': array}`` as numpy arrays).
+    the result through the standard Signal interface (gather returns a dict with
+    ``'data'`` and zero or more named dimension arrays, all as numpy arrays).
 
     For IDS fields that return ragged data (e.g. Thomson channel time series,
     equilibrium boundary outlines), ``data`` will be a numpy object array whose
@@ -91,21 +91,28 @@ class ImasSignal(Signal):
     split_by:
         How to handle channel-indexed data.
 
-        - ``None`` (default) — return ``{'data': ndarray}`` as usual; ragged
-          fields become numpy object arrays.
+        - ``None`` (default) — return ``{'data': ndarray, ...dims}`` as usual;
+          ragged fields become numpy object arrays.
         - ``'channel'`` — split the composed array along the channel axis and
           return a dict keyed by channel name (or integer index when names are
           unavailable).  Each value is
-          ``{'data': ndarray, 'units': dict}`` plus ``'times': ndarray`` when
-          ``times_ids_path`` is set.
-    times_ids_path:
-        IDS path whose composed value supplies per-channel times when
-        ``split_by='channel'``.
+          ``{'data': ndarray, 'units': dict, ...dims}``.
+    dims:
+        Dict mapping dimension name → IDS path spec for supplementary arrays
+        to fetch alongside ``data``.  Default: ``{"times": "auto"}``.
 
-        - ``None`` (default) — no ``'times'`` key in per-channel dicts.
-        - ``'auto'`` — derive from ``ids_path`` by replacing the terminal
-          ``.data`` or ``.data_error_upper`` component with ``.time``.
-        - any other string — use that path verbatim.
+        Each value is either ``'auto'`` or an explicit IDS path string.
+
+        ``'auto'`` resolution order:
+
+        1. If ``ids_path`` ends in ``.data`` or ``.data_error_upper``: replace
+           that suffix with ``.{dim_name}`` (e.g. ``channel.n_e.data`` →
+           ``channel.n_e.time`` for dim ``"times"``).
+        2. Otherwise fall back to ``{ids_name}.{dim_name}`` (e.g.
+           ``equilibrium.time`` for dim ``"times"`` on an equilibrium path).
+
+        When ``split_by='channel'``, each channel entry receives its slice of
+        every resolved dim array.
     units:
         Dict included verbatim as the ``'units'`` key in every per-channel
         entry when ``split_by='channel'``.  Keys are dimension names, e.g.
@@ -113,7 +120,7 @@ class ImasSignal(Signal):
 
     Examples
     --------
-    Scalar signal::
+    Scalar signal (default dims fetch equilibrium.time)::
 
         sig = ImasSignal('equilibrium.time_slice.global_quantities.ip')
         result = sig.gather(202161)
@@ -126,18 +133,25 @@ class ImasSignal(Signal):
         # result = {'data': array(shape=(n_channels,), dtype=object)}
         # result['data'][0]  →  1-D float64 array for channel 0
 
-    Channel-split field with times and units::
+    Channel-split with multiple dims and units::
 
         sig = ImasSignal(
             'thomson_scattering.channel.n_e.data',
             split_by='channel',
-            times_ids_path='auto',
-            units={'data': 'm^-3', 'times': 's'},
+            dims={
+                'times': 'auto',
+                'r': 'thomson_scattering.channel.position.r',
+                'z': 'thomson_scattering.channel.position.z',
+            },
+            units={'data': 'm^-3', 'times': 's', 'r': 'm', 'z': 'm'},
         )
         result = sig.gather(202161)
         # result = {
-        #   'TS_core_r+0_0': {'data': array(...), 'times': array(...),
-        #                      'units': {'data': 'm^-3', 'times': 's'}},
+        #   'TS_core_r+0_0': {
+        #       'data': array(...), 'times': array(...),
+        #       'r': float, 'z': float,
+        #       'units': {'data': 'm^-3', 'times': 's', 'r': 'm', 'z': 'm'},
+        #   },
         #   ...
         # }
     """
@@ -154,8 +168,8 @@ class ImasSignal(Signal):
         location=None,
         max_resolve_iterations=10,
         split_by=None,
-    times_ids_path=None,
-    units=None,
+        dims=None,
+        units=None,
     ):
         super().__init__()
         self.set_dims(['times'])
@@ -169,7 +183,7 @@ class ImasSignal(Signal):
         )
         self._max_iter = max_resolve_iterations
         self._split_by = split_by
-        self._times_ids_path = times_ids_path
+        self._dims = dims if dims is not None else {"times": "auto"}
         self._units = units if units is not None else {}
         self._parse_location(location)
 
@@ -198,17 +212,37 @@ class ImasSignal(Signal):
             sig = MdsSignal(req.mds_path, req.treename, location=self._location)
             return sig.gather(req.shot)['data']
 
-    def _resolve_times_ids_path(self):
-        """Return the concrete times IDS path to use, or None."""
-        if self._times_ids_path is None:
-            return None
-        if self._times_ids_path != 'auto':
-            return self._times_ids_path
+    def _resolve_dim_ids_path(self, dim_name, dim_spec):
+        """Return the IDS path that supplies dimension ``dim_name``.
+
+        ``dim_spec == 'auto'``:
+          1. If ``ids_path`` ends in ``.data_error_upper`` or ``.data``: replace
+             that suffix with ``.{dim_name}``.
+          2. Otherwise fall back to ``{ids_name}.{dim_name}``.
+        Any other string: used as-is.
+        """
+        if dim_spec != 'auto':
+            return dim_spec
         path = self.ids_path
-        if path.endswith('.data_error_upper'):
-            return path[:-len('.data_error_upper')] + '.time'
-        if path.endswith('.data'):
-            return path[:-len('.data')] + '.time'
+        for suffix in ('.data_error_upper', '.data'):
+            if path.endswith(suffix):
+                return path[:-len(suffix)] + f'.{dim_name}'
+        return f'{path.split(".")[0]}.{dim_name}'
+
+    def _fetch_dim(self, dim_path, shot, raw_data):
+        """Resolve and compose a single dim path; return composed value or None."""
+        try:
+            ts, tr = {}, []
+            for _ in range(self._max_iter):
+                ts, tr = self._composer.resolve([dim_path], shot, raw_data)
+                if ts.get(dim_path):
+                    break
+                for req in tr:
+                    raw_data[req.as_key()] = self._fetch_requirement(req)
+            if ts.get(dim_path):
+                return self._composer.compose([dim_path], shot, raw_data)[dim_path]
+        except Exception:
+            pass
         return None
 
     def _split_by_channel(self, shot, composed_val, raw_data):
@@ -218,51 +252,26 @@ class ImasSignal(Signal):
         # --- channel names ---
         names = None
         name_path = f'{ids_name}.channel.name'
-        try:
-            ts, tr = {}, []
-            for _ in range(3):
-                ts, tr = self._composer.resolve([name_path], shot, raw_data)
-                if ts.get(name_path):
-                    break
-                for req in tr:
-                    raw_data[req.as_key()] = self._fetch_requirement(req)
-            if ts.get(name_path):
-                names = np.asarray(
-                    self._composer.compose([name_path], shot, raw_data)[name_path]
-                )
-        except Exception:
-            pass
+        val = self._fetch_dim(name_path, shot, raw_data)
+        if val is not None:
+            names = np.asarray(val)
 
-        # --- per-channel times (optional) ---
-        times_val = None
-        times_path = self._resolve_times_ids_path()
-        if times_path:
-            try:
-                ts, tr = {}, []
-                for _ in range(self._max_iter):
-                    ts, tr = self._composer.resolve([times_path], shot, raw_data)
-                    if ts.get(times_path):
-                        break
-                    for req in tr:
-                        raw_data[req.as_key()] = self._fetch_requirement(req)
-                if ts.get(times_path):
-                    times_val = self._composer.compose(
-                        [times_path], shot, raw_data
-                    )[times_path]
-            except Exception:
-                pass
+        # --- per-channel dimension arrays ---
+        dim_vals = {}
+        for dim_name, dim_spec in self._dims.items():
+            dim_path = self._resolve_dim_ids_path(dim_name, dim_spec)
+            val = self._fetch_dim(dim_path, shot, raw_data)
+            if val is not None:
+                dim_vals[dim_name] = val
 
         # --- build result ---
         result = {}
         for i, row in enumerate(composed_val):
             key = str(names[i]) if (names is not None and i < len(names)) else str(i)
-            entry = {
-                'data':  np.asarray(row),
-                'units': dict(self._units),
-            }
-            if times_val is not None:
+            entry = {'data': np.asarray(row), 'units': dict(self._units)}
+            for dim_name, dim_val in dim_vals.items():
                 try:
-                    entry['times'] = np.asarray(times_val[i])
+                    entry[dim_name] = np.asarray(dim_val[i])
                 except Exception:
                     pass
             result[key] = entry
@@ -274,10 +283,10 @@ class ImasSignal(Signal):
         Returns
         -------
         dict
-            ``{'data': ndarray}`` always present (unless ``split_by='channel'``).
-            ``'times': ndarray`` added when an IDS-level time array is available.
+            ``{'data': ndarray, ...dims}`` when ``split_by`` is ``None``.
+            Each key in ``dims`` is added when its path resolves successfully.
             When ``split_by='channel'``: a plain dict keyed by channel name,
-            each value ``{'data': ndarray}``.
+            each value ``{'data': ndarray, 'units': dict, ...dims}``.
         """
         raw_data = {}
 
@@ -300,25 +309,14 @@ class ImasSignal(Signal):
 
         out = {'data': _to_numpy(composed)}
 
-        # Phase 3: best-effort time array (reuses already-fetched raw_data to
-        # avoid redundant MDSplus opens when the time is a direct requirement)
-        ids_name = self.ids_path.split('.')[0]
-        time_path = f'{ids_name}.time'
-        if time_path != self.ids_path:
-            try:
-                ts, tr = {}, []
-                for _ in range(3):
-                    ts, tr = self._composer.resolve([time_path], shot, raw_data)
-                    if ts[time_path]:
-                        break
-                    for req in tr:
-                        raw_data[req.as_key()] = self._fetch_requirement(req)
-                if ts.get(time_path, False):
-                    out['times'] = _to_numpy(
-                        self._composer.compose([time_path], shot, raw_data)[time_path]
-                    )
-            except Exception:
-                pass  # static field or unavailable — omit times key
+        # Phase 3: supplementary dimension arrays
+        for dim_name, dim_spec in self._dims.items():
+            dim_path = self._resolve_dim_ids_path(dim_name, dim_spec)
+            if dim_path == self.ids_path:
+                continue
+            val = self._fetch_dim(dim_path, shot, raw_data)
+            if val is not None:
+                out[dim_name] = _to_numpy(val)
 
         return out
 
