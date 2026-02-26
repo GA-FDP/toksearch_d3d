@@ -212,22 +212,30 @@ class ImasSignal(Signal):
             sig = MdsSignal(req.mds_path, req.treename, location=self._location)
             return sig.gather(req.shot)['data']
 
+    # Toksearch uses "times" as the conventional dim name, but the IMAS schema
+    # names the field "time" (singular).  This map translates dim names to the
+    # IDS component name used when constructing auto paths.
+    _DIM_IDS_NAME = {"times": "time"}
+
     def _resolve_dim_ids_path(self, dim_name, dim_spec):
         """Return the IDS path that supplies dimension ``dim_name``.
 
         ``dim_spec == 'auto'``:
           1. If ``ids_path`` ends in ``.data_error_upper`` or ``.data``: replace
-             that suffix with ``.{dim_name}``.
-          2. Otherwise fall back to ``{ids_name}.{dim_name}``.
+             that suffix with ``.{ids_component}`` (where ``ids_component`` is
+             ``dim_name`` after applying ``_DIM_IDS_NAME`` translation, e.g.
+             ``"times"`` → ``"time"``).
+          2. Otherwise fall back to ``{ids_name}.{ids_component}``.
         Any other string: used as-is.
         """
         if dim_spec != 'auto':
             return dim_spec
+        ids_component = self._DIM_IDS_NAME.get(dim_name, dim_name)
         path = self.ids_path
         for suffix in ('.data_error_upper', '.data'):
             if path.endswith(suffix):
-                return path[:-len(suffix)] + f'.{dim_name}'
-        return f'{path.split(".")[0]}.{dim_name}'
+                return path[:-len(suffix)] + f'.{ids_component}'
+        return f'{path.split(".")[0]}.{ids_component}'
 
     def _fetch_dim(self, dim_path, shot, raw_data):
         """Resolve and compose a single dim path; return composed value or None."""
