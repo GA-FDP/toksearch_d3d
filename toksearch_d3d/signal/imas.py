@@ -216,9 +216,20 @@ class ImasSignal(Signal):
                 'times': result['times'],
                 'rarray': result['header'].rarray.copy(),
             }
+        elif self._is_remote:
+            # Remote: use cached connection; connection.get() is a full TDI
+            # evaluator so dim_of() and other expressions work fine.
+            conn = MdsConnectionRegistry().connect(self._server)
+            conn.openTree(req.treename, req.shot)
+            return conn.get(req.mds_path).value
         else:
-            sig = MdsSignal(req.mds_path, req.treename, location=self._location)
-            return sig.gather(req.shot)['data']
+            # Local/Pelican: use cached tree from MdsTreeRegistry then evaluate
+            # via tdiExecute(), which handles arbitrary TDI expressions
+            # (dim_of(), scalars, node paths) unlike tree.getNode().
+            tree = MdsTreeRegistry().open_tree(
+                req.treename, req.shot, treepath=self._location
+            )
+            return tree.tdiExecute(req.mds_path).data()
 
     # Toksearch uses "times" as the conventional dim name, but the IMAS schema
     # names the field "time" (singular).  This map translates dim names to the
@@ -226,24 +237,43 @@ class ImasSignal(Signal):
     _DIM_IDS_NAME = {"times": "time"}
 
     def _resolve_dim_ids_path(self, dim_name, dim_spec):
-        """Return the IDS path that supplies dimension ``dim_name``.
+        """Return ordered candidate IDS paths that supply dimension ``dim_name``.
 
-        ``dim_spec == 'auto'``:
-          1. If ``ids_path`` ends in ``.data_error_upper`` or ``.data``: replace
-             that suffix with ``.{ids_component}`` (where ``ids_component`` is
-             ``dim_name`` after applying ``_DIM_IDS_NAME`` translation, e.g.
-             ``"times"`` → ``"time"``).
-          2. Otherwise fall back to ``{ids_name}.{ids_component}``.
-        Any other string: used as-is.
+        Returns a list so callers can try each in turn until one resolves.
+
+        ``dim_spec != 'auto'``:  returns ``[dim_spec]``.
+
+        ``dim_spec == 'auto'`` and ``ids_path`` ends in ``.data`` or
+        ``.data_error_upper``:
+          Traverses from the most-specific sibling up to the IDS top level.
+          E.g. for ``dim_name='times'`` and
+          ``ids_path='ece.channel.t_e.data'``::
+
+              ['ece.channel.t_e.time',   # strip .data, append .time
+               'ece.channel.time',        # one level up
+               'ece.time']               # IDS top level
+
+        ``dim_spec == 'auto'`` otherwise:  returns
+        ``['{ids_name}.{ids_component}']``.
         """
         if dim_spec != 'auto':
-            return dim_spec
+            return [dim_spec]
         ids_component = self._DIM_IDS_NAME.get(dim_name, dim_name)
         path = self.ids_path
+        ids_name = path.split('.')[0]
         for suffix in ('.data_error_upper', '.data'):
             if path.endswith(suffix):
-                return path[:-len(suffix)] + f'.{ids_component}'
-        return f'{path.split(".")[0]}.{ids_component}'
+                base = path[:-len(suffix)]
+                parts = base.split('.')
+                candidates = [
+                    '.'.join(parts[:i]) + f'.{ids_component}'
+                    for i in range(len(parts), 0, -1)
+                ]
+                top = f'{ids_name}.{ids_component}'
+                if top not in candidates:
+                    candidates.append(top)
+                return candidates
+        return [f'{ids_name}.{ids_component}']
 
     def _fetch_dim(self, dim_path, shot, raw_data):
         """Resolve and compose a single dim path; return composed value or None."""
@@ -275,8 +305,11 @@ class ImasSignal(Signal):
         # --- per-channel dimension arrays ---
         dim_vals = {}
         for dim_name, dim_spec in self._dims.items():
-            dim_path = self._resolve_dim_ids_path(dim_name, dim_spec)
-            val = self._fetch_dim(dim_path, shot, raw_data)
+            val = None
+            for dim_path in self._resolve_dim_ids_path(dim_name, dim_spec):
+                val = self._fetch_dim(dim_path, shot, raw_data)
+                if val is not None:
+                    break
             if val is not None:
                 dim_vals[dim_name] = val
 
@@ -328,11 +361,18 @@ class ImasSignal(Signal):
         out = {'data': _to_numpy(composed)}
 
         # Phase 3: supplementary dimension arrays
+        # TODO: the candidate-iteration + scale-and-store pattern here is
+        #   duplicated in _split_by_channel; consider extracting a helper
+        #   _fetch_all_dims(shot, raw_data) -> dict[str, ndarray] that both
+        #   callers can use.
         for dim_name, dim_spec in self._dims.items():
-            dim_path = self._resolve_dim_ids_path(dim_name, dim_spec)
-            if dim_path == self.ids_path:
-                continue
-            val = self._fetch_dim(dim_path, shot, raw_data)
+            val = None
+            for dim_path in self._resolve_dim_ids_path(dim_name, dim_spec):
+                if dim_path == self.ids_path:
+                    continue
+                val = self._fetch_dim(dim_path, shot, raw_data)
+                if val is not None:
+                    break
             if val is not None:
                 arr = _to_numpy(val)
                 scale = self._dim_scales.get(dim_name, 1.0)

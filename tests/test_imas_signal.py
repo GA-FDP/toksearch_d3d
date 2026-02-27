@@ -99,6 +99,27 @@ class TestImasSignal(unittest.TestCase):
         self.assertEqual(result['data'].ndim, 1)
         self.assertGreater(len(result['data']), 0)
 
+    def test_equilibrium_beta_normal_1d(self):
+        """beta_normal must be a non-empty 1D array."""
+        result = self._gather('equilibrium.time_slice.global_quantities.beta_normal')
+        self.assertIsInstance(result['data'], np.ndarray)
+        self.assertEqual(result['data'].ndim, 1)
+        self.assertGreater(len(result['data']), 0)
+
+    def test_equilibrium_li_3_1d(self):
+        """li_3 must be a non-empty 1D array."""
+        result = self._gather('equilibrium.time_slice.global_quantities.li_3')
+        self.assertIsInstance(result['data'], np.ndarray)
+        self.assertEqual(result['data'].ndim, 1)
+        self.assertGreater(len(result['data']), 0)
+
+    def test_equilibrium_magnetic_axis_r_1d(self):
+        """magnetic_axis.r must be a non-empty 1D array."""
+        result = self._gather('equilibrium.time_slice.global_quantities.magnetic_axis.r')
+        self.assertIsInstance(result['data'], np.ndarray)
+        self.assertEqual(result['data'].ndim, 1)
+        self.assertGreater(len(result['data']), 0)
+
     def test_equilibrium_profile_2d(self):
         """profiles_1d.psi must be 2D (n_time × n_rho)."""
         result = self._gather('equilibrium.time_slice.profiles_1d.psi')
@@ -107,6 +128,14 @@ class TestImasSignal(unittest.TestCase):
         n_time, n_rho = result['data'].shape
         self.assertGreater(n_time, 0)
         self.assertGreater(n_rho, 0)
+
+    def test_equilibrium_q_profile_2d(self):
+        """profiles_1d.q must be 2D (n_time × n_rho)."""
+        result = self._gather('equilibrium.time_slice.profiles_1d.q')
+        self.assertIsInstance(result['data'], np.ndarray)
+        self.assertEqual(result['data'].ndim, 2)
+        self.assertGreater(result['data'].shape[0], 0)
+        self.assertGreater(result['data'].shape[1], 0)
 
     def test_equilibrium_time_itself(self):
         """equilibrium.time must be a 1D ndarray."""
@@ -242,6 +271,142 @@ class TestImasSignalRaggedEquilibrium(unittest.TestCase):
         z = self._gather('equilibrium.time_slice.boundary.outline.z')['data']
         self.assertIsInstance(z, np.ndarray)
         self.assertEqual(len(z), len(r))
+
+
+# Magnetics and TF ptdata is indexed for shots ~200000 but not for 202161.
+SHOT_MAGNETICS = 200000
+
+
+class TestImasSignalMagnetics(unittest.TestCase):
+    """Magnetics IDS — fetched via ptdata (requires shot in ptdata JSON index)."""
+
+    @classmethod
+    def setUpClass(cls):
+        from toksearch_d3d import ImasSignal
+        from imas_composer import ImasComposer
+        cls.ImasSignal = ImasSignal
+        cls.composer = ImasComposer()
+
+    def _gather(self, ids_path):
+        sig = self.ImasSignal(ids_path, composer=self.composer)
+        return sig.gather(SHOT_MAGNETICS)
+
+    def test_ip_data_shape(self):
+        """magnetics.ip.data is (n_measurements, n_time); DIII-D has 1 measurement."""
+        result = self._gather('magnetics.ip.data')
+        self.assertIsInstance(result['data'], np.ndarray)
+        self.assertEqual(result['data'].ndim, 2)
+        self.assertEqual(result['data'].shape[0], 1)
+        self.assertGreater(result['data'].shape[1], 0)
+
+    def test_ip_times_in_ms(self):
+        """magnetics.ip.data times must be (n_measurements, n_time) and in ms."""
+        result = self._gather('magnetics.ip.data')
+        self.assertIn('times', result)
+        self.assertEqual(result['times'].ndim, 2)
+        self.assertGreater(result['times'].max(), 100.0)
+
+    def test_diamagnetic_flux_shape(self):
+        """magnetics.diamagnetic_flux.data is (n_measurements, n_time); DIII-D has 1."""
+        result = self._gather('magnetics.diamagnetic_flux.data')
+        self.assertIsInstance(result['data'], np.ndarray)
+        self.assertEqual(result['data'].ndim, 2)
+        self.assertEqual(result['data'].shape[0], 1)
+        self.assertGreater(result['data'].shape[1], 0)
+        self.assertIn('times', result)
+        self.assertEqual(result['times'].shape, result['data'].shape)
+
+
+class TestImasSignalTf(unittest.TestCase):
+    """Toroidal field IDS — fetched via ptdata (requires shot in ptdata JSON index)."""
+
+    @classmethod
+    def setUpClass(cls):
+        from toksearch_d3d import ImasSignal
+        from imas_composer import ImasComposer
+        cls.ImasSignal = ImasSignal
+        cls.composer = ImasComposer()
+
+    def _gather(self, ids_path):
+        sig = self.ImasSignal(ids_path, composer=self.composer)
+        return sig.gather(SHOT_MAGNETICS)
+
+    def test_b_field_tor_vacuum_r_1d(self):
+        """tf.b_field_tor_vacuum_r.data must be a non-empty 1D array with times."""
+        result = self._gather('tf.b_field_tor_vacuum_r.data')
+        self.assertIsInstance(result['data'], np.ndarray)
+        self.assertEqual(result['data'].ndim, 1)
+        self.assertGreater(len(result['data']), 0)
+        self.assertIn('times', result)
+        self.assertEqual(len(result['times']), len(result['data']))
+
+
+class TestImasSignalCoreProfiles(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        from toksearch_d3d import ImasSignal
+        from imas_composer import ImasComposer
+        cls.ImasSignal = ImasSignal
+        cls.composer = ImasComposer()
+
+    def _gather(self, ids_path):
+        sig = self.ImasSignal(ids_path, composer=self.composer)
+        return sig.gather(SHOT_MAGNETICS)
+
+    def test_time_1d(self):
+        """core_profiles.time must be a non-empty 1D array."""
+        result = self._gather('core_profiles.time')
+        self.assertIsInstance(result['data'], np.ndarray)
+        self.assertEqual(result['data'].ndim, 1)
+        self.assertGreater(len(result['data']), 0)
+
+    def test_electron_density_2d(self):
+        """profiles_1d.electrons.density_thermal must be 2D (n_time × n_rho)."""
+        result = self._gather('core_profiles.profiles_1d.electrons.density_thermal')
+        self.assertIsInstance(result['data'], np.ndarray)
+        self.assertEqual(result['data'].ndim, 2)
+        self.assertGreater(result['data'].shape[0], 0)
+        self.assertGreater(result['data'].shape[1], 0)
+
+    def test_electron_temperature_2d(self):
+        """profiles_1d.electrons.temperature must be 2D (n_time × n_rho)."""
+        result = self._gather('core_profiles.profiles_1d.electrons.temperature')
+        self.assertIsInstance(result['data'], np.ndarray)
+        self.assertEqual(result['data'].ndim, 2)
+        self.assertGreater(result['data'].shape[0], 0)
+        self.assertGreater(result['data'].shape[1], 0)
+
+    def test_density_temperature_same_shape(self):
+        """Electron density and temperature profiles must have the same shape."""
+        ne = self._gather('core_profiles.profiles_1d.electrons.density_thermal')['data']
+        te = self._gather('core_profiles.profiles_1d.electrons.temperature')['data']
+        self.assertEqual(ne.shape, te.shape)
+
+
+class TestImasSignalEce(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        from toksearch_d3d import ImasSignal
+        from imas_composer import ImasComposer
+        cls.ImasSignal = ImasSignal
+        cls.composer = ImasComposer()
+
+    def _gather(self, ids_path):
+        sig = self.ImasSignal(ids_path, composer=self.composer)
+        return sig.gather(SHOT_MAGNETICS)
+
+    def test_channel_te_data(self):
+        """ece.channel.t_e.data must be a non-empty ndarray."""
+        result = self._gather('ece.channel.t_e.data')
+        self.assertIsInstance(result['data'], np.ndarray)
+        self.assertGreater(result['data'].size, 0)
+
+    def test_channel_te_has_times(self):
+        """ece.channel.t_e.data times must be present and in milliseconds."""
+        result = self._gather('ece.channel.t_e.data')
+        self.assertIn('times', result)
+        self.assertIsInstance(result['times'], np.ndarray)
+        self.assertGreater(result['times'].max(), 100.0)
 
 
 SHOTS = [202161, 202159, 202160]
