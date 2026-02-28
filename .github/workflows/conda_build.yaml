@@ -10,6 +10,9 @@ on:
     branches:
       - main
 
+permissions:
+  contents: write
+
 jobs:
   build_and_test:
     runs-on: ubuntu-latest
@@ -40,3 +43,14 @@ jobs:
             --api-key ${{ secrets.ANACONDA_API_TOKEN }} \
             --force \
             ${HOME}/outdir/linux-64/*.conda
+
+      - name: Deploy Docs
+        if: startsWith(github.ref, 'refs/tags/release-')
+        run: |
+          TAG=${GITHUB_REF#refs/tags/release-}
+          MAJOR=$(echo $TAG | cut -d. -f1)
+          MINOR=$(echo $TAG | cut -d. -f2)
+
+          git config --global user.name "Docs Deploy"
+          git config --global user.email "toksearch-docs@fusion.gat.com"
+          pixi run -e docs mike deploy --push --update-aliases ${MAJOR}.${MINOR}.X latest

@@ -25,3 +25,21 @@ toksearch = ">=2.4.5"
 [pypi-dependencies]
 toksearch_d3d = { path = ".", editable = true }
 imas_composer = { path = "../imas_composer", editable = true }
+
+[feature.docs.dependencies]
+python = "3.10.*"
+mkdocs = "1.5.3.*"
+mkdocs-autorefs = "<1.4"
+mkdocs-material = "9.5.*"
+mkdocstrings = "0.24.1.*"
+mkdocstrings-python = "1.9.1.*"
+mkdocs-jupyter = "0.24.6.*"
+mike = "2.0.*"
+griffe = "<1"
+
+[feature.docs.tasks]
+docs-build = "mkdocs build"
+docs-serve = "mkdocs serve"
+
+[environments]
+docs = { features = ["docs"], no-default-feature = true }
