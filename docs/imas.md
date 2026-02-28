@@ -21,10 +21,10 @@ following example fetches the plasma current stored in the `equilibrium` IDS:
 
 ```python
 ip_sig = ImasSignal('equilibrium.time_slice.global_quantities.ip')
-result = ip_sig.gather(202161)
+result = ip_sig.fetch(202161)
 ```
 
-`gather` returns a plain dict.  By default it always includes `'data'` and,
+`fetch` returns a plain dict.  By default it always includes `'data'` and,
 when the IMAS time array can be found, `'times'`:
 
 ```python
@@ -37,7 +37,7 @@ print(result['times'][:5])    # times in milliseconds
 [ 100.  140.  160.  180.  200.]
 ```
 
-Times are returned in **milliseconds** by default, matching the PTData and
+Times are returned in **milliseconds** by default, matching the PTDATA and
 MDSplus convention used elsewhere in TokSearch.  See [Changing time
 units](#changing-time-units) below if you prefer raw IMAS seconds.
 
@@ -87,7 +87,7 @@ step.  `ImasSignal` returns them as 2-D numpy arrays:
 
 ```python
 q_sig = ImasSignal('equilibrium.time_slice.profiles_1d.q')
-result = q_sig.gather(202161)
+result = q_sig.fetch(202161)
 
 print(result['data'].shape)   # (n_time, n_rho)
 print(result['times'].shape)  # (n_time,)
@@ -113,7 +113,7 @@ as a **numpy object array** whose elements are 1-D numpy arrays:
 
 ```python
 ne_sig = ImasSignal('thomson_scattering.channel.n_e.data')
-result  = ne_sig.gather(202161)
+result  = ne_sig.fetch(202161)
 
 print(result['data'].dtype)        # object
 print(result['data'].shape)        # (n_channels,)
@@ -155,7 +155,7 @@ sig = ImasSignal(
         'z':     'thomson_scattering.channel.position.z',
     },
 )
-result = sig.gather(202161)
+result = sig.fetch(202161)
 print(result.keys())   # dict_keys(['data', 'times', 'z'])
 ```
 
@@ -166,7 +166,7 @@ sig = ImasSignal(
     'equilibrium.time_slice.global_quantities.ip',
     dims={},
 )
-result = sig.gather(202161)
+result = sig.fetch(202161)
 print(result.keys())   # dict_keys(['data'])
 ```
 
@@ -183,7 +183,7 @@ sig = ImasSignal(
     'equilibrium.time_slice.global_quantities.ip',
     dim_scales={'times': 1.0},
 )
-result = sig.gather(202161)
+result = sig.fetch(202161)
 print(result['times'][:3])   # seconds
 ```
 
@@ -214,7 +214,7 @@ ne_sig = ImasSignal(
     units={'data': 'm^-3', 'times': 'ms', 'r': 'm', 'z': 'm'},
 )
 
-result = ne_sig.gather(202161)
+result = ne_sig.fetch(202161)
 ```
 
 `result` is now a dict of per-channel entries:

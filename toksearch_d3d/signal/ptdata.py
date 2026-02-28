@@ -17,6 +17,25 @@ from ptdata import PtDataFetcher
 
 
 class PtDataSignal(Signal):
+    """Fetch a DIII-D PTDATA diagnostic as a toksearch Signal.
+
+    Wraps `ptdata.PtDataFetcher` and exposes the result through the standard
+    Signal interface.  Times are in milliseconds.
+
+    Args:
+        pointname: PTDATA point name (case-insensitive), e.g. `'ip'`.
+        remote: If True (default), access data via the Pelican/OSDF remote
+            store.  If False, use local PTDATA files.
+        ical: Calibration flag passed to `PtDataFetcher`.  `1` (default)
+            returns calibrated data; `0` returns raw counts.
+        keep_header: If True, include the raw PTDATA header dict in the
+            result under the `'header'` key.
+        fetch_times: If True (default), include a `'times'` array
+            (milliseconds) in the result.
+        fetch_units: If True (default), include a `'units'` dict in the
+            result.
+    """
+
     def __init__(
         self, pointname, remote=True, ical=1, keep_header=False, fetch_times=True, fetch_units=True
     ):
@@ -69,6 +88,17 @@ class PtDataSignal(Signal):
         pass
 
 class RDataSignal(PtDataSignal):
+    """Fetch the RDATA point from PTDATA as a toksearch Signal.
+
+    RDATA is a DIII-D operations lookup array.  This signal always fetches
+    the `RDATA` point with no time array and no units.
+
+    Args:
+        remote: If True (default), access data via the Pelican/OSDF remote
+            store.
+        keep_header: If True, include the raw PTDATA header dict in the
+            result under the `'header'` key.
+    """
 
     def __init__(
         self, remote=True, keep_header=False

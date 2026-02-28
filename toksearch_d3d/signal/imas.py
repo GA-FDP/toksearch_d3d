@@ -55,111 +55,71 @@ class ImasSignal(Signal):
     """Fetch a single IMAS IDS field as a toksearch Signal.
 
     Wraps imas_composer's three-stage resolve/fetch/compose cycle and exposes
-    the result through the standard Signal interface (gather returns a dict with
-    ``'data'`` and zero or more named dimension arrays, all as numpy arrays).
+    the result through the standard Signal interface (`fetch` returns a dict with
+    `'data'` and zero or more named dimension arrays, all as numpy arrays).
 
     For IDS fields that return ragged data (e.g. Thomson channel time series,
-    equilibrium boundary outlines), ``data`` will be a numpy object array whose
-    elements are 1-D numpy arrays.  Pass ``split_by='channel'`` to instead
+    equilibrium boundary outlines), `data` will be a numpy object array whose
+    elements are 1-D numpy arrays.  Pass `split_by='channel'` to instead
     receive a dict keyed by channel name (or integer index).
 
-    Parameters
-    ----------
-    ids_path:
-        Full IMAS path, e.g. ``'equilibrium.time_slice.global_quantities.ip'``.
-    composer:
-        Optional shared ``ImasComposer`` instance.  If not supplied a default
-        instance is created from the remaining keyword arguments.  Sharing one
-        composer across many ``ImasSignal`` objects avoids repeated mapper
-        initialisation.
-    efit_tree, efit_run_id:
-        Passed to ``ImasComposer`` when ``composer=None``.
-    profiles_tree, profiles_run_id:
-        Passed to ``ImasComposer`` when ``composer=None``.
-    fast_ece:
-        Passed to ``ImasComposer`` when ``composer=None``.
-    location:
-        MDSplus tree location.
+    Args:
+        ids_path: Full IMAS path, e.g.
+            `'equilibrium.time_slice.global_quantities.ip'`.
+        composer: Optional shared `ImasComposer` instance.  If not supplied a
+            default instance is created from the remaining keyword arguments.
+            Sharing one composer across many `ImasSignal` objects avoids
+            repeated mapper initialisation.
+        efit_tree: Passed to `ImasComposer` when `composer=None`.
+        efit_run_id: Passed to `ImasComposer` when `composer=None`.
+        profiles_tree: Passed to `ImasComposer` when `composer=None`.
+        profiles_run_id: Passed to `ImasComposer` when `composer=None`.
+        fast_ece: Passed to `ImasComposer` when `composer=None`.
+        location: MDSplus tree location. One of:
 
-        - ``None`` — use environment variables (``{TREENAME}_path`` or
-          ``default_tree_path``).
-        - A path string, e.g. ``'/path/to/trees'`` — local trees at that path.
-        - ``'remote://atlas.gat.com'`` — remote MDSplus server.
-        - An ``MdsTreePath`` object — passed directly to ``MdsSignal``.
-    max_resolve_iterations:
-        Maximum number of resolve/fetch iterations before giving up.
-    split_by:
-        How to handle channel-indexed data.
+            - `None` — use environment variables (`{TREENAME}_path` or
+              `default_tree_path`).
+            - A path string, e.g. `'/path/to/trees'` — local trees at that path.
+            - `'remote://atlas.gat.com'` — remote MDSplus server.
+            - An `MdsTreePath` object — passed directly to `MdsSignal`.
 
-        - ``None`` (default) — return ``{'data': ndarray, ...dims}`` as usual;
-          ragged fields become numpy object arrays.
-        - ``'channel'`` — split the composed array along the channel axis and
-          return a dict keyed by channel name (or integer index when names are
-          unavailable).  Each value is
-          ``{'data': ndarray, 'units': dict, ...dims}``.
-    dims:
-        Dict mapping dimension name → IDS path spec for supplementary arrays
-        to fetch alongside ``data``.  Default: ``{"times": "auto"}``.
+        max_resolve_iterations: Maximum number of resolve/fetch iterations
+            before giving up.
+        split_by: How to handle channel-indexed data.
 
-        Each value is either ``'auto'`` or an explicit IDS path string.
+            - `None` (default) — return `{'data': ndarray, ...dims}` as usual;
+              ragged fields become numpy object arrays.
+            - `'channel'` — split the composed array along the channel axis and
+              return a dict keyed by channel name (or integer index when names
+              are unavailable).
 
-        ``'auto'`` resolution order:
+        dims: Dict mapping dimension name to IDS path spec for supplementary
+            arrays to fetch alongside `data`.  Default: `{"times": "auto"}`.
 
-        1. If ``ids_path`` ends in ``.data`` or ``.data_error_upper``: replace
-           that suffix with ``.{dim_name}`` (e.g. ``channel.n_e.data`` →
-           ``channel.n_e.time`` for dim ``"times"``).
-        2. Otherwise fall back to ``{ids_name}.{dim_name}`` (e.g.
-           ``equilibrium.time`` for dim ``"times"`` on an equilibrium path).
+            Each value is either `'auto'` or an explicit IDS path string.
 
-        When ``split_by='channel'``, each channel entry receives its slice of
-        every resolved dim array.
-    dim_scales:
-        Dict mapping dimension name → numeric scale factor applied to the
-        fetched array before it is returned.  Default: ``{'times': 1000.0}``,
-        which converts IMAS time arrays from seconds to milliseconds (matching
-        the PTData / toksearch convention).  Pass ``{'times': 1.0}`` (or omit
-        ``'times'``) to keep raw IMAS seconds.
-    units:
-        Dict included verbatim as the ``'units'`` key in every per-channel
-        entry when ``split_by='channel'``.  Keys are dimension names, e.g.
-        ``{'data': 'm^-3', 'times': 'ms'}``.  Defaults to ``{}``.
+            `'auto'` resolution order:
 
-    Examples
-    --------
-    Scalar signal (default dims fetch equilibrium.time)::
+            1. If `ids_path` ends in `.data` or `.data_error_upper`: replace
+               that suffix with `.{dim_name}` (e.g. `channel.n_e.data` →
+               `channel.n_e.time` for dim `"times"`).
+            2. Otherwise fall back to `{ids_name}.{dim_name}` (e.g.
+               `equilibrium.time` for dim `"times"` on an equilibrium path).
 
+        dim_scales: Dict mapping dimension name to numeric scale factor applied
+            to the fetched array.  Default: `{'times': 1000.0}`, which converts
+            IMAS time arrays from seconds to milliseconds (matching the PTDATA /
+            toksearch convention).  Pass `{'times': 1.0}` to keep raw IMAS seconds.
+        units: Dict included verbatim as the `'units'` key in every per-channel
+            entry when `split_by='channel'`.  Keys are dimension names, e.g.
+            `{'data': 'm^-3', 'times': 'ms'}`.  Defaults to `{}`.
+
+    Example:
+        ```python
         sig = ImasSignal('equilibrium.time_slice.global_quantities.ip')
-        result = sig.gather(202161)
+        result = sig.fetch(202161)
         # result = {'data': array(shape=(n_time,)), 'times': array(shape=(n_time,))}
-
-    Ragged field (default)::
-
-        sig = ImasSignal('thomson_scattering.channel.n_e.data')
-        result = sig.gather(202161)
-        # result = {'data': array(shape=(n_channels,), dtype=object)}
-        # result['data'][0]  →  1-D float64 array for channel 0
-
-    Channel-split with multiple dims and units::
-
-        sig = ImasSignal(
-            'thomson_scattering.channel.n_e.data',
-            split_by='channel',
-            dims={
-                'times': 'auto',
-                'r': 'thomson_scattering.channel.position.r',
-                'z': 'thomson_scattering.channel.position.z',
-            },
-            units={'data': 'm^-3', 'times': 'ms', 'r': 'm', 'z': 'm'},
-        )
-        result = sig.gather(202161)
-        # result = {
-        #   'TS_core_r+0_0': {
-        #       'data': array(...), 'times': array(...),  # times in ms (default)
-        #       'r': float, 'z': float,
-        #       'units': {'data': 'm^-3', 'times': 'ms', 'r': 'm', 'z': 'm'},
-        #   },
-        #   ...
-        # }
+        ```
     """
 
     def __init__(
@@ -342,13 +302,11 @@ class ImasSignal(Signal):
     def gather(self, shot):
         """Fetch and compose the IDS field for the given shot.
 
-        Returns
-        -------
-        dict
-            ``{'data': ndarray, ...dims}`` when ``split_by`` is ``None``.
-            Each key in ``dims`` is added when its path resolves successfully.
-            When ``split_by='channel'``: a plain dict keyed by channel name,
-            each value ``{'data': ndarray, 'units': dict, ...dims}``.
+        Returns:
+            dict: `{'data': ndarray, ...dims}` when `split_by` is `None`.
+                Each key in `dims` is added when its path resolves successfully.
+                When `split_by='channel'`: a plain dict keyed by channel name,
+                each value `{'data': ndarray, 'units': dict, ...dims}`.
         """
         raw_data = {}
 
@@ -379,46 +337,37 @@ class ImasSignal(Signal):
     def fetch_as_xarray(self, shot):
         """Fetch and compose the IDS field, returning an xarray object.
 
-        Returns
-        -------
-        xr.DataArray
-            When ``split_by`` is ``None`` and data is a regular ndarray.
-            Dimension names come from resolved ``dims`` entries; any data
-            axes without a matching dim array receive a generic ``'dim_N'``
-            label.
-        xr.Dataset
-            When ``split_by='channel'``.  One ``DataArray`` per channel;
-            scalar dims (e.g. r, z channel positions) appear as variable
-            attributes.
+        Returns:
+            xr.DataArray: When `split_by` is `None` and data is a regular ndarray.
+                Dimension names come from resolved `dims` entries; any data axes
+                without a matching dim array receive a generic `'dim_N'` label.
+            xr.Dataset: When `split_by='channel'`. One DataArray per channel;
+                scalar dims (e.g. r, z channel positions) appear as variable
+                attributes.
 
-        Raises
-        ------
-        NotImplementedError
-            When ``split_by`` is ``None`` and the data is a ragged object
-            array (e.g. un-split Thomson channel time series).  Use
-            ``fetch()`` instead.
+        Raises:
+            NotImplementedError: When `split_by` is `None` and the data is a ragged
+                object array (e.g. un-split Thomson channel time series).
+                Use `fetch()` instead.
 
-        Notes
-        -----
-        **Ragged data** (``split_by=None``, ``dtype=object``):
-            IDS fields that return a numpy object array — such as
-            ``thomson_scattering.channel.n_e.data`` or
-            ``equilibrium.time_slice.boundary.outline.r`` — raise
-            ``NotImplementedError``.  Use ``fetch()`` to get the raw dict.
+        Note:
+            **Ragged data** (`split_by=None`, `dtype=object`): IDS fields that
+                return a numpy object array — such as
+                `thomson_scattering.channel.n_e.data` or
+                `equilibrium.time_slice.boundary.outline.r` — raise
+                `NotImplementedError`.  Use `fetch()` to get the raw dict.
 
-        **Ambiguous axis assignment for N-D data**:
-            Each 1-D dim array is matched to the first unused data axis of
-            equal length.  If two axes have the same length the assignment
-            may be wrong.  Supply explicit dim paths via the ``dims`` kwarg
-            to resolve the ambiguity, or use ``fetch()`` and construct the
-            ``DataArray`` manually.
+            **Ambiguous axis assignment for N-D data**: Each 1-D dim array is
+                matched to the first unused data axis of equal length.  If two axes
+                have the same length the assignment may be wrong.  Supply explicit
+                dim paths via the `dims` kwarg to resolve the ambiguity, or use
+                `fetch()` and construct the `DataArray` manually.
 
-        **Heterogeneous time bases with** ``split_by='channel'``:
-            Channels are merged with ``xr.merge(..., join='outer')``,
-            producing a unified ``'times'`` coordinate across the whole
-            ``Dataset``.  Channels that have no data at a particular time
-            are NaN there.  Call ``Pipeline.align()`` on the result if you
-            need a uniform, interpolated time base.
+            **Heterogeneous time bases with** `split_by='channel'`: Channels are
+                merged with `xr.merge(..., join='outer')`, producing a unified
+                `'times'` coordinate across the whole Dataset.  Channels that have
+                no data at a particular time are NaN there.  Call `Pipeline.align()`
+                on the result if you need a uniform, interpolated time base.
         """
         import xarray as xr
 

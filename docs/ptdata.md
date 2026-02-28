@@ -1,6 +1,6 @@
-# Fetching PTData Diagnostics with `PtDataSignal`
+# Fetching PTDATA Diagnostics with `PtDataSignal`
 
-`PtDataSignal` retrieves DIII-D time-series diagnostic data from the PTData store,
+`PtDataSignal` retrieves DIII-D time-series diagnostic data from the PTDATA store,
 fitting naturally into the standard TokSearch `Pipeline` workflow.
 
 ```python
@@ -11,12 +11,12 @@ from toksearch_d3d import PtDataSignal
 
 ## A simple fetch
 
-The first argument is the PTData point name (case-insensitive).  `gather` returns a
+The first argument is the PTDATA point name (case-insensitive).  `fetch` returns a
 plain dict containing `'data'`, `'times'` (in milliseconds), and `'units'`:
 
 ```python
 sig = PtDataSignal('ip')
-result = sig.gather(202161)
+result = sig.fetch(202161)
 
 print(result['data'].shape)          # (n_time,)
 print(result['times'][:5])           # ms
@@ -77,7 +77,7 @@ counts:
 
 ```python
 raw_sig = PtDataSignal('ip', ical=0)
-result  = raw_sig.gather(202161)
+result  = raw_sig.fetch(202161)
 ```
 
 ---
@@ -89,7 +89,7 @@ that does not vary in time — pass `fetch_times=False`:
 
 ```python
 sig = PtDataSignal('btor', fetch_times=False)
-result = sig.gather(202161)
+result = sig.fetch(202161)
 print(result.keys())   # dict_keys(['data', 'units'])
 ```
 
@@ -113,13 +113,13 @@ da = PtDataSignal('ip').fetch_as_xarray(202161)
 
 ## Inspecting the raw header (`keep_header`)
 
-Pass `keep_header=True` to include the PTData header dict in the result.  This is
+Pass `keep_header=True` to include the PTDATA header dict in the result.  This is
 useful for debugging or when you need metadata such as the point description or
 calibration coefficients:
 
 ```python
 sig = PtDataSignal('ip', keep_header=True)
-result = sig.gather(202161)
+result = sig.fetch(202161)
 print(result['header'])
 ```
 
@@ -127,15 +127,14 @@ print(result['header'])
 
 ## `RDataSignal` — major-radius lookup table
 
-`RDataSignal` is a convenience subclass that always fetches the `RDATA` point
-(major-radius grid used by certain equilibrium codes).  It has no time array and
-no units:
+`RDataSignal` is a convenience subclass that always fetches the `RDATA` point,
+a DIII-D operations lookup array.  It has no time array and no units:
 
 ```python
 from toksearch_d3d import RDataSignal
 
 rdata_sig = RDataSignal()
-result = rdata_sig.gather(202161)
+result = rdata_sig.fetch(202161)
 
 print(result['data'].shape)    # (n_radii,)
 ```
@@ -143,16 +142,3 @@ print(result['data'].shape)    # (n_radii,)
 `RDataSignal` takes the same optional `remote` and `keep_header` arguments as
 `PtDataSignal`.
 
----
-
-## API Reference
-
-::: toksearch_d3d.PtDataSignal
-    handler: python
-    options:
-        show_root_heading: True
-
-::: toksearch_d3d.RDataSignal
-    handler: python
-    options:
-        show_root_heading: True

@@ -49,6 +49,7 @@ nav:
     - "IMAS Data Access": imas.md
   - API:
     - "ImasSignal": imas_api.md
+    - "PtDataSignal / RDataSignal": ptdata_api.md
 
 theme:
   name: material
