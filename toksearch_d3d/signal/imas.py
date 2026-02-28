@@ -397,6 +397,28 @@ class ImasSignal(Signal):
             When ``split_by`` is ``None`` and the data is a ragged object
             array (e.g. un-split Thomson channel time series).  Use
             ``fetch()`` instead.
+
+        Notes
+        -----
+        **Ragged data** (``split_by=None``, ``dtype=object``):
+            IDS fields that return a numpy object array — such as
+            ``thomson_scattering.channel.n_e.data`` or
+            ``equilibrium.time_slice.boundary.outline.r`` — raise
+            ``NotImplementedError``.  Use ``fetch()`` to get the raw dict.
+
+        **Ambiguous axis assignment for N-D data**:
+            Each 1-D dim array is matched to the first unused data axis of
+            equal length.  If two axes have the same length the assignment
+            may be wrong.  Supply explicit dim paths via the ``dims`` kwarg
+            to resolve the ambiguity, or use ``fetch()`` and construct the
+            ``DataArray`` manually.
+
+        **Heterogeneous time bases with** ``split_by='channel'``:
+            Channels are merged with ``xr.merge(..., join='outer')``,
+            producing a unified ``'times'`` coordinate across the whole
+            ``Dataset``.  Channels that have no data at a particular time
+            are NaN there.  Call ``Pipeline.align()`` on the result if you
+            need a uniform, interpolated time base.
         """
         import xarray as xr
 
@@ -452,24 +474,14 @@ class ImasSignal(Signal):
         with the channel data become coordinates; scalar dims (e.g. r, z
         positions) become variable attributes.
 
-        When channels have inconsistent lengths for a given dim (heterogeneous
-        time bases), per-channel dimension names of the form
-        ``'{ch_name}__{dim_name}'`` are used to avoid xarray dimension
-        conflicts.
+        Channels are merged iteratively with ``xr.merge(..., join='outer')``,
+        mirroring the approach used by ``Pipeline.fetch_dataset``.  Channels
+        with heterogeneous time bases are represented by the union of all time
+        values; entries with no data at a given time are NaN.
         """
         import xarray as xr
 
-        # Determine whether each dim has a uniform length across all channels.
-        dim_lengths = {dim_name: set() for dim_name in self._dims}
-        for ch_entry in result.values():
-            for dim_name in self._dims:
-                if dim_name in ch_entry:
-                    dim_arr = np.asarray(ch_entry[dim_name])
-                    if dim_arr.ndim == 1:
-                        dim_lengths[dim_name].add(len(dim_arr))
-        uniform = {d: len(s) <= 1 for d, s in dim_lengths.items()}
-
-        data_vars = {}
+        ds = xr.Dataset()
         for ch_name, ch_entry in result.items():
             arr      = ch_entry['data']
             coords   = {}
@@ -482,9 +494,8 @@ class ImasSignal(Signal):
                 dim_arr = np.asarray(ch_entry[dim_name])
                 if dim_arr.ndim == 1 and len(dim_arr) == len(arr):
                     # 1-D array aligned with data → coordinate
-                    dim_key = dim_name if uniform[dim_name] else f'{ch_name}__{dim_name}'
-                    coords[dim_key] = dim_arr
-                    var_dims.append(dim_key)
+                    coords[dim_name] = dim_arr
+                    var_dims.append(dim_name)
                 elif dim_arr.ndim == 0 or (dim_arr.ndim == 1 and len(dim_arr) == 1):
                     # Scalar (e.g. r, z position) → attribute
                     attrs[dim_name] = float(dim_arr.flat[0])
@@ -493,14 +504,15 @@ class ImasSignal(Signal):
             if 'data' in units:
                 attrs['units'] = units['data']
 
-            data_vars[ch_name] = xr.DataArray(
+            da = xr.DataArray(
                 arr,
                 coords=coords,
                 dims=var_dims if var_dims else [f'{ch_name}__index'],
                 attrs=attrs,
             )
+            ds = xr.merge([ds, da.to_dataset(name=ch_name)], join="outer")
 
-        return xr.Dataset(data_vars)
+        return ds
 
     def cleanup_shot(self, shot):
         if self._is_remote:
