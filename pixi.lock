@@ -270,6 +270,9 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/zlib-1.3.1-hb9d3cd8_2.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/zstandard-0.25.0-py312h5253ce2_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/zstd-1.5.7-hb78ec9c_6.conda
+      - pypi: https://files.pythonhosted.org/packages/77/39/4d8414260c3d83f22029a39e51553c173611b378d62ca391e5ca68e65cfa/awkward-2.9.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/28/95/dc2b3a7b78c432e0b4d01d4874e4adbd9e46d146515023c9af569297708f/awkward_cpp-52-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl
+      - pypi: ../imas_composer
       - pypi: ./
 packages:
 - conda: https://conda.anaconda.org/conda-forge/linux-64/_libgcc_mutex-0.1-conda_forge.tar.bz2
@@ -449,6 +452,25 @@ packages:
   - pkg:pypi/attrs?source=compressed-mapping
   size: 64759
   timestamp: 1764875182184
+- pypi: https://files.pythonhosted.org/packages/77/39/4d8414260c3d83f22029a39e51553c173611b378d62ca391e5ca68e65cfa/awkward-2.9.0-py3-none-any.whl
+  name: awkward
+  version: 2.9.0
+  sha256: 4859e371c606ca7fe737546f302de08110d53ed986cdd1254fb059dd48912db6
+  requires_dist:
+  - awkward-cpp==52
+  - fsspec>=2022.11.0
+  - importlib-metadata>=4.13.0 ; python_full_version < '3.12'
+  - numpy>=1.21.3
+  - packaging
+  - typing-extensions>=4.1.0 ; python_full_version < '3.11'
+  requires_python: '>=3.10'
+- pypi: https://files.pythonhosted.org/packages/28/95/dc2b3a7b78c432e0b4d01d4874e4adbd9e46d146515023c9af569297708f/awkward_cpp-52-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl
+  name: awkward-cpp
+  version: '52'
+  sha256: 33de01875ee582c51609557a586c6d23ed5474408e7c2abd3f7919f34ba4fd0e
+  requires_dist:
+  - numpy>=1.21.3
+  requires_python: '>=3.10'
 - conda: https://conda.anaconda.org/conda-forge/linux-64/aws-c-auth-0.9.3-hef928c7_0.conda
   sha256: d9c5babed03371448bb0dc91a1573c80d278d1222a3b0accef079ed112e584f9
   md5: bdd464b33f6540ed70845b946c11a7b8
@@ -1221,6 +1243,22 @@ packages:
   - pkg:pypi/idna?source=hash-mapping
   size: 50721
   timestamp: 1760286526795
+- pypi: ../imas_composer
+  name: imas-composer
+  version: 0.0.0
+  sha256: f4ab4f418fb1fe0b967a9b1020f0c40d72e4177447cae2a346dec9fbaa3c5294
+  requires_dist:
+  - numpy>=1.20
+  - pyyaml>=5.4
+  - awkward>=2.0
+  - mdsplus ; extra == 'mds'
+  - mdsplus ; extra == 'omas'
+  - pytest>=7.0 ; extra == 'dev'
+  - pytest-benchmark>=4.0 ; extra == 'dev'
+  - mdsplus ; extra == 'full'
+  - pytest>=7.0 ; extra == 'full'
+  - pytest-benchmark>=4.0 ; extra == 'full'
+  requires_python: '>=3.10'
 - conda: https://conda.anaconda.org/conda-forge/noarch/importlib-metadata-8.7.0-pyhe01879c_1.conda
   sha256: c18ab120a0613ada4391b15981d86ff777b5690ca461ea7e9e49531e8f374745
   md5: 63ccfdc3a3ce25b027b8767eb722fca8
@@ -3624,8 +3662,11 @@ packages:
   timestamp: 1772048887211
 - pypi: ./
   name: toksearch-d3d
-  version: 0.2.3+0.gff8c69d.dirty
-  sha256: bf97e7dc47cb009953d7bc0a8d33c10f247429395fed09be00705d1095844d65
+  version: 0.2.4+1.ged78063
+  sha256: 6c8e0c3fe273f93442a863a47401efe629a8593a35db551d5d2e12f070eafe88
+  requires_dist:
+  - imas-composer ; extra == 'imas'
+  - awkward>=2.0 ; extra == 'imas'
   requires_python: '>=3.9'
 - conda: https://conda.anaconda.org/conda-forge/noarch/tomli-2.4.0-pyhcf101f3_0.conda
   sha256: 62940c563de45790ba0f076b9f2085a842a65662268b02dd136a8e9b1eaf47a8

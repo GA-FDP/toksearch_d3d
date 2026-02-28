@@ -291,38 +291,49 @@ class ImasSignal(Signal):
             pass
         return None
 
+    def _fetch_all_dims(self, shot, raw_data):
+        """Fetch, convert, and scale all ``self._dims``; return ``{dim_name: ndarray}``.
+
+        For each dim, candidate IDS paths from ``_resolve_dim_ids_path`` are
+        tried in priority order.  Any path equal to ``self.ids_path`` is
+        skipped.  Dims that fail to resolve are omitted from the result.
+        """
+        result = {}
+        for dim_name, dim_spec in self._dims.items():
+            val = None
+            for dim_path in self._resolve_dim_ids_path(dim_name, dim_spec):
+                if dim_path == self.ids_path:
+                    continue
+                val = self._fetch_dim(dim_path, shot, raw_data)
+                if val is not None:
+                    break
+            if val is not None:
+                arr = _to_numpy(val)
+                scale = self._dim_scales.get(dim_name, 1.0)
+                result[dim_name] = arr * scale
+        return result
+
     def _split_by_channel(self, shot, composed_val, raw_data):
         """Split a channel-indexed composed value into a dict keyed by channel name."""
         ids_name = self.ids_path.split('.')[0]
 
         # --- channel names ---
         names = None
-        name_path = f'{ids_name}.channel.name'
-        val = self._fetch_dim(name_path, shot, raw_data)
+        val = self._fetch_dim(f'{ids_name}.channel.name', shot, raw_data)
         if val is not None:
             names = np.asarray(val)
 
-        # --- per-channel dimension arrays ---
-        dim_vals = {}
-        for dim_name, dim_spec in self._dims.items():
-            val = None
-            for dim_path in self._resolve_dim_ids_path(dim_name, dim_spec):
-                val = self._fetch_dim(dim_path, shot, raw_data)
-                if val is not None:
-                    break
-            if val is not None:
-                dim_vals[dim_name] = val
+        # --- per-channel dimension arrays (already converted and scaled) ---
+        dim_arrs = self._fetch_all_dims(shot, raw_data)
 
         # --- build result ---
         result = {}
         for i, row in enumerate(composed_val):
             key = str(names[i]) if (names is not None and i < len(names)) else str(i)
             entry = {'data': np.asarray(row), 'units': dict(self._units)}
-            for dim_name, dim_val in dim_vals.items():
+            for dim_name, dim_arr in dim_arrs.items():
                 try:
-                    arr = np.asarray(dim_val[i])
-                    scale = self._dim_scales.get(dim_name, 1.0)
-                    entry[dim_name] = arr * scale 
+                    entry[dim_name] = np.asarray(dim_arr[i])
                 except Exception:
                     pass
             result[key] = entry
@@ -361,22 +372,7 @@ class ImasSignal(Signal):
         out = {'data': _to_numpy(composed)}
 
         # Phase 3: supplementary dimension arrays
-        # TODO: the candidate-iteration + scale-and-store pattern here is
-        #   duplicated in _split_by_channel; consider extracting a helper
-        #   _fetch_all_dims(shot, raw_data) -> dict[str, ndarray] that both
-        #   callers can use.
-        for dim_name, dim_spec in self._dims.items():
-            val = None
-            for dim_path in self._resolve_dim_ids_path(dim_name, dim_spec):
-                if dim_path == self.ids_path:
-                    continue
-                val = self._fetch_dim(dim_path, shot, raw_data)
-                if val is not None:
-                    break
-            if val is not None:
-                arr = _to_numpy(val)
-                scale = self._dim_scales.get(dim_name, 1.0)
-                out[dim_name] = arr * scale
+        out.update(self._fetch_all_dims(shot, raw_data))
 
         return out
 
