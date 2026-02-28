@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from toksearch import Signal
+from toksearch.utilities.utilities import set_env
 from ptdata import PtDataFetcher
 
 
@@ -24,8 +25,9 @@ class PtDataSignal(Signal):
 
     Args:
         pointname: PTDATA point name (case-insensitive), e.g. `'ip'`.
-        remote: If True (default), access data via the Pelican/OSDF remote
-            store.  If False, use local PTDATA files.
+        remote: If True (default), sets `PTDATA_LOC=1` for the fetch,
+            routing to the Pelican/OSDF remote store.  If False, sets
+            `PTDATA_LOC=0`, forcing local ptserver (athena) access.
         ical: Calibration flag passed to `PtDataFetcher`.  `1` (default)
             returns calibrated data; `0` returns raw counts.
         keep_header: If True, include the raw PTDATA header dict in the
@@ -43,7 +45,6 @@ class PtDataSignal(Signal):
         self.pointname = pointname
         self.remote = remote
         self.ical = ical
-        self.remote = remote
         self.keep_header = keep_header
         self.fetch_times = fetch_times
         self.with_units = fetch_units
@@ -56,27 +57,25 @@ class PtDataSignal(Signal):
 
 
     def gather(self, shot):
-
         dims = self.dims
         fetch_units = self.with_units
-        results = {}
-
 
         fetch_times = self.fetch_times and (len(dims) > 0)
 
-        fetcher = PtDataFetcher(self.pointname, shot)
-        results = fetcher.fetch(fetch_times=fetch_times, ical=self.ical)
+        ptdata_loc = '1' if self.remote else '0'
+        with set_env('PTDATA_LOC', ptdata_loc):
+            fetcher = PtDataFetcher(self.pointname, shot)
+            results = fetcher.fetch(fetch_times=fetch_times, ical=self.ical)
 
-        if self.keep_header:
-            results["header"] = fetcher.header
+            if self.keep_header:
+                results["header"] = fetcher.header
 
-        if fetch_units:
-            results["units"] = {}
-            encoding = "utf-8"
-            results["units"]["data"] = fetcher.units().decode(encoding)
-
-            if fetch_times:
-                results["units"][dims[0]] = "ms"
+            if fetch_units:
+                results["units"] = {}
+                encoding = "utf-8"
+                results["units"]["data"] = fetcher.units().decode(encoding)
+                if fetch_times:
+                    results["units"][dims[0]] = "ms"
 
         return results
 
@@ -94,8 +93,9 @@ class RDataSignal(PtDataSignal):
     the `RDATA` point with no time array and no units.
 
     Args:
-        remote: If True (default), access data via the Pelican/OSDF remote
-            store.
+        remote: If True (default), sets `PTDATA_LOC=1` for the fetch,
+            routing to the Pelican/OSDF remote store.  If False, sets
+            `PTDATA_LOC=0`, forcing local ptserver (athena) access.
         keep_header: If True, include the raw PTDATA header dict in the
             result under the `'header'` key.
     """
