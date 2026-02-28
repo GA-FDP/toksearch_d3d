@@ -40,35 +40,23 @@ mamba create -n toksearch_d3d -c ga-fdp -c conda-forge toksearch_d3d
 
 ### Installation from Source
 
-At the moment, the cleanest way to install TokSearch from source is to first set up a Conda/Mamba environment with the required dependencies, and then install TokSearch from the local clone of the repository. Here are the steps:
-
-First, clone the repository, then from the root directory of the repository, run:
+Clone the repository and use [pixi](https://pixi.sh) to set up the environment:
 
 ```bash
-mamba env create -f environment.yml
+git clone https://github.com/GA-FDP/toksearch_d3d
+cd toksearch_d3d
+pixi install
 ```
 
-or
+You can then run commands inside the environment with `pixi run`, for example:
 
 ```bash
-conda env create -f environment.yml
+pixi run python -c "import toksearch_d3d; print('ok')"
 ```
 
-You can also specify the ```-p``` flag to specify the path to the environment. For example:
+Or drop into an interactive shell:
 
 ```bash
-mamba env create -f environment.yml -p /path/to/env
-```
-
-Then, activate the environment:
-
-```bash
-conda activate toksearch # or whatever you named the environment
-```
-
-Finally, install TokSearch itself:
-
-```bash
-pip install -e .
+pixi shell
 ```
 
