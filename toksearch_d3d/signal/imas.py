@@ -376,6 +376,132 @@ class ImasSignal(Signal):
 
         return out
 
+    def fetch_as_xarray(self, shot):
+        """Fetch and compose the IDS field, returning an xarray object.
+
+        Returns
+        -------
+        xr.DataArray
+            When ``split_by`` is ``None`` and data is a regular ndarray.
+            Dimension names come from resolved ``dims`` entries; any data
+            axes without a matching dim array receive a generic ``'dim_N'``
+            label.
+        xr.Dataset
+            When ``split_by='channel'``.  One ``DataArray`` per channel;
+            scalar dims (e.g. r, z channel positions) appear as variable
+            attributes.
+
+        Raises
+        ------
+        NotImplementedError
+            When ``split_by`` is ``None`` and the data is a ragged object
+            array (e.g. un-split Thomson channel time series).  Use
+            ``fetch()`` instead.
+        """
+        import xarray as xr
+
+        result = self.gather(shot)
+
+        if self._split_by == 'channel':
+            return self._channel_result_to_dataset(result)
+
+        data = result['data']
+
+        if data.dtype == object:
+            raise NotImplementedError(
+                f"fetch_as_xarray() does not support ragged (object-array) "
+                f"data from '{self.ids_path}'. Use fetch() instead."
+            )
+
+        # Match each 1-D dim array to the first unused data axis of equal
+        # length.  Remaining axes get the generic label 'dim_N'.
+        axis_dims   = {}  # ax → dim_name
+        axis_coords = {}  # dim_name → array
+        used_axes   = set()
+
+        for dim_name in self._dims:
+            if dim_name not in result:
+                continue
+            dim_arr = np.asarray(result[dim_name])
+            if dim_arr.ndim != 1:
+                continue
+            for ax in range(data.ndim):
+                if ax not in used_axes and data.shape[ax] == len(dim_arr):
+                    axis_dims[ax]         = dim_name
+                    axis_coords[dim_name] = dim_arr
+                    used_axes.add(ax)
+                    break
+
+        xr_dims = [axis_dims.get(ax, f'dim_{ax}') for ax in range(data.ndim)]
+
+        attrs = {}
+        units = result.get('units', {})
+        if 'data' in units:
+            attrs['units'] = units['data']
+
+        da = xr.DataArray(data, coords=axis_coords, dims=xr_dims, attrs=attrs)
+        for dim_name in axis_coords:
+            if dim_name in units:
+                da[dim_name].attrs = {'units': units[dim_name]}
+        return da
+
+    def _channel_result_to_dataset(self, result):
+        """Convert a channel-split ``gather()`` result to an ``xr.Dataset``.
+
+        Each channel entry becomes one ``DataArray``.  1-D dim arrays aligned
+        with the channel data become coordinates; scalar dims (e.g. r, z
+        positions) become variable attributes.
+
+        When channels have inconsistent lengths for a given dim (heterogeneous
+        time bases), per-channel dimension names of the form
+        ``'{ch_name}__{dim_name}'`` are used to avoid xarray dimension
+        conflicts.
+        """
+        import xarray as xr
+
+        # Determine whether each dim has a uniform length across all channels.
+        dim_lengths = {dim_name: set() for dim_name in self._dims}
+        for ch_entry in result.values():
+            for dim_name in self._dims:
+                if dim_name in ch_entry:
+                    dim_arr = np.asarray(ch_entry[dim_name])
+                    if dim_arr.ndim == 1:
+                        dim_lengths[dim_name].add(len(dim_arr))
+        uniform = {d: len(s) <= 1 for d, s in dim_lengths.items()}
+
+        data_vars = {}
+        for ch_name, ch_entry in result.items():
+            arr      = ch_entry['data']
+            coords   = {}
+            var_dims = []
+            attrs    = {}
+
+            for dim_name in self._dims:
+                if dim_name not in ch_entry:
+                    continue
+                dim_arr = np.asarray(ch_entry[dim_name])
+                if dim_arr.ndim == 1 and len(dim_arr) == len(arr):
+                    # 1-D array aligned with data → coordinate
+                    dim_key = dim_name if uniform[dim_name] else f'{ch_name}__{dim_name}'
+                    coords[dim_key] = dim_arr
+                    var_dims.append(dim_key)
+                elif dim_arr.ndim == 0 or (dim_arr.ndim == 1 and len(dim_arr) == 1):
+                    # Scalar (e.g. r, z position) → attribute
+                    attrs[dim_name] = float(dim_arr.flat[0])
+
+            units = ch_entry.get('units', {})
+            if 'data' in units:
+                attrs['units'] = units['data']
+
+            data_vars[ch_name] = xr.DataArray(
+                arr,
+                coords=coords,
+                dims=var_dims if var_dims else [f'{ch_name}__index'],
+                attrs=attrs,
+            )
+
+        return xr.Dataset(data_vars)
+
     def cleanup_shot(self, shot):
         if self._is_remote:
             try:

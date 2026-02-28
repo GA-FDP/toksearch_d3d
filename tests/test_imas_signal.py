@@ -409,6 +409,123 @@ class TestImasSignalEce(unittest.TestCase):
         self.assertGreater(result['times'].max(), 100.0)
 
 
+class TestImasSignalXarray(unittest.TestCase):
+    """fetch_as_xarray() must produce sensible xarray objects for all data shapes."""
+
+    @classmethod
+    def setUpClass(cls):
+        import xarray as xr
+        from toksearch_d3d import ImasSignal
+        from imas_composer import ImasComposer
+        cls.xr = xr
+        cls.ImasSignal = ImasSignal
+        cls.composer_eq = ImasComposer()
+        cls.composer_cp = ImasComposer()
+
+    # --- scalar 1-D signals ---
+
+    def test_scalar_1d_dataarray(self):
+        """equilibrium ip must produce a 1-D DataArray with a 'times' dimension."""
+        sig = self.ImasSignal(
+            'equilibrium.time_slice.global_quantities.ip',
+            composer=self.composer_eq,
+        )
+        da = sig.fetch_as_xarray(SHOT)
+        self.assertIsInstance(da, self.xr.DataArray)
+        self.assertEqual(da.ndim, 1)
+        self.assertIn('times', da.dims)
+
+    def test_scalar_1d_times_in_ms(self):
+        """The 'times' coordinate must be in milliseconds (default dim_scales)."""
+        sig = self.ImasSignal(
+            'equilibrium.time_slice.global_quantities.ip',
+            composer=self.composer_eq,
+        )
+        da = sig.fetch_as_xarray(SHOT)
+        self.assertGreater(float(da.coords['times'].max()), 100.0)
+
+    # --- 2-D profile data ---
+
+    def test_profile_2d_dataarray(self):
+        """core_profiles electron density must produce a 2-D DataArray."""
+        sig = self.ImasSignal(
+            'core_profiles.profiles_1d.electrons.density_thermal',
+            composer=self.composer_cp,
+        )
+        da = sig.fetch_as_xarray(SHOT_MAGNETICS)
+        self.assertIsInstance(da, self.xr.DataArray)
+        self.assertEqual(da.ndim, 2)
+        self.assertEqual(da.dims[0], 'times')
+        self.assertEqual(da.dims[1], 'dim_1')
+
+    def test_profile_2d_times_coord(self):
+        """The 'times' coordinate of the 2-D DataArray must be present and in ms."""
+        sig = self.ImasSignal(
+            'core_profiles.profiles_1d.electrons.density_thermal',
+            composer=self.composer_cp,
+        )
+        da = sig.fetch_as_xarray(SHOT_MAGNETICS)
+        self.assertIn('times', da.coords)
+        self.assertGreater(float(da.coords['times'].max()), 100.0)
+
+    # --- ragged object arrays must raise ---
+
+    def test_ragged_raises_not_implemented(self):
+        """fetch_as_xarray() must raise NotImplementedError for ragged data."""
+        sig = self.ImasSignal(
+            'thomson_scattering.channel.n_e.data',
+            composer=self.composer_eq,
+        )
+        with self.assertRaises(NotImplementedError):
+            sig.fetch_as_xarray(SHOT)
+
+    # --- channel-split → xr.Dataset ---
+
+    def test_channel_split_returns_dataset(self):
+        """split_by='channel' must return a non-empty xr.Dataset."""
+        sig = self.ImasSignal(
+            'thomson_scattering.channel.n_e.data',
+            split_by='channel',
+            dims={'times': 'auto'},
+            composer=self.composer_eq,
+        )
+        ds = sig.fetch_as_xarray(SHOT)
+        self.assertIsInstance(ds, self.xr.Dataset)
+        self.assertGreater(len(ds.data_vars), 0)
+
+    def test_channel_split_dataset_has_units_attrs(self):
+        """Each DataArray in the Dataset must carry a 'units' attribute."""
+        sig = self.ImasSignal(
+            'thomson_scattering.channel.n_e.data',
+            split_by='channel',
+            dims={'times': 'auto'},
+            units={'data': 'm^-3', 'times': 'ms'},
+            composer=self.composer_eq,
+        )
+        ds = sig.fetch_as_xarray(SHOT)
+        for var in ds.data_vars.values():
+            self.assertEqual(var.attrs.get('units'), 'm^-3')
+
+    def test_channel_split_scalar_dims_as_attrs(self):
+        """Scalar dims (r, z) must appear as float attributes on each DataArray."""
+        sig = self.ImasSignal(
+            'thomson_scattering.channel.n_e.data',
+            split_by='channel',
+            dims={
+                'times': 'auto',
+                'r': 'thomson_scattering.channel.position.r',
+                'z': 'thomson_scattering.channel.position.z',
+            },
+            composer=self.composer_eq,
+        )
+        ds = sig.fetch_as_xarray(SHOT)
+        for var in ds.data_vars.values():
+            self.assertIn('r', var.attrs)
+            self.assertIn('z', var.attrs)
+            self.assertIsInstance(var.attrs['r'], float)
+            self.assertIsInstance(var.attrs['z'], float)
+
+
 SHOTS = [202161, 202159, 202160]
 
 
