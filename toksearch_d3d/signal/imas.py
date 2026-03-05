@@ -121,6 +121,11 @@ class ImasSignal(Signal):
         units: Dict included verbatim as the `'units'` key in every per-channel
             entry when `split_by='channel'`.  Keys are dimension names, e.g.
             `{'data': 'm^-3', 'times': 'ms'}`.  Defaults to `{}`.
+        as_awkward: If `True`, return the raw composed value from imas_composer
+            without converting to numpy.  The result may be an `ak.Array`
+            (regular or ragged) or a plain `np.ndarray` depending on the field.
+            Useful for preserving ragged structure instead of receiving a numpy
+            object array.  Defaults to `False` (numpy output).
 
     Example:
         ```python
@@ -145,6 +150,7 @@ class ImasSignal(Signal):
         dims=None,
         dim_scales=None,
         units=None,
+        as_awkward=False,
     ):
         super().__init__()
         self.set_dims(['times'])
@@ -157,6 +163,7 @@ class ImasSignal(Signal):
             fast_ece=fast_ece,
         )
         self._max_iter = max_resolve_iterations
+        self._as_awkward = as_awkward
         self._split_by = split_by
         self._dims = dims if dims is not None else {"times": "auto"}
         self._dim_scales = dim_scales if dim_scales is not None else {"times": 1000.0}
@@ -334,7 +341,8 @@ class ImasSignal(Signal):
                 raw_data[req.as_key()] = self._fetch_requirement(req)
 
         composed = self._composer.compose(self._leaf_paths, shot, raw_data)
-        return {path: {'data': _to_numpy(val)} for path, val in composed.items()}
+        convert = (lambda v: v) if self._as_awkward else _to_numpy
+        return {path: convert(val) for path, val in composed.items()}
 
     def gather(self, shot):
         """Fetch and compose the IDS field(s) for the given shot.
@@ -345,7 +353,7 @@ class ImasSignal(Signal):
                 When `split_by='channel'`: a dict keyed by channel name,
                 each value `{'data': ndarray, 'units': dict, ...dims}`.
                 When `ids_path` is a **prefix path**: a dict keyed by full
-                leaf path, each value `{'data': ndarray}`.
+                leaf path, each value a plain ndarray.
         """
         if self._leaf_paths is not None:
             return self._gather_prefix(shot)
@@ -369,7 +377,7 @@ class ImasSignal(Signal):
         if self._split_by == 'channel':
             return self._split_by_channel(shot, composed, raw_data)
 
-        out = {'data': _to_numpy(composed)}
+        out = {'data': composed if self._as_awkward else _to_numpy(composed)}
 
         # Phase 3: supplementary dimension arrays
         out.update(self._fetch_all_dims(shot, raw_data))

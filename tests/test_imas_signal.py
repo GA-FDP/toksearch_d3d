@@ -556,3 +556,54 @@ class TestImasSignalMultiprocessing(unittest.TestCase):
                 self.assertEqual(data.ndim, 1)
                 self.assertGreater(len(data), 0)
                 self.assertEqual(len(times), len(data))
+
+
+class TestImasSignalAsAwkward(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        from toksearch_d3d import ImasSignal
+        from imas_composer import ImasComposer
+        cls.ImasSignal = ImasSignal
+        cls.composer = ImasComposer()
+
+    def test_default_returns_numpy(self):
+        """Default (as_awkward=False) returns numpy object array for ragged field."""
+        sig = self.ImasSignal(
+            'equilibrium.time_slice.boundary.outline.r',
+            composer=self.composer
+        )
+        result = sig.gather(SHOT)
+        self.assertIsInstance(result['data'], np.ndarray)
+
+    def test_as_awkward_returns_awkward(self):
+        """as_awkward=True returns ak.Array for ragged field."""
+        import awkward as ak
+        sig = self.ImasSignal(
+            'equilibrium.time_slice.boundary.outline.r',
+            composer=self.composer,
+            as_awkward=True
+        )
+        result = sig.gather(SHOT)
+        self.assertIsInstance(result['data'], ak.Array)
+
+    def test_prefix_default_returns_numpy(self):
+        """Prefix fetch default returns numpy arrays."""
+        sig = self.ImasSignal(
+            'equilibrium.time_slice.global_quantities',
+            composer=self.composer
+        )
+        result = sig.gather(SHOT)
+        for val in result.values():
+            self.assertIsInstance(val, np.ndarray)
+
+    def test_prefix_as_awkward(self):
+        """Prefix fetch with as_awkward=True returns ak.Array or np.ndarray values."""
+        import awkward as ak
+        sig = self.ImasSignal(
+            'equilibrium.time_slice.global_quantities',
+            composer=self.composer,
+            as_awkward=True
+        )
+        result = sig.gather(SHOT)
+        for val in result.values():
+            self.assertIsInstance(val, (ak.Array, np.ndarray))
