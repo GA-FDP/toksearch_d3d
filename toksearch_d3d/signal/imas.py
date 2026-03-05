@@ -52,11 +52,19 @@ def _to_numpy(val):
 
 
 class ImasSignal(Signal):
-    """Fetch a single IMAS IDS field as a toksearch Signal.
+    """Fetch one or more IMAS IDS fields as a toksearch Signal.
 
     Wraps imas_composer's three-stage resolve/fetch/compose cycle and exposes
     the result through the standard Signal interface (`fetch` returns a dict with
     `'data'` and zero or more named dimension arrays, all as numpy arrays).
+
+    `ids_path` may be either a **leaf path** or a **prefix path**:
+
+    - **Leaf path** (`'ece.channel.t_e.data'`): fetches that single field.
+      Returns `{'data': ndarray, ...dims}` as usual.
+    - **Prefix path** (`'ece.channel'` or `'ece'`): fetches all supported fields
+      under that subtree in one batched compose call.
+      Returns `{full_ids_path: {'data': ndarray}, ...}` — one entry per leaf.
 
     For IDS fields that return ragged data (e.g. Thomson channel time series,
     equilibrium boundary outlines), `data` will be a numpy object array whose
@@ -64,8 +72,8 @@ class ImasSignal(Signal):
     receive a dict keyed by channel name (or integer index).
 
     Args:
-        ids_path: Full IMAS path, e.g.
-            `'equilibrium.time_slice.global_quantities.ip'`.
+        ids_path: Full IMAS leaf path or prefix, e.g.
+            `'equilibrium.time_slice.global_quantities.ip'` or `'ece.channel'`.
         composer: Optional shared `ImasComposer` instance.  If not supplied a
             default instance is created from the remaining keyword arguments.
             Sharing one composer across many `ImasSignal` objects avoids
@@ -154,6 +162,19 @@ class ImasSignal(Signal):
         self._dim_scales = dim_scales if dim_scales is not None else {"times": 1000.0}
         self._units = units if units is not None else {}
         self._parse_location(location)
+
+        # Detect leaf vs prefix path.
+        leaf_paths = self._composer.get_supported_fields(ids_path)
+        if len(leaf_paths) == 1 and leaf_paths[0] == ids_path:
+            self._leaf_paths = None  # leaf mode — existing single-field behaviour
+        elif len(leaf_paths) > 1:
+            if split_by is not None:
+                raise ValueError(
+                    "split_by is not supported for prefix IDS paths"
+                )
+            self._leaf_paths = leaf_paths  # prefix mode — multi-field batch
+        else:
+            raise ValueError(f"No supported fields found for '{ids_path}'")
 
     def _parse_location(self, location):
         """Store location and determine cleanup mode."""
@@ -299,15 +320,36 @@ class ImasSignal(Signal):
             result[key] = entry
         return result
 
+    def _gather_prefix(self, shot):
+        """Fetch and compose all leaf fields under the prefix path in one batch."""
+        raw_data = {}
+
+        for _ in range(self._max_iter):
+            status, requirements = self._composer.resolve(
+                self._leaf_paths, shot, raw_data
+            )
+            if all(status.values()):
+                break
+            for req in requirements:
+                raw_data[req.as_key()] = self._fetch_requirement(req)
+
+        composed = self._composer.compose(self._leaf_paths, shot, raw_data)
+        return {path: {'data': _to_numpy(val)} for path, val in composed.items()}
+
     def gather(self, shot):
-        """Fetch and compose the IDS field for the given shot.
+        """Fetch and compose the IDS field(s) for the given shot.
 
         Returns:
-            dict: `{'data': ndarray, ...dims}` when `split_by` is `None`.
-                Each key in `dims` is added when its path resolves successfully.
-                When `split_by='channel'`: a plain dict keyed by channel name,
+            dict: When `ids_path` is a **leaf path** and `split_by` is `None`:
+                `{'data': ndarray, ...dims}`.
+                When `split_by='channel'`: a dict keyed by channel name,
                 each value `{'data': ndarray, 'units': dict, ...dims}`.
+                When `ids_path` is a **prefix path**: a dict keyed by full
+                leaf path, each value `{'data': ndarray}`.
         """
+        if self._leaf_paths is not None:
+            return self._gather_prefix(shot)
+
         raw_data = {}
 
         # Phase 1: iteratively resolve and fetch requirements for the primary path
@@ -370,6 +412,12 @@ class ImasSignal(Signal):
                 on the result if you need a uniform, interpolated time base.
         """
         import xarray as xr
+
+        if self._leaf_paths is not None:
+            raise NotImplementedError(
+                f"fetch_as_xarray() is not supported for prefix IDS paths "
+                f"('{self.ids_path}'). Use fetch() instead."
+            )
 
         result = self.gather(shot)
 
