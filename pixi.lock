@@ -1484,8 +1484,8 @@ packages:
   timestamp: 1760286526795
 - pypi: ../imas_composer
   name: imas-composer
-  version: 0.0.0
-  sha256: f4ab4f418fb1fe0b967a9b1020f0c40d72e4177447cae2a346dec9fbaa3c5294
+  version: 0.1.0
+  sha256: f6d7b74fbde8ab783f5db5b5d54270654855636eba264937cc32fe2ec5007efd
   requires_dist:
   - numpy>=1.20
   - pyyaml>=5.4
