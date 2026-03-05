@@ -4,6 +4,10 @@
 [IMAS](https://imas.iter.org/) IDS schema via the `imas_composer` backend,
 while fitting naturally into the standard TokSearch `Pipeline` workflow.
 
+> **Experimental**: `ImasSignal` and the `imas_composer` backend are under
+> active development.  The API (constructor arguments, return formats, and
+> supported IDS paths) is likely to change in future releases.
+
 `imas_composer` is an optional dependency.  If it is not installed, importing
 `toksearch_d3d` still works normally — `ImasSignal` simply will not be
 available.
@@ -128,6 +132,41 @@ object
 
 ---
 
+## Fetching all fields under a prefix
+
+Instead of a full leaf path, you can pass a **dotted prefix** such as an IDS
+name or a partial path.  `ImasSignal` discovers all supported leaf fields under
+that prefix and fetches them in a single batched compose call:
+
+```python
+sig = ImasSignal('equilibrium.time_slice.global_quantities')
+result = sig.fetch(202161)
+```
+
+`result` is a plain dict keyed by full leaf path, each value a numpy array:
+
+```python
+print(list(result.keys())[:3])
+# ['equilibrium.time_slice.global_quantities.ip',
+#  'equilibrium.time_slice.global_quantities.q_95',
+#  'equilibrium.time_slice.global_quantities.li_3']
+
+print(result['equilibrium.time_slice.global_quantities.ip'].shape)  # (n_time,)
+```
+
+Any prefix depth works:
+
+```python
+ece_all = ImasSignal('ece').fetch(202161)         # every ECE field
+ece_ch  = ImasSignal('ece.channel').fetch(202161) # only channel subtree
+```
+
+**Restrictions for prefix paths**: supplementary dimension arrays (`dims`),
+`split_by`, and `fetch_as_xarray()` are not supported — prefix mode returns
+plain arrays only.
+
+---
+
 ## Controlling supplementary dimension arrays with `dims`
 
 The `dims` keyword controls which supplementary arrays are returned alongside
@@ -192,6 +231,40 @@ print(result['times'][:3])   # seconds
 ```
 
 `dim_scales` applies to any dimension, not just `'times'`.
+
+---
+
+## Returning awkward arrays
+
+Ragged fields (e.g. equilibrium boundary outlines where the number of points
+varies per time slice) are converted to a **numpy object array** by default —
+one 1-D array per outer entry.  Pass `as_awkward=True` to receive the native
+`ak.Array` instead:
+
+```python
+import awkward as ak
+from toksearch_d3d import ImasSignal
+
+sig = ImasSignal(
+    'equilibrium.time_slice.boundary.outline.r',
+    as_awkward=True,
+)
+result = sig.fetch(202161)
+
+print(type(result['data']))   # <class 'awkward.highlevel.Array'>
+print(result['data'].type)    # var * float64  (ragged)
+```
+
+For fields that return a regular (non-ragged) array, `as_awkward=True` is a
+no-op — you receive a plain `np.ndarray`.
+
+`as_awkward=True` also works with prefix paths:
+
+```python
+sig = ImasSignal('equilibrium.time_slice.global_quantities', as_awkward=True)
+result = sig.fetch(202161)
+# Each value is an ak.Array or np.ndarray depending on the field.
+```
 
 ---
 
@@ -322,6 +395,9 @@ dataset after building it.
   at different times (e.g. Thomson scattering) will have `NaN` at times where
   they have no measurement.  Use `Pipeline.align()` to interpolate to a common
   grid if needed.
+
+- **Prefix paths**: raises `NotImplementedError`.  Use `fetch()` to retrieve
+  the dict of arrays.
 
 ---
 

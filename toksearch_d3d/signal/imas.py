@@ -64,7 +64,7 @@ class ImasSignal(Signal):
       Returns `{'data': ndarray, ...dims}` as usual.
     - **Prefix path** (`'ece.channel'` or `'ece'`): fetches all supported fields
       under that subtree in one batched compose call.
-      Returns `{full_ids_path: {'data': ndarray}, ...}` — one entry per leaf.
+      Returns `{full_ids_path: ndarray, ...}` — one plain array per leaf.
 
     For IDS fields that return ragged data (e.g. Thomson channel time series,
     equilibrium boundary outlines), `data` will be a numpy object array whose
