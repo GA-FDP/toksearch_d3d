@@ -21,10 +21,11 @@ platforms = ["linux-64"]
 python = ">=3.11"
 ptdata = ">=1.4.4"
 toksearch = ">=2.4.5"
+matplotlib = "*"
+imas_composer = ">=0.2"
 
 [pypi-dependencies]
 toksearch_d3d = { path = ".", editable = true }
-imas_composer = { path = "../imas_composer", editable = true }
 
 [feature.docs.dependencies]
 python = "3.10.*"
