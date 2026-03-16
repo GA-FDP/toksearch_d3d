@@ -8,9 +8,6 @@ while fitting naturally into the standard TokSearch `Pipeline` workflow.
 > active development.  The API (constructor arguments, return formats, and
 > supported IDS paths) is likely to change in future releases.
 
-`imas_composer` is an optional dependency.  If it is not installed, importing
-`toksearch_d3d` still works normally — `ImasSignal` simply will not be
-available.
 
 ```python
 from toksearch_d3d import ImasSignal

@@ -125,7 +125,7 @@ print(result['header'])
 
 ---
 
-## `RDataSignal` — major-radius lookup table
+## `RDataSignal`
 
 `RDataSignal` is a convenience subclass that always fetches the `RDATA` point,
 a DIII-D operations lookup array.  It has no time array and no units:
