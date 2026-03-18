@@ -112,6 +112,88 @@ class FdpFileSystem:
 
 ##############################################################################
 #
+# SKILLS BACKENDS
+#
+##############################################################################
+
+
+def _parse_skill_md(path: Path) -> tuple[dict, str]:
+    """Return (frontmatter_dict, body_text) from a SKILL.md file."""
+    text = path.read_text()
+    if text.startswith("---"):
+        _, fm, body = text.split("---", 2)
+        fm_dict = {}
+        for line in fm.strip().splitlines():
+            if ":" in line:
+                k, _, v = line.partition(":")
+                fm_dict[k.strip()] = v.strip()
+        return fm_dict, body.lstrip("\n")
+    return {}, text
+
+
+class ClaudeBackend:
+    """Claude Code — ~/.claude/skills/<name>/SKILL.md"""
+
+    name = "claude"
+
+    @property
+    def dest_root(self):
+        return Path.home() / ".claude" / "skills"
+
+    def is_detected(self):
+        return (Path.home() / ".claude").exists()
+
+    def install_skill(self, skill_dir: Path, force: bool) -> str:
+        dest = self.dest_root / skill_dir.name
+        if dest.exists() and not force:
+            return "skipped"
+        if dest.exists():
+            shutil.rmtree(dest)
+        shutil.copytree(skill_dir, dest)
+        return "installed"
+
+    def is_skill_installed(self, skill_name: str) -> bool:
+        return (self.dest_root / skill_name).exists()
+
+
+class CursorBackend:
+    """Cursor IDE — ~/.cursor/rules/fdp-<name>.mdc"""
+
+    name = "cursor"
+
+    @property
+    def dest_root(self):
+        return Path.home() / ".cursor" / "rules"
+
+    def is_detected(self):
+        return (Path.home() / ".cursor").exists()
+
+    def install_skill(self, skill_dir: Path, force: bool) -> str:
+        skill_md = skill_dir / "SKILL.md"
+        if not skill_md.exists():
+            return "skipped"
+        fm, body = _parse_skill_md(skill_md)
+        description = fm.get("description", skill_dir.name)
+        dest_file = self.dest_root / f"fdp-{skill_dir.name}.mdc"
+        if dest_file.exists() and not force:
+            return "skipped"
+        self.dest_root.mkdir(parents=True, exist_ok=True)
+        content = f"---\ndescription: {description}\nglobs: \nalwaysApply: false\n---\n\n{body}"
+        dest_file.write_text(content)
+        return "installed"
+
+    def is_skill_installed(self, skill_name: str) -> bool:
+        return (self.dest_root / f"fdp-{skill_name}.mdc").exists()
+
+
+BACKENDS = {
+    "claude": ClaudeBackend(),
+    "cursor": CursorBackend(),
+}
+
+
+##############################################################################
+#
 # CLI SUB COMMMANDS
 #
 ##############################################################################
@@ -125,39 +207,46 @@ def do_skills(args):
         Path(toksearch.__file__).parent / "skills",
         Path(toksearch_d3d.__file__).parent / "skills",
     ]
-    skills_dest = Path.home() / ".claude" / "skills"
+    skill_dirs = [
+        d
+        for source in skill_sources if source.exists()
+        for d in sorted(source.iterdir()) if d.is_dir()
+    ]
+
+    backend_arg = getattr(args, "backend", "claude")
+    if backend_arg == "all":
+        backends = [b for b in BACKENDS.values() if b.is_detected()]
+        if not backends:
+            print("No supported coding assistant tool detected.")
+            return
+    elif backend_arg in BACKENDS:
+        backends = [BACKENDS[backend_arg]]
+    else:
+        print(f"Unknown backend '{backend_arg}'. Choose from: {', '.join(BACKENDS)}, all")
+        sys.exit(1)
 
     if args.skills_command == "list":
-        for source in skill_sources:
-            if not source.exists():
-                continue
-            for skill in sorted(source.iterdir()):
-                if skill.is_dir():
-                    status = "installed" if (skills_dest / skill.name).exists() else "not installed"
-                    print(f"  {skill.name}  [{status}]")
+        for backend in backends:
+            print(f"[{backend.name}]")
+            for d in skill_dirs:
+                status = "installed" if backend.is_skill_installed(d.name) else "not installed"
+                print(f"  {d.name}  [{status}]")
         return
 
-    skills_dest.mkdir(parents=True, exist_ok=True)
-    installed, skipped = 0, 0
-    for source in skill_sources:
-        if not source.exists():
-            continue
-        for skill in sorted(source.iterdir()):
-            if not skill.is_dir():
-                continue
-            dest = skills_dest / skill.name
-            if dest.exists() and not args.force:
-                print(f"  skip     {skill.name}  (already installed; use --force to overwrite)")
+    force = getattr(args, "force", False)
+    for backend in backends:
+        print(f"\n[{backend.name}] Installing to {backend.dest_root}")
+        backend.dest_root.mkdir(parents=True, exist_ok=True)
+        installed = skipped = 0
+        for skill_dir in skill_dirs:
+            result = backend.install_skill(skill_dir, force)
+            if result == "installed":
+                print(f"  install  {skill_dir.name}")
+                installed += 1
+            else:
+                print(f"  skip     {skill_dir.name}  (use --force to overwrite)")
                 skipped += 1
-                continue
-            if dest.exists():
-                shutil.rmtree(dest)
-            shutil.copytree(skill, dest)
-            print(f"  install  {skill.name}")
-            installed += 1
-    print(f"\n{installed} skill(s) installed to {skills_dest}")
-    if skipped:
-        print(f"{skipped} skill(s) skipped (already present)")
+        print(f"  {installed} installed, {skipped} skipped")
 
 
 def do_run(args):
@@ -238,13 +327,24 @@ def main():
     )
     ls_parser.set_defaults(func=do_ls)
 
-    skills_parser = subparsers.add_parser("skills", help="Manage Claude Code skills for FDP")
+    skills_parser = subparsers.add_parser("skills", help="Manage AI coding assistant skills for FDP")
     skills_sub = skills_parser.add_subparsers(dest="skills_command")
-    skills_sub.add_parser("list", help="List FDP skills and their installation status")
-    install_p = skills_sub.add_parser("install", help="Install FDP skills to ~/.claude/skills/")
+
+    list_p = skills_sub.add_parser("list", help="List FDP skills and their installation status")
+    list_p.add_argument(
+        "--backend", default="claude",
+        help="Target tool: claude, cursor, or all (default: claude)"
+    )
+
+    install_p = skills_sub.add_parser("install", help="Install FDP skills for a coding assistant")
+    install_p.add_argument(
+        "--backend", default="claude",
+        help="Target tool: claude, cursor, or all (default: claude)"
+    )
     install_p.add_argument(
         "--force", "-f", action="store_true", help="Overwrite already-installed skills"
     )
+
     skills_parser.set_defaults(func=do_skills)
 
     args = parser.parse_args()
