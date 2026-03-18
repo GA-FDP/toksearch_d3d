@@ -10,6 +10,8 @@ import warnings
 from XRootD import client
 from XRootD.client.flags import DirListFlags, StatInfoFlags
 
+from .skills import _parse_skill_md
+
 
 ##############################################################################
 #
@@ -115,20 +117,6 @@ class FdpFileSystem:
 # SKILLS BACKENDS
 #
 ##############################################################################
-
-
-def _parse_skill_md(path: Path) -> tuple[dict, str]:
-    """Return (frontmatter_dict, body_text) from a SKILL.md file."""
-    text = path.read_text()
-    if text.startswith("---"):
-        _, fm, body = text.split("---", 2)
-        fm_dict = {}
-        for line in fm.strip().splitlines():
-            if ":" in line:
-                k, _, v = line.partition(":")
-                fm_dict[k.strip()] = v.strip()
-        return fm_dict, body.lstrip("\n")
-    return {}, text
 
 
 class ClaudeBackend:
