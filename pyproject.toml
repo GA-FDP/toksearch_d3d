@@ -35,6 +35,9 @@ fdp = "toksearch_d3d.fdp.cli:main"
 packages = ["toksearch_d3d", "toksearch_d3d.fdp", "toksearch_d3d.signal"]
 zip-safe = false
 
+[tool.setuptools.package-data]
+toksearch_d3d = ["skills/*/SKILL.md"]
+
 [tool.versioneer]
 VCS = "git"
 style = "pep440"

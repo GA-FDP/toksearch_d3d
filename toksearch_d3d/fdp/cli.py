@@ -1,6 +1,7 @@
 from pathlib import Path
 import argparse
 import shlex
+import shutil
 import sys
 import os
 import subprocess
@@ -116,6 +117,49 @@ class FdpFileSystem:
 ##############################################################################
 
 
+def do_skills(args):
+    import toksearch
+    import toksearch_d3d
+
+    skill_sources = [
+        Path(toksearch.__file__).parent / "skills",
+        Path(toksearch_d3d.__file__).parent / "skills",
+    ]
+    skills_dest = Path.home() / ".claude" / "skills"
+
+    if args.skills_command == "list":
+        for source in skill_sources:
+            if not source.exists():
+                continue
+            for skill in sorted(source.iterdir()):
+                if skill.is_dir():
+                    status = "installed" if (skills_dest / skill.name).exists() else "not installed"
+                    print(f"  {skill.name}  [{status}]")
+        return
+
+    skills_dest.mkdir(parents=True, exist_ok=True)
+    installed, skipped = 0, 0
+    for source in skill_sources:
+        if not source.exists():
+            continue
+        for skill in sorted(source.iterdir()):
+            if not skill.is_dir():
+                continue
+            dest = skills_dest / skill.name
+            if dest.exists() and not args.force:
+                print(f"  skip     {skill.name}  (already installed; use --force to overwrite)")
+                skipped += 1
+                continue
+            if dest.exists():
+                shutil.rmtree(dest)
+            shutil.copytree(skill, dest)
+            print(f"  install  {skill.name}")
+            installed += 1
+    print(f"\n{installed} skill(s) installed to {skills_dest}")
+    if skipped:
+        print(f"{skipped} skill(s) skipped (already present)")
+
+
 def do_run(args):
     passthrough_args = args.command_args
 
@@ -193,6 +237,15 @@ def main():
         "path", type=str, help="The path whose contents will be listed"
     )
     ls_parser.set_defaults(func=do_ls)
+
+    skills_parser = subparsers.add_parser("skills", help="Manage Claude Code skills for FDP")
+    skills_sub = skills_parser.add_subparsers(dest="skills_command")
+    skills_sub.add_parser("list", help="List FDP skills and their installation status")
+    install_p = skills_sub.add_parser("install", help="Install FDP skills to ~/.claude/skills/")
+    install_p.add_argument(
+        "--force", "-f", action="store_true", help="Overwrite already-installed skills"
+    )
+    skills_parser.set_defaults(func=do_skills)
 
     args = parser.parse_args()
 
