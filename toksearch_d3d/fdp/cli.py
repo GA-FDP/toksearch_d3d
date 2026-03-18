@@ -186,9 +186,55 @@ class CursorBackend:
         return (self.dest_root / f"fdp-{skill_name}.mdc").exists()
 
 
+class CodexBackend:
+    """OpenAI Codex CLI — ~/.codex/instructions.md (section-per-skill)"""
+
+    name = "codex"
+
+    @property
+    def dest_root(self):
+        return Path.home() / ".codex"
+
+    @property
+    def _instructions_file(self):
+        return self.dest_root / "instructions.md"
+
+    def is_detected(self):
+        return (Path.home() / ".codex").exists()
+
+    def _markers(self, skill_name):
+        return f"<!-- fdp-skill:{skill_name} -->", f"<!-- /fdp-skill:{skill_name} -->"
+
+    def is_skill_installed(self, skill_name: str) -> bool:
+        if not self._instructions_file.exists():
+            return False
+        start, _ = self._markers(skill_name)
+        return start in self._instructions_file.read_text()
+
+    def install_skill(self, skill_dir: Path, force: bool) -> str:
+        import re
+        skill_md = skill_dir / "SKILL.md"
+        if not skill_md.exists():
+            return "skipped"
+        _, body = _parse_skill_md(skill_md)
+        start, end = self._markers(skill_dir.name)
+        section = f"{start}\n{body.rstrip()}\n{end}"
+        current = self._instructions_file.read_text() if self._instructions_file.exists() else ""
+        if start in current:
+            if not force:
+                return "skipped"
+            pattern = re.escape(start) + r".*?" + re.escape(end)
+            current = re.sub(pattern, section, current, flags=re.DOTALL)
+        else:
+            current = current.rstrip("\n") + ("\n\n" if current else "") + section + "\n"
+        self._instructions_file.write_text(current)
+        return "installed"
+
+
 BACKENDS = {
     "claude": ClaudeBackend(),
     "cursor": CursorBackend(),
+    "codex":  CodexBackend(),
 }
 
 
@@ -333,13 +379,13 @@ def main():
     list_p = skills_sub.add_parser("list", help="List FDP skills and their installation status")
     list_p.add_argument(
         "--backend", default="claude",
-        help="Target tool: claude, cursor, or all (default: claude)"
+        help="Target tool: claude, cursor, codex, or all (default: claude)"
     )
 
     install_p = skills_sub.add_parser("install", help="Install FDP skills for a coding assistant")
     install_p.add_argument(
         "--backend", default="claude",
-        help="Target tool: claude, cursor, or all (default: claude)"
+        help="Target tool: claude, cursor, codex, or all (default: claude)"
     )
     install_p.add_argument(
         "--force", "-f", action="store_true", help="Overwrite already-installed skills"
