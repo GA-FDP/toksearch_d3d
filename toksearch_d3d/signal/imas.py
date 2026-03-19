@@ -51,6 +51,56 @@ def _to_numpy(val):
     return np.asarray(val)
 
 
+def list_imas_fields(ids=None, composer=None):
+    """Return IMAS IDS fields supported by imas_composer.
+
+    Args:
+        ids: Optional IDS name (e.g. ``'ece'``, ``'equilibrium'``).
+            When given, returns the sorted list of leaf paths for that IDS.
+            When omitted, returns a dict mapping every IDS name to its sorted
+            list of leaf paths.
+        composer: Optional :class:`~imas_composer.ImasComposer` instance.
+            If not provided, a default instance is created with
+            ``ImasComposer()``. Pass a shared composer to avoid re-initialising
+            mapper tables when one already exists.
+
+    Returns:
+        dict or list: A ``dict`` when ``ids`` is ``None``; a ``list`` of
+        strings when ``ids`` is specified.
+
+    Raises:
+        ValueError: If ``ids`` is specified but is not a recognised IDS name.
+
+    Example::
+
+        from toksearch_d3d import list_imas_fields
+
+        # All IDS names and their fields
+        fields = list_imas_fields()
+        print(list(fields.keys()))   # ['ece', 'equilibrium', ...]
+
+        # Fields for a single IDS
+        print(list_imas_fields('ece'))
+        # ['ece.channel.name', 'ece.channel.t_e.data', ...]
+    """
+    if composer is None:
+        composer = ImasComposer()
+
+    # _mappers is private but is the only way to enumerate registered IDS names
+    # without constructing dummy paths.  Its keys are the IDS names accepted by
+    # get_supported_fields().
+    ids_names = sorted(composer._mappers.keys())
+
+    if ids is not None:
+        if ids not in composer._mappers:
+            raise ValueError(
+                f"Unknown IDS '{ids}'. Available: {ids_names}"
+            )
+        return sorted(composer.get_supported_fields(ids))
+
+    return {name: sorted(composer.get_supported_fields(name)) for name in ids_names}
+
+
 class ImasSignal(Signal):
     """Fetch one or more IMAS IDS fields as a toksearch Signal.
 

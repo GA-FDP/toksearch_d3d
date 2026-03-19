@@ -310,6 +310,43 @@ ImasSignal('core_profiles.profiles_1d.electrons.density_thermal')
 ImasSignal('thomson_scattering.channel.n_e.data')
 ```
 
+## Discovering Available IMAS Fields
+
+`list_imas_fields()` enumerates all IDS paths that `imas_composer` supports without
+requiring knowledge of its internals.
+
+```python
+from toksearch_d3d import list_imas_fields
+
+# All supported IDS names → fields
+fields = list_imas_fields()
+print(list(fields.keys()))
+# ['core_profiles', 'ec_launchers', 'ece', 'equilibrium', 'gas_injection',
+#  'magnetics', 'nbi', 'reflectometer_profile', 'tf', 'thomson_scattering', 'wall']
+
+# Fields for a single IDS
+for f in list_imas_fields('ece'):
+    print(f)
+# ece.channel.frequency.data
+# ece.channel.identifier
+# ece.channel.t_e.data
+# ...
+```
+
+Pass a shared `ImasComposer` to avoid re-initialising mapper tables:
+
+```python
+from imas_composer import ImasComposer
+from toksearch_d3d import list_imas_fields
+
+composer = ImasComposer(efit_tree='EFIT02')
+fields = list_imas_fields(composer=composer)
+```
+
+`list_imas_fields` raises `ValueError` for an unrecognised IDS name and is
+unavailable if `imas_composer` is not installed (same optional-dependency guard
+as `ImasSignal`).
+
 ## Best Practices
 
 - Mark all code using `ImasSignal` as experimental — the API is under active development
