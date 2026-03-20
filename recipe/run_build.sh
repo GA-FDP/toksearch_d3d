@@ -8,8 +8,12 @@ echo "Building version: ${PKG_VERSION}"
 OUTPUT_DIR="${1:-${HOME}/outdir}"
 mkdir -p "${OUTPUT_DIR}"
 
+CHANNEL_FLAGS="-c ga-fdp -c conda-forge"
+if [ -n "${EXTRA_CHANNEL:-}" ]; then
+    CHANNEL_FLAGS="-c ${EXTRA_CHANNEL} ${CHANNEL_FLAGS}"
+fi
+
 rattler-build build \
-  -c ga-fdp \
-  -c conda-forge \
+  ${CHANNEL_FLAGS} \
   --channel-priority=disabled \
   --output-dir "${OUTPUT_DIR}"
