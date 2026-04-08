@@ -12,6 +12,166 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""
+toksearch_d3d — DIII-D signal classes and FDP CLI for the TokSearch framework.
+
+Extends ``toksearch`` with DIII-D-specific signal types (PtDataSignal,
+ImasSignal, CakeSignal) and the ``fdp`` CLI for Pelican/OSDF data access.
+For core Pipeline documentation, see ``help(toksearch)``.
+
+Invocation
+==========
+
+Always run from the ``toksearch_d3d/`` directory with the FDP environment::
+
+    TDSVER="7.0" pixi run fdp run python <script.py>
+
+``TDSVER="7.0"`` is required whenever the script connects to d3drdb.
+``fdp run`` sets all XRootD, MDSplus, and PTData environment variables.
+
+Imports
+=======
+
+::
+
+    from toksearch import Pipeline
+    from toksearch_d3d import PtDataSignal     # DIII-D PTDATA diagnostics
+    from toksearch_d3d import ImasSignal       # IMAS IDS paths (requires imas_composer)
+    from toksearch_d3d import CakeSignal       # Equilibrium/profile via MDSplus+SQLite
+    from toksearch.sql.mssql import connect_d3drdb  # Shot metadata DB
+
+Import ``PtDataSignal`` and ``ImasSignal`` from ``toksearch_d3d``, **not**
+``toksearch``.
+
+PtDataSignal
+============
+
+Fetches DIII-D PTDATA time-series diagnostics.  Times in **milliseconds**::
+
+    sig = PtDataSignal('ip')
+    result = sig.fetch(202161)   # {'data': ndarray, 'times': ndarray, 'units': dict}
+
+Constructor::
+
+    PtDataSignal(pointname, remote=True, ical=1, keep_header=False,
+                 fetch_times=True, fetch_units=True)
+
+Common point names:
+
+==========  ============================
+Point       Description
+==========  ============================
+ip          Plasma current (A)
+dssdenest   Line-averaged electron density
+btor        Toroidal magnetic field
+pinj        NBI power (unreliable for recent shots — prefer ImasSignal)
+echpwr      ECH power
+prad        Radiated power
+wmhd        MHD stored energy
+==========  ============================
+
+ImasSignal (Experimental)
+=========================
+
+Fetches DIII-D data via the IMAS IDS schema using ``imas_composer``.
+Only available when ``imas_composer`` is installed.
+
+**Leaf path** — fetches one field::
+
+    ImasSignal('equilibrium.time_slice.global_quantities.ip')
+
+**Prefix path** — fetches all fields under a subtree::
+
+    ImasSignal('equilibrium.time_slice.global_quantities')
+
+**Ragged arrays**: channel-indexed data returns a numpy object array.
+Use ``split_by='channel'`` for a dict keyed by channel name::
+
+    ImasSignal('thomson_scattering.channel.n_e.data', split_by='channel')
+
+**NBI power recipe** (object array of 8 per-unit time series)::
+
+    import numpy as np
+    nbi_data = rec.get('nbi', None)
+    if nbi_data is not None and nbi_data.get('data') is not None:
+        units = np.stack(list(nbi_data['data']), axis=0).astype(float)
+        total_mw = np.nanmax(np.nansum(units, axis=0)) / 1e6
+
+**Sharing a composer** avoids repeated mapper init::
+
+    from imas_composer import ImasComposer
+    composer = ImasComposer(efit_tree='EFIT01')
+    ImasSignal('equilibrium.time_slice.global_quantities.ip', composer=composer)
+
+**Discovering fields**::
+
+    from toksearch_d3d import list_imas_fields
+    fields = list_imas_fields()          # all IDS
+    fields = list_imas_fields('ece')     # one IDS
+
+Common IDS paths::
+
+    equilibrium.time_slice.global_quantities.ip
+    equilibrium.time_slice.global_quantities.q_95
+    equilibrium.time_slice.global_quantities.beta_normal
+    equilibrium.time_slice.profiles_1d.q
+    nbi.unit.power_launched.data
+    ece.channel.t_e.data
+    magnetics.ip.data
+    core_profiles.profiles_1d.electrons.density_thermal
+    thomson_scattering.channel.n_e.data
+
+Shot List from d3drdb
+=====================
+
+::
+
+    import pandas as pd
+    from toksearch.sql.mssql import connect_d3drdb
+
+    with connect_d3drdb() as conn:
+        df = pd.read_sql(
+            \"\"\"SELECT s.shot, s.entered
+            FROM shots s JOIN shots_type st ON s.shot = st.shot
+            WHERE st.shot_type = 'plasma'
+              AND s.entered >= '2024-06-01'\"\"\",
+            conn,
+        )
+    shots = df['shot'].tolist()
+
+Key tables: ``shots`` (shot number, ``entered`` timestamp),
+``shots_type`` (``shot_type``: 'plasma', 'calibration', etc.).
+Join on ``shots.shot = shots_type.shot``.
+
+fdp CLI
+=======
+
+``fdp run <cmd>``
+    Execute a command with all FDP environment variables configured.
+
+``fdp env``
+    Print ``export VAR=value`` lines for shell eval: ``eval $(fdp env)``.
+
+``fdp ls <path>``
+    List files/directories on the FDP origin server via XRootD.
+
+Authentication: ``~/.fdp/token`` file (preferred), ``BEARER_TOKEN`` env var,
+or ``-t TOKEN`` flag.
+
+DIII-D Gotchas
+==============
+
+- ``TDSVER="7.0"`` must be set before connecting to d3drdb
+- ``PtDataSignal('pinj')`` returns "Invalid shot number" for recent shots —
+  use ``ImasSignal('nbi.unit.power_launched.data')`` instead
+- ``PTDATA2`` TDI expressions hang inside ``fdp run`` due to XRootD
+  fork-after-threading — fetch via ``PtDataSignal`` directly
+- Only the ``efit01`` MDSplus tree is available via FDP Pelican
+- PTData JSON index has a coverage cap (~shot 201,299) — use ImasSignal
+  for newer shots
+- ``pathlib.Path()`` mangles ``pelican://`` URLs — use f-strings
+"""
+
 from .signal.ptdata import PtDataSignal
 from .signal.ptdata import RDataSignal
 from .signal.cake import CakeSignal
