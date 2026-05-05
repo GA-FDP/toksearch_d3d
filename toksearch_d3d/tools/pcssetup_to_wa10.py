@@ -24,10 +24,16 @@ from toksearch_d3d import PtDataSignal
 def pcssetup_bytes(shot: int) -> bytes:
     """Return the raw PCSSETUP bytes for ``shot`` as a single ``bytes`` blob.
 
-    The returned bytes are assumed to be the original wa10 file contents
-    written into PTDATA by PCS at shot start.
+    Fetches in raw mode (``ical=0``) with no time or units fetches, so the
+    returned bytes are the integer payload PTDATA stores -- the same byte
+    stream PCS wrote into PTDATA from the original wa10 file at shot start.
+    With default ``ical=1`` (Full calibration) the engine would return
+    float64 calibrated values (8 bytes/sample, sign-flipped) which is not
+    the wa10 file.
     """
-    result = PtDataSignal("PCSSETUP").fetch(int(shot))
+    result = PtDataSignal(
+        "PCSSETUP", ical=0, fetch_times=False, fetch_units=False
+    ).fetch(int(shot))
     return result["data"].tobytes()
 
 

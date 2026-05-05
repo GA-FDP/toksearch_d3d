@@ -18,21 +18,23 @@ from contextlib import redirect_stdout
 from pathlib import Path
 
 SHOT = 165920
-# PCSSETUP wa10 files are typically a few megabytes. 500 KB is well below
-# the typical payload but well above any plausible header-only / parse-
-# failure false positive.
-MIN_REASONABLE_SIZE = 500_000
+# Shot 165920's PCSSETUP payload: 320565 int32 words = 1,282,260 bytes.
+# Hardcoding this exact value is the regression guard: if pcssetup_bytes
+# accidentally goes back to ical=1 (Full calibration), the result becomes
+# float64 (8 bytes/sample) and doubles in size, failing this assertion.
+EXPECTED_SIZE_165920 = 320_565 * 4
 
 
 class TestPcssetupBytes(unittest.TestCase):
-    def test_returns_realistic_size(self):
-        """pcssetup_bytes returns the wa10 payload as bytes (a few MB)."""
+    def test_returns_raw_int32_payload(self):
+        """pcssetup_bytes returns the raw int32 wa10 payload (not calibrated float64)."""
         from toksearch_d3d.tools.pcssetup_to_wa10 import pcssetup_bytes
 
         b = pcssetup_bytes(SHOT)
 
         self.assertIsInstance(b, bytes)
-        self.assertGreater(len(b), MIN_REASONABLE_SIZE)
+        # Exact size catches calibration-mode regression (would be 2x at ical=1).
+        self.assertEqual(len(b), EXPECTED_SIZE_165920)
 
 
 class TestMain(unittest.TestCase):
