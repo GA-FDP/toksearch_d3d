@@ -22,7 +22,7 @@ dynamic = ["version"]
 description = "TokSearch DIII-D: Signal retrieval classes for DIII-D fusion experiment data"
 readme = "README.md"
 license = "Apache-2.0"
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 dependencies = []
 
 [project.optional-dependencies]
