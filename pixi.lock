@@ -5336,12 +5336,12 @@ packages:
   timestamp: 1777933206156
 - pypi: ./
   name: toksearch-d3d
-  version: 0.4.0+1.gab15f96.dirty
-  sha256: aea5dd30495c6e791c3560c46c08e97fe24322ee8296da22956059a3beef0ba0
+  version: 0.5.0+8.g96a8966.dirty
+  sha256: b8468bc89b95b5aa8a966d6ef258345bab6c1504e47b47b532050329d1c8dda7
   requires_dist:
   - imas-composer ; extra == 'imas'
   - awkward>=2.0 ; extra == 'imas'
-  requires_python: '>=3.9'
+  requires_python: '>=3.11'
 - conda: https://conda.anaconda.org/conda-forge/noarch/tomli-2.4.1-pyhcf101f3_0.conda
   sha256: 91cafdb64268e43e0e10d30bd1bef5af392e69f00edd34dfaf909f69ab2da6bd
   md5: b5325cf06a000c5b14970462ff5e4d58

@@ -22,7 +22,7 @@ dynamic = ["version"]
 description = "TokSearch DIII-D: Signal retrieval classes for DIII-D fusion experiment data"
 readme = "README.md"
 license = "Apache-2.0"
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 dependencies = []
 
 [project.optional-dependencies]
@@ -30,9 +30,10 @@ imas = ["imas_composer", "awkward>=2.0"]
 
 [project.scripts]
 fdp = "toksearch_d3d.fdp.cli:main"
+pcssetup-to-wa10 = "toksearch_d3d.tools.pcssetup_to_wa10:main"
 
 [tool.setuptools]
-packages = ["toksearch_d3d", "toksearch_d3d.fdp", "toksearch_d3d.signal"]
+packages = ["toksearch_d3d", "toksearch_d3d.fdp", "toksearch_d3d.signal", "toksearch_d3d.tools"]
 zip-safe = false
 
 [tool.setuptools.package-data]
