@@ -34,8 +34,8 @@ requirements:
     - versioneer
   run:
     - python
-    - toksearch >=2.5.0
-    - ptdata >=1.4.3
+    - toksearch >=2.6.0
+    - ptdata >=2.0.2,<3
     - imas_composer >=0.2
 
 tests:
