@@ -10,7 +10,11 @@ Requires a configured FDP environment (run via `fdp run python testit.py`).
 Targets shot 165920, the same shot the existing PtDataSignal tests use.
 """
 
+import contextlib
+import io
+import tempfile
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
 
 SHOT = 165920
@@ -31,11 +35,6 @@ class TestPcssetupBytes(unittest.TestCase):
         self.assertGreater(len(b), MIN_REASONABLE_SIZE)
 
 
-import io
-import tempfile
-from contextlib import redirect_stderr, redirect_stdout
-
-
 class TestMain(unittest.TestCase):
     def test_writes_file_with_default_name(self):
         """main(["<shot>"]) writes <shot>.wa10 in cwd, returns 0."""
@@ -44,14 +43,8 @@ class TestMain(unittest.TestCase):
         expected = pcssetup_bytes(SHOT)
 
         with tempfile.TemporaryDirectory() as td:
-            cwd = Path.cwd()
-            try:
-                import os
-                os.chdir(td)
-                with redirect_stdout(io.StringIO()):
-                    rc = main([str(SHOT)])
-            finally:
-                os.chdir(cwd)
+            with contextlib.chdir(td), redirect_stdout(io.StringIO()):
+                rc = main([str(SHOT)])
 
             out = Path(td) / f"{SHOT}.wa10"
             self.assertEqual(rc, 0)

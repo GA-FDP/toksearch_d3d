@@ -13,6 +13,11 @@ to the original wa10 file. See
 docs/superpowers/specs/2026-05-04-pcssetup-to-wa10-design.md.
 """
 
+import argparse
+import sys
+from pathlib import Path
+
+from ptdata import PtDataError
 from toksearch_d3d import PtDataSignal
 
 
@@ -24,13 +29,6 @@ def pcssetup_bytes(shot: int) -> bytes:
     """
     result = PtDataSignal("PCSSETUP").fetch(int(shot))
     return result["data"].tobytes()
-
-
-import argparse
-import sys
-from pathlib import Path
-
-from ptdata import PtDataError
 
 
 def main(argv: list[str] | None = None) -> int:
