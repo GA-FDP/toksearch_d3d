@@ -226,6 +226,20 @@ BACKENDS = {
 }
 
 
+def apply_environment(config, env):
+    """Apply config to env, preserving existing values except PATH.
+
+    PATH is overwritten unconditionally because DEFAULT_CONFIG["PATH"]
+    is built by prepending the env's bin_dir to the existing PATH at
+    import time, so we must always write it through.
+    """
+    env["PATH"] = config["PATH"]
+    for k, v in config.items():
+        if k == "PATH":
+            continue
+        env.setdefault(k, v)
+
+
 ##############################################################################
 #
 # CLI SUB COMMMANDS
@@ -384,7 +398,7 @@ def main():
     args = parser.parse_args()
 
     ################# Environment setup ####################
-    os.environ |= DEFAULT_CONFIG
+    apply_environment(DEFAULT_CONFIG, os.environ)
 
     bearer_token = args.bearer_token or os.getenv("BEARER_TOKEN", "")
     if not bearer_token:
