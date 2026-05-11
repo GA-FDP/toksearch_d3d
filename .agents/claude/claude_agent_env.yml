@@ -1,0 +1,17 @@
+name: toksearch_claude_agent
+channels:
+  - ga-fdp
+  - conda-forge
+dependencies:
+  - python=3.12
+  - toksearch
+  - toksearch_d3d
+  - protobuf=6.31.1
+  - pandas
+  - ipython
+  - pyyaml
+  - pyzmq
+  - matplotlib
+  - numpy
+  - pip:
+    - anthropic
