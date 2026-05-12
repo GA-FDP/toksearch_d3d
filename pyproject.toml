@@ -33,7 +33,7 @@ fdp = "toksearch_d3d.fdp.cli:main"
 pcssetup-to-wa10 = "toksearch_d3d.tools.pcssetup_to_wa10:main"
 
 [tool.setuptools]
-packages = ["toksearch_d3d", "toksearch_d3d.fdp", "toksearch_d3d.signal", "toksearch_d3d.tools"]
+packages = ["toksearch_d3d", "toksearch_d3d.fdp", "toksearch_d3d.signal", "toksearch_d3d.tools", "toksearch_d3d.agents"]
 zip-safe = false
 
 [tool.setuptools.package-data]
