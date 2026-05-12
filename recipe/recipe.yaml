@@ -37,6 +37,7 @@ requirements:
     - toksearch >=2.6.0
     - ptdata >=2.0.2,<3
     - imas_composer >=0.2
+    - anthropic >=0.101.0,<1
 
 tests:
   - script:

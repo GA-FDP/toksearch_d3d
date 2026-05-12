@@ -26,6 +26,7 @@ imas_composer = ">=0.2"
 socat = ">=1.8.1.1,<2"
 seaborn = ">=0.13.2,<0.14"
 pelicanplatform = ">=7.24.3,<8"
+anthropic = "0.101.*"
 
 [pypi-dependencies]
 toksearch_d3d = { path = ".", editable = true }
