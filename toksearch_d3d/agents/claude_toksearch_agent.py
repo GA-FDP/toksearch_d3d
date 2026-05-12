@@ -1,8 +1,10 @@
 import io
+import json
 import sys
 import pydoc
 import traceback
 from contextlib import redirect_stdout, redirect_stderr
+from datetime import datetime
 from pathlib import Path
 
 import anthropic
@@ -92,6 +94,25 @@ Rules:
 """
 
 
+def _serialize_messages(messages: list) -> list:
+    """Convert the messages list to a JSON-serializable structure.
+
+    Assistant turns contain Anthropic SDK pydantic objects; user turns are plain dicts.
+    """
+    result = []
+    for msg in messages:
+        if isinstance(msg, dict):
+            content = msg.get("content")
+            if isinstance(content, list):
+                content = [
+                    b.model_dump() if hasattr(b, "model_dump") else b for b in content
+                ]
+            result.append({**msg, "content": content})
+        else:
+            result.append(msg)
+    return result
+
+
 def _run_code(code: str, namespace: dict) -> str:
     stdout_buf = io.StringIO()
     stderr_buf = io.StringIO()
@@ -123,6 +144,9 @@ def query_toksearch(prompt: str, max_iterations: int = 10, verbose: bool = True,
     """
     if debug:
         verbose = True
+        debug_dir = Path(f"toksearch_debug_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
+        debug_dir.mkdir(parents=True, exist_ok=True)
+        print(f"[debug] writing iteration files to {debug_dir}/")
 
     client = anthropic.Anthropic(api_key=API_KEY, base_url=BASE_URL)
 
@@ -152,11 +176,16 @@ def query_toksearch(prompt: str, max_iterations: int = 10, verbose: bool = True,
             text = next((b.text for b in response.content if hasattr(b, "text")), "")
             if verbose:
                 print(f"[iter {i+1}] end_turn (no finish call) → returning text response")
+            if debug:
+                (debug_dir / "messages.json").write_text(
+                    json.dumps(_serialize_messages(messages), indent=2)
+                )
             return namespace.get("result", text)
 
         if response.stop_reason == "tool_use":
             tool_results = []
             done = False
+            run_python_count = 0
 
             for block in response.content:
                 if block.type != "tool_use":
@@ -171,9 +200,13 @@ def query_toksearch(prompt: str, max_iterations: int = 10, verbose: bool = True,
                         status = "✗" if failed else "✓"
                         print(f"[iter {i+1}] run_python: {thought} → {status}")
                     if debug:
-                        indented_code = "\n".join("    " + l for l in code.splitlines())
-                        print(f"  --- code ---\n{indented_code}")
-                        print(f"  --- output ---\n    {output.strip()}\n")
+                        run_python_count += 1
+                        suffix = f"_{run_python_count}" if run_python_count > 1 else ""
+                        debug_file = debug_dir / f"iter_{i+1:02d}{suffix}.py"
+                        output_block = "\n".join(f"# {line}" for line in output.splitlines())
+                        debug_file.write_text(
+                            f"# thought: {thought}\n\n{code}\n\n# --- output ---\n{output_block}\n"
+                        )
                     tool_results.append({
                         "type": "tool_result",
                         "tool_use_id": block.id,
@@ -197,10 +230,18 @@ def query_toksearch(prompt: str, max_iterations: int = 10, verbose: bool = True,
             messages.append({"role": "user", "content": tool_results})
 
             if done:
+                if debug:
+                    (debug_dir / "messages.json").write_text(
+                        json.dumps(_serialize_messages(messages), indent=2)
+                    )
                 return final
 
     if verbose:
         print(f"[warning] reached max iterations ({max_iterations}) without a finish call")
+    if debug:
+        (debug_dir / "messages.json").write_text(
+            json.dumps(_serialize_messages(messages), indent=2)
+        )
     return namespace.get("result", "Reached max iterations without a final answer.")
 
 
