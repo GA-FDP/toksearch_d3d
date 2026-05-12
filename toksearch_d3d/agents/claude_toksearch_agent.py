@@ -15,7 +15,6 @@ import toksearch
 import toksearch_d3d
 
 # --- Config ---
-API_KEY = Path(Path.home() / "amsc_api_key").read_text().strip()
 BASE_URL = "https://api.i2-core.american-science-cloud.org"
 MODEL = "claude-sonnet-4-6"
 #TODO: This code should be modified to support both using the AmSC LLM API and user's claude interchangeably
@@ -131,7 +130,7 @@ def _run_code(code: str, namespace: dict) -> str:
     return "\n".join(parts) if parts else "(no output)"
 
 
-def query_toksearch(prompt: str, max_iterations: int = 10, verbose: bool = True, debug: bool = False):
+def query_toksearch(prompt: str, max_iterations: int = 10, verbose: bool = True, debug: bool = False, api_key_file: str | None = None):
     """
     Take a natural language prompt, use Claude to generate and iteratively
     execute toksearch code, and return the result.
@@ -147,6 +146,11 @@ def query_toksearch(prompt: str, max_iterations: int = 10, verbose: bool = True,
         debug_dir = Path(f"toksearch_debug_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
         debug_dir.mkdir(parents=True, exist_ok=True)
         print(f"[debug] writing iteration files to {debug_dir}/")
+
+    if api_key_file is None:
+        api_key_file = Path(Path.home() / "amsc_api_key")
+
+    API_KEY = api_key_file.read_text().strip()
 
     client = anthropic.Anthropic(api_key=API_KEY, base_url=BASE_URL)
 
