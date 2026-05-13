@@ -245,6 +245,25 @@ def do_ls(args):
         sys.exit(1)
 
 
+def do_query(args):
+    # Lazy import: this transitively imports toksearch, which pulls in
+    # libfdpio + xrootd. Those C libraries read env vars
+    # (XRD_PLUGINCONFDIR, PTDATA_*, default_tree_path) at library load
+    # time, so the import MUST happen after setup_environment() has run --
+    # never at the top of this module.
+    from toksearch_d3d.agents.claude_toksearch_agent import query_toksearch
+
+    api_key_file = Path(args.api_key_file) if args.api_key_file else None
+    result = query_toksearch(
+        args.query,
+        max_iterations=args.max_iterations,
+        verbose=not args.quiet,
+        debug=args.debug,
+        api_key_file=api_key_file,
+    )
+    print(result)
+
+
 ##############################################################################
 #
 # MAIN
@@ -303,6 +322,29 @@ def main():
     )
 
     skills_parser.set_defaults(func=do_skills)
+
+    query_parser = subparsers.add_parser(
+        "query",
+        help="Run a natural-language query against TokSearch via the agent",
+    )
+    query_parser.add_argument(
+        "query",
+        type=str,
+        help="Natural-language query (quote it on the shell)",
+    )
+    query_parser.add_argument(
+        "--max-iterations", "-n", type=int, default=10,
+        help="Maximum agent tool-call rounds (default: 10)",
+    )
+    query_parser.add_argument(
+        "--quiet", "-q", action="store_true",
+        help="Suppress per-iteration progress output",
+    )
+    query_parser.add_argument(
+        "--api-key-file", type=str, default=None,
+        help="Path to AmSC API key file (default: ~/amsc_api_key)",
+    )
+    query_parser.set_defaults(func=do_query)
 
     args = parser.parse_args()
 
