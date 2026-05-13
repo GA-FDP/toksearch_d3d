@@ -5,7 +5,6 @@ import shutil
 import sys
 import os
 import subprocess
-import warnings
 
 from XRootD import client
 from XRootD.client.flags import DirListFlags, StatInfoFlags
@@ -15,7 +14,7 @@ from .environment import (
     DEFAULT_CONFIG,
     FDP_ROOT,
     ORIGIN_SERVER,
-    apply_environment,
+    setup_environment,
 )
 
 
@@ -214,7 +213,7 @@ def do_run(args):
         command_str = " ".join(passthrough_args)
         print(f"Running command: {command_str}")
         print("With environment vars:")
-        for k, v in env.items():
+        for k, v in os.environ.items():
             print(f"{k}: {v}")
 
     comm = passthrough_args
@@ -307,21 +306,7 @@ def main():
 
     args = parser.parse_args()
 
-    ################# Environment setup ####################
-    apply_environment(DEFAULT_CONFIG, os.environ)
-
-    bearer_token = args.bearer_token or os.getenv("BEARER_TOKEN", "")
-    if not bearer_token:
-        home_dir = Path.home()
-        token_file = home_dir / ".fdp" / "token"
-        try:
-            with open(token_file, "r") as f:
-                bearer_token = f.read().strip()
-        except:
-            warnings.warn("No BEARER_TOKEN specified. This will cause problems with FDP access.")
-
-    os.environ["BEARER_TOKEN"] = bearer_token
-    #######################################################
+    setup_environment(bearer_token=args.bearer_token or None)
 
     # Now run it
     args.func(args)
