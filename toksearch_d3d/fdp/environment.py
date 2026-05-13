@@ -106,3 +106,38 @@ def apply_environment(config, env):
         if k == "PATH":
             continue
         env.setdefault(k, v)
+
+
+def setup_environment(bearer_token=None, **overrides):
+    """Populate os.environ with FDP variables and resolve BEARER_TOKEN.
+
+    Defaults from DEFAULT_CONFIG are applied with setdefault semantics —
+    existing env vars are preserved, except PATH which is overwritten to
+    prepend the active env's bin/ directory.
+
+    Keyword overrides force-set the corresponding env vars, winning over both
+    DEFAULT_CONFIG and any existing os.environ value. Values are stringified
+    via str().
+
+    Bearer token resolution (first non-empty wins): bearer_token arg, then
+    BEARER_TOKEN in os.environ (after defaults+overrides applied), then the
+    contents of ~/.fdp/token. Warns if no token resolves.
+
+    Returns None. Mutates os.environ in place. Safe to call multiple times.
+    """
+    apply_environment(DEFAULT_CONFIG, os.environ)
+    for key, value in overrides.items():
+        os.environ[key] = str(value)
+
+    if not bearer_token:
+        bearer_token = os.environ.get("BEARER_TOKEN", "")
+    if not bearer_token:
+        token_file = Path.home() / ".fdp" / "token"
+        try:
+            bearer_token = token_file.read_text().strip()
+        except OSError:
+            warnings.warn(
+                "No BEARER_TOKEN specified. "
+                "This will cause problems with FDP access."
+            )
+    os.environ["BEARER_TOKEN"] = bearer_token

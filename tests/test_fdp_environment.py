@@ -5,7 +5,12 @@
 
 """Tests for toksearch_d3d.fdp.environment."""
 
+import os
+import tempfile
 import unittest
+import warnings
+from pathlib import Path
+from unittest import mock
 
 from toksearch_d3d.fdp.environment import DEFAULT_CONFIG, apply_environment
 
@@ -51,6 +56,109 @@ class TestApplyEnvironment(unittest.TestCase):
         self.assertEqual(env["OMP_NUM_THREADS"], "4")
         # TDSVER wasn't in env, gets the default.
         self.assertEqual(env["TDSVER"], "7.0")
+
+
+class TestSetupEnvironment(unittest.TestCase):
+    """setup_environment applies defaults, force-sets overrides, resolves bearer token."""
+
+    def _isolated_env(self, **initial):
+        """Return a mock.patch.dict context that fully replaces os.environ."""
+        return mock.patch.dict(os.environ, initial, clear=True)
+
+    def _isolated_home(self, tmpdir):
+        """Patch Path.home() inside environment.py to point at tmpdir."""
+        return mock.patch(
+            "toksearch_d3d.fdp.environment.Path.home",
+            return_value=Path(tmpdir),
+        )
+
+    def test_default_applied_when_env_empty(self):
+        """DEFAULT_CONFIG values populate when env var is absent."""
+        from toksearch_d3d.fdp.environment import setup_environment
+        with self._isolated_env(), tempfile.TemporaryDirectory() as tmp, \
+                self._isolated_home(tmp):
+            setup_environment(bearer_token="fake")
+            self.assertEqual(os.environ["TDSVER"], "7.0")
+
+    def test_existing_env_preserved_against_default(self):
+        """User-set env values win over DEFAULT_CONFIG (no override passed)."""
+        from toksearch_d3d.fdp.environment import setup_environment
+        with self._isolated_env(TDSVER="8.0"), \
+                tempfile.TemporaryDirectory() as tmp, \
+                self._isolated_home(tmp):
+            setup_environment(bearer_token="fake")
+            self.assertEqual(os.environ["TDSVER"], "8.0")
+
+    def test_override_wins_over_existing_env(self):
+        """A keyword override beats an already-set env var."""
+        from toksearch_d3d.fdp.environment import setup_environment
+        with self._isolated_env(PTDATA_LOC="9"), \
+                tempfile.TemporaryDirectory() as tmp, \
+                self._isolated_home(tmp):
+            setup_environment(bearer_token="fake", PTDATA_LOC="1")
+            self.assertEqual(os.environ["PTDATA_LOC"], "1")
+
+    def test_override_stringifies_non_string_value(self):
+        """Non-string override values are converted via str()."""
+        from toksearch_d3d.fdp.environment import setup_environment
+        with self._isolated_env(), tempfile.TemporaryDirectory() as tmp, \
+                self._isolated_home(tmp):
+            setup_environment(bearer_token="fake", PTDATA_LOC=2)
+            self.assertEqual(os.environ["PTDATA_LOC"], "2")
+
+    def test_bearer_token_arg_wins(self):
+        """Explicit bearer_token arg beats existing BEARER_TOKEN env var."""
+        from toksearch_d3d.fdp.environment import setup_environment
+        with self._isolated_env(BEARER_TOKEN="from_env"), \
+                tempfile.TemporaryDirectory() as tmp, \
+                self._isolated_home(tmp):
+            setup_environment(bearer_token="from_arg")
+            self.assertEqual(os.environ["BEARER_TOKEN"], "from_arg")
+
+    def test_bearer_token_falls_back_to_env(self):
+        """When no arg given, existing BEARER_TOKEN env var is kept."""
+        from toksearch_d3d.fdp.environment import setup_environment
+        with self._isolated_env(BEARER_TOKEN="from_env"), \
+                tempfile.TemporaryDirectory() as tmp, \
+                self._isolated_home(tmp):
+            setup_environment()
+            self.assertEqual(os.environ["BEARER_TOKEN"], "from_env")
+
+    def test_bearer_token_falls_back_to_file(self):
+        """When no arg and no env var, ~/.fdp/token is read."""
+        from toksearch_d3d.fdp.environment import setup_environment
+        with tempfile.TemporaryDirectory() as tmp:
+            fdp_dir = Path(tmp) / ".fdp"
+            fdp_dir.mkdir()
+            (fdp_dir / "token").write_text("from_file\n")
+            with self._isolated_env(), self._isolated_home(tmp):
+                setup_environment()
+                self.assertEqual(os.environ["BEARER_TOKEN"], "from_file")
+
+    def test_bearer_token_warns_when_none_found(self):
+        """Warns when no token can be resolved."""
+        from toksearch_d3d.fdp.environment import setup_environment
+        with tempfile.TemporaryDirectory() as tmp, \
+                self._isolated_env(), self._isolated_home(tmp):
+            with warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter("always")
+                setup_environment()
+                messages = [str(w.message) for w in caught]
+                self.assertTrue(
+                    any("BEARER_TOKEN" in m for m in messages),
+                    f"expected a BEARER_TOKEN warning, got: {messages}",
+                )
+
+    def test_safe_to_call_twice(self):
+        """Calling setup_environment twice is idempotent."""
+        from toksearch_d3d.fdp.environment import setup_environment
+        with self._isolated_env(), tempfile.TemporaryDirectory() as tmp, \
+                self._isolated_home(tmp):
+            setup_environment(bearer_token="fake")
+            first_path = os.environ["PATH"]
+            setup_environment(bearer_token="fake")
+            self.assertEqual(os.environ["PATH"], first_path)
+            self.assertEqual(os.environ["TDSVER"], "7.0")
 
 
 if __name__ == "__main__":
