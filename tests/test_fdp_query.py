@@ -5,93 +5,105 @@
 
 """Tests for the `fdp query` CLI subcommand.
 
-Each test patches `query_toksearch` at its source-module dotted path
-(`toksearch_d3d.agents.claude_toksearch_agent.query_toksearch`). The production
-handler `do_query` does a lazy `from ... import query_toksearch` inside the
-function body, which resolves to whatever attribute `mock.patch` has installed
-on the source module -- so the mock is picked up correctly. Note that entering
-the `with mock.patch(...):` block still triggers a full import of the agent
-module (and its transitive `toksearch` chain); the patch protects only the
-attribute lookup, not the import itself. That is acceptable here because these
-tests only exercise argparse plumbing -- they do not need an FDP-prepared
-os.environ.
+`do_query` runs the agent in a fresh Python subprocess so the child inherits
+the FDP-prepared os.environ at startup (required for libXrdCl + MDSplus tree
+opens via the Pelican-backed default_tree_path). These tests mock
+`subprocess.run` to assert that the right command, environment, and stdin
+payload are built from the CLI arguments -- they do not actually spawn a
+subprocess or invoke the LLM.
 
 `setup_environment` is patched on `cli` (not on `.environment`) because
 `cli.py` does `from .environment import setup_environment`, binding the name
-into the `cli` module namespace; that is the binding the handler reads.
+into the `cli` module namespace; that is the binding `main()` calls.
 """
 
 import io
+import json
 import sys
 import unittest
 from contextlib import redirect_stdout
-from pathlib import Path
 from unittest import mock
 
 
 class TestFdpQuery(unittest.TestCase):
-    def _run_cli(self, argv):
-        """Invoke `toksearch_d3d.fdp.cli.main` with patched sys.argv and a
-        no-op setup_environment (we don't want the test to touch os.environ).
-        Returns captured stdout.
+    def _run_cli(self, argv, subprocess_returncode=0):
+        """Invoke `toksearch_d3d.fdp.cli.main` with patched sys.argv, a
+        no-op setup_environment, and a mocked subprocess.run.
+
+        Returns (subprocess_run_mock, captured_stdout, sys_exit_code).
         """
         from toksearch_d3d.fdp import cli
         buf = io.StringIO()
+        fake_proc = mock.MagicMock()
+        fake_proc.returncode = subprocess_returncode
+        exit_code = None
         with mock.patch.object(sys, "argv", argv), \
                 mock.patch.object(cli, "setup_environment"), \
+                mock.patch.object(cli.subprocess, "run", return_value=fake_proc) as run_mock, \
                 redirect_stdout(buf):
-            cli.main()
-        return buf.getvalue()
+            try:
+                cli.main()
+            except SystemExit as e:
+                exit_code = e.code
+        return run_mock, buf.getvalue(), exit_code
+
+    def _payload_from_call(self, run_mock):
+        """Pull the JSON stdin payload out of the mocked subprocess.run call."""
+        self.assertEqual(run_mock.call_count, 1)
+        _args, kwargs = run_mock.call_args
+        self.assertIn("input", kwargs)
+        return json.loads(kwargs["input"])
 
     def test_defaults(self):
-        """`fdp query "hello"` forwards defaults: max_iterations=10,
-        verbose=True, debug=False, api_key_file=None."""
-        recorder = mock.MagicMock(return_value="ANSWER")
-        with mock.patch(
-            "toksearch_d3d.agents.claude_toksearch_agent.query_toksearch",
-            recorder,
-        ):
-            self._run_cli(["fdp", "query", "hello"])
-        recorder.assert_called_once_with(
-            "hello",
-            max_iterations=10,
-            verbose=True,
-            debug=False,
-            api_key_file=None,
-        )
+        """`fdp query "hello"` builds a payload with default kwargs."""
+        run_mock, _, _ = self._run_cli(["fdp", "query", "hello"])
+        payload = self._payload_from_call(run_mock)
+        self.assertEqual(payload, {
+            "prompt": "hello",
+            "max_iterations": 10,
+            "verbose": True,
+            "debug": False,
+            "api_key_file": None,
+        })
 
     def test_all_flags(self):
-        """All flags wire through correctly: -n, --quiet, --api-key-file, and
-        top-level --debug."""
-        recorder = mock.MagicMock(return_value="ANSWER")
-        with mock.patch(
-            "toksearch_d3d.agents.claude_toksearch_agent.query_toksearch",
-            recorder,
-        ):
-            self._run_cli([
-                "fdp", "--debug",
-                "query", "hi",
-                "-n", "3",
-                "--quiet",
-                "--api-key-file", "/tmp/key",
-            ])
-        recorder.assert_called_once_with(
-            "hi",
-            max_iterations=3,
-            verbose=False,
-            debug=True,
-            api_key_file=Path("/tmp/key"),
-        )
+        """All flags wire through: -n, --quiet, --api-key-file, top-level --debug."""
+        run_mock, _, _ = self._run_cli([
+            "fdp", "--debug",
+            "query", "hi",
+            "-n", "3",
+            "--quiet",
+            "--api-key-file", "/tmp/key",
+        ])
+        payload = self._payload_from_call(run_mock)
+        self.assertEqual(payload, {
+            "prompt": "hi",
+            "max_iterations": 3,
+            "verbose": False,
+            "debug": True,
+            "api_key_file": "/tmp/key",
+        })
 
-    def test_result_is_printed(self):
-        """Whatever `query_toksearch` returns is printed to stdout."""
-        recorder = mock.MagicMock(return_value="THE ANSWER")
-        with mock.patch(
-            "toksearch_d3d.agents.claude_toksearch_agent.query_toksearch",
-            recorder,
-        ):
-            out = self._run_cli(["fdp", "query", "anything"])
-        self.assertIn("THE ANSWER", out)
+    def test_subprocess_command_shape(self):
+        """The subprocess command is [sys.executable, '-c', runner_script]."""
+        from toksearch_d3d.fdp import cli
+        run_mock, _, _ = self._run_cli(["fdp", "query", "anything"])
+        cmd = run_mock.call_args.args[0]
+        self.assertEqual(cmd[0], sys.executable)
+        self.assertEqual(cmd[1], "-c")
+        self.assertEqual(cmd[2], cli.QUERY_RUNNER_SCRIPT)
+
+    def test_subprocess_env_is_os_environ(self):
+        """The subprocess inherits os.environ (populated by setup_environment)."""
+        import os
+        run_mock, _, _ = self._run_cli(["fdp", "query", "anything"])
+        self.assertIs(run_mock.call_args.kwargs["env"], os.environ)
+
+    def test_exit_code_propagates(self):
+        """sys.exit is called with the subprocess's returncode."""
+        _, _, exit_code = self._run_cli(["fdp", "query", "anything"],
+                                        subprocess_returncode=7)
+        self.assertEqual(exit_code, 7)
 
 
 if __name__ == "__main__":

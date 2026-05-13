@@ -245,23 +245,53 @@ def do_ls(args):
         sys.exit(1)
 
 
-def do_query(args):
-    # Lazy import: this transitively imports toksearch, which pulls in
-    # libfdpio + xrootd. Those C libraries read env vars
-    # (XRD_PLUGINCONFDIR, PTDATA_*, default_tree_path) at library load
-    # time, so the import MUST happen after setup_environment() has run --
-    # never at the top of this module.
-    from toksearch_d3d.agents.claude_toksearch_agent import query_toksearch
+QUERY_RUNNER_SCRIPT = """
+import json
+import sys
+from pathlib import Path
+from toksearch_d3d.agents.claude_toksearch_agent import query_toksearch
 
-    api_key_file = Path(args.api_key_file) if args.api_key_file else None
-    result = query_toksearch(
-        args.query,
-        max_iterations=args.max_iterations,
-        verbose=not args.quiet,
-        debug=args.debug,
-        api_key_file=api_key_file,
+kw = json.loads(sys.stdin.read())
+api_key_file = Path(kw["api_key_file"]) if kw["api_key_file"] else None
+result = query_toksearch(
+    kw["prompt"],
+    max_iterations=kw["max_iterations"],
+    verbose=kw["verbose"],
+    debug=kw["debug"],
+    api_key_file=api_key_file,
+)
+print(result)
+"""
+
+
+def do_query(args):
+    # Run the agent in a fresh Python subprocess that inherits the FDP
+    # environment from os.environ. The subprocess approach is load-bearing:
+    # several C libraries pulled in by `import toksearch` (libfdpio2 +
+    # libXrdCl) read env vars (XRD_PLUGINCONFDIR, default_tree_path,
+    # PTDATA_*, BEARER_TOKEN) at library load time, and reliable access
+    # via libXrdCl's Pelican plugin requires those vars to be in the
+    # initial process env block -- mutating os.environ from inside a
+    # running process is not sufficient for some code paths (notably
+    # MdsSignal tree opens via the default Pelican-backed tree path).
+    # `setup_environment()` has populated os.environ in main() before
+    # dispatch, so spawning a fresh Python here makes the child inherit
+    # those vars at startup.
+    import json
+    payload = json.dumps({
+        "prompt": args.query,
+        "max_iterations": args.max_iterations,
+        "verbose": not args.quiet,
+        "debug": args.debug,
+        "api_key_file": args.api_key_file,
+    })
+    result = subprocess.run(
+        [sys.executable, "-c", QUERY_RUNNER_SCRIPT],
+        env=os.environ,
+        input=payload,
+        text=True,
     )
-    print(result)
+    sys.exit(result.returncode)
 
 
 ##############################################################################

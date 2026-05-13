@@ -27,6 +27,7 @@ socat = ">=1.8.1.1,<2"
 seaborn = ">=0.13.2,<0.14"
 pelicanplatform = ">=7.24.3,<8"
 anthropic = "0.101.*"
+socksio = ">=1.0.0,<2"
 
 [pypi-dependencies]
 toksearch_d3d = { path = ".", editable = true }
