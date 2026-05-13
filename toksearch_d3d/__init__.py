@@ -22,12 +22,27 @@ For core Pipeline documentation, see ``help(toksearch)``.
 Invocation
 ==========
 
-Always run from the ``toksearch_d3d/`` directory with the FDP environment::
+Two ways to configure the FDP environment:
+
+**1. Python-side setup** (preferred for scripts and notebooks)::
+
+    from toksearch_d3d import setup_environment
+    setup_environment()           # then import signal classes and run pipelines
+
+    # Override individual variables as needed:
+    setup_environment(PTDATA_LOC="2", BEARER_TOKEN="...")
+
+**2. CLI wrapper** (preferred when launching a subprocess)::
 
     TDSVER="7.0" pixi run fdp run python <script.py>
 
-``TDSVER="7.0"`` is required whenever the script connects to d3drdb.
-``fdp run`` sets all XRootD, MDSplus, and PTData environment variables.
+``setup_environment`` and ``fdp run`` apply the same defaults: XRootD plugin
+paths, MDSplus tree paths, PTData configuration. The bearer token is
+resolved from the ``bearer_token`` argument, then ``$BEARER_TOKEN``, then
+``~/.fdp/token``.
+
+``TDSVER="7.0"`` is required whenever the script connects to d3drdb (the
+default config sets it, so this only matters if you've overridden it).
 
 Imports
 =======
@@ -180,6 +195,8 @@ try:
     from .signal.imas import ImasSignal, list_imas_fields
 except ImportError:
     pass
+
+from .fdp import setup_environment
 
 from . import _version
 __version__ = _version.get_versions()['version']
