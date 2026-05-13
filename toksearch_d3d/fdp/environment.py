@@ -135,7 +135,7 @@ def setup_environment(bearer_token=None, **overrides):
         token_file = Path.home() / ".fdp" / "token"
         try:
             bearer_token = token_file.read_text().strip()
-        except OSError:
+        except (OSError, UnicodeDecodeError):
             warnings.warn(
                 "No BEARER_TOKEN specified. "
                 "This will cause problems with FDP access."
