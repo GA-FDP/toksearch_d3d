@@ -5,11 +5,20 @@
 
 """Tests for the `fdp query` CLI subcommand.
 
-These tests monkeypatch `query_toksearch` on its source module so that the
-production lazy import inside `do_query` picks up the mock. This avoids
-importing the real agent module (which transitively imports toksearch +
-libfdpio + XRootD) at test-collection time -- the same load-order rule the
-production code follows.
+Each test patches `query_toksearch` at its source-module dotted path
+(`toksearch_d3d.agents.claude_toksearch_agent.query_toksearch`). The production
+handler `do_query` does a lazy `from ... import query_toksearch` inside the
+function body, which resolves to whatever attribute `mock.patch` has installed
+on the source module -- so the mock is picked up correctly. Note that entering
+the `with mock.patch(...):` block still triggers a full import of the agent
+module (and its transitive `toksearch` chain); the patch protects only the
+attribute lookup, not the import itself. That is acceptable here because these
+tests only exercise argparse plumbing -- they do not need an FDP-prepared
+os.environ.
+
+`setup_environment` is patched on `cli` (not on `.environment`) because
+`cli.py` does `from .environment import setup_environment`, binding the name
+into the `cli` module namespace; that is the binding the handler reads.
 """
 
 import io
