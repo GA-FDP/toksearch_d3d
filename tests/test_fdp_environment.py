@@ -3,11 +3,11 @@
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 
-"""Tests for toksearch_d3d.fdp.cli.apply_environment."""
+"""Tests for toksearch_d3d.fdp.environment."""
 
 import unittest
 
-from toksearch_d3d.fdp.cli import DEFAULT_CONFIG, apply_environment
+from toksearch_d3d.fdp.environment import DEFAULT_CONFIG, apply_environment
 
 
 class TestApplyEnvironment(unittest.TestCase):
