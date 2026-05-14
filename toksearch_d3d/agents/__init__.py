@@ -1,0 +1,1 @@
+from .smol_toksearch_agent import query_toksearch as smol_query_toksearch
