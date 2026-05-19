@@ -27,13 +27,13 @@ from unittest import mock
 
 class TestD3DDeviceShape(unittest.TestCase):
     def test_d3d_device_imported(self):
-        from toksearch_d3d._fdp_new import D3D_DEVICE
+        from toksearch_d3d.fdp import D3D_DEVICE
         self.assertEqual(D3D_DEVICE.name, "d3d")
         self.assertIn("fdp-d3d", D3D_DEVICE.pelican_root)
         self.assertEqual(D3D_DEVICE.default_llm_preset, "amsc")
 
     def test_d3d_device_has_required_paths(self):
-        from toksearch_d3d._fdp_new import D3D_DEVICE
+        from toksearch_d3d.fdp import D3D_DEVICE
         self.assertIsNotNone(D3D_DEVICE.mds_default_tree_path)
         self.assertIn("fdp-d3d", D3D_DEVICE.mds_default_tree_path)
         self.assertIsNotNone(D3D_DEVICE.ptdata_index_dir)
@@ -51,7 +51,7 @@ class TestEntryPointRegistration(unittest.TestCase):
         devices = discover_devices()
         self.assertIn("d3d", devices)
         # Confirm it's coming from our contributor (not the fdp fallback)
-        from toksearch_d3d._fdp_new import D3D_DEVICE
+        from toksearch_d3d.fdp import D3D_DEVICE
         # After Task 2 lands the entry point, this should be our object:
         # (Pre-Task-2 it will be the fdp fallback, which is also named "d3d"
         # but has a different description.)
@@ -67,7 +67,7 @@ class TestSetupEnvironmentWrapper(unittest.TestCase):
             import fdp
         except ImportError:
             self.skipTest("fdp package not installed yet")
-        from toksearch_d3d._fdp_new import setup_environment
+        from toksearch_d3d.fdp import setup_environment
         with mock.patch("fdp.setup_environment") as su:
             setup_environment()
         su.assert_called_once()

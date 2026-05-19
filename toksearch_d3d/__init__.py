@@ -196,7 +196,7 @@ try:
 except ImportError:
     pass
 
-from ._fdp_new import setup_environment
+from .fdp import setup_environment
 
 from . import _version
 __version__ = _version.get_versions()['version']

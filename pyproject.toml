@@ -60,4 +60,4 @@ toksearch_d3d = "toksearch_d3d.llm:skills_path"
 amsc = "toksearch_d3d.llm:AMSC_PRESET"
 
 [project.entry-points."fdp.devices"]
-d3d = "toksearch_d3d._fdp_new:D3D_DEVICE"
+d3d = "toksearch_d3d.fdp:D3D_DEVICE"
