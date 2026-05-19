@@ -23,7 +23,11 @@ description = "TokSearch DIII-D: Signal retrieval classes for DIII-D fusion expe
 readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.11"
-dependencies = ["toksearch>=2.7"]
+# Runtime dependencies are declared in recipe/recipe.yaml; toksearch is
+# distributed via the ga-fdp conda channel only (not PyPI).  Keeping
+# dependencies = [] here so `pip install toksearch_d3d` and pixi's pypi
+# resolver don't try to fetch `toksearch` from PyPI.
+dependencies = []
 
 [project.optional-dependencies]
 imas = ["imas_composer", "awkward>=2.0"]
