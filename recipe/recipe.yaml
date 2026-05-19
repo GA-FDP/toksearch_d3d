@@ -55,9 +55,12 @@ tests:
     files:
       source:
         - tests/
-  - python:
-      imports:
-        - toksearch_d3d
+  # NOTE: removed the `python: imports: - toksearch_d3d` test. It ran
+  # `import toksearch_d3d` in a clean env (no FDP env vars set), which
+  # triggered libfdpio + libXrdCl load with no XRD_PLUGINCONFDIR, hanging
+  # for 30+ minutes on Pelican plugin registration. The script test above
+  # already exercises imports (testit.py imports toksearch_d3d under
+  # `fdp run`, which sets the env first).
 
 about:
   license: Apache-2.0
