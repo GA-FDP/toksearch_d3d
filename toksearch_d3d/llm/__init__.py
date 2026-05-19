@@ -18,8 +18,10 @@ Exposes:
 - ``skills_path``: directory of DIII-D-specific SKILL.md files, registered
   via the ``toksearch.llm.skills`` entry point.
 - ``AMSC_PRESET``: a backend preset that points the Anthropic backend at
-  GA's American Science Cloud endpoint with ``~/amsc_api_key`` as the key
-  source, registered via the ``toksearch.llm.presets`` entry point.
+  the American Science Cloud (AmSC) Anthropic-compatible endpoint, with
+  ``~/amsc_api_key`` as the key source, registered via the
+  ``toksearch.llm.presets`` entry point. AmSC is generally available to
+  AmSC users; it is not GA-operated.
 
 The ``toksearch.llm.namespace`` entry point points at ``toksearch_d3d``
 itself (whose ``__init__.py`` defines ``__llm_description__``).
