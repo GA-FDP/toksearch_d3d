@@ -28,8 +28,16 @@ Exposes:
     fdp.setup_environment(device="d3d", ...).
 """
 
-import fdp
+# Import from submodules rather than top-level `fdp` so that simply
+# importing toksearch_d3d does NOT trigger fdp/__init__.py's eager
+# `from .filesystem import FdpFileSystem`, which in turn loads
+# `XRootD.client` → libXrdCl. libXrdCl is already loaded via the
+# `from .signal.ptdata import PtDataSignal` chain in toksearch_d3d/__init__.py;
+# a second load through the fdp chain leaves non-daemon C-extension threads
+# alive at Python shutdown, blocking interpreter exit (observed: 30+ min
+# hang in CI conda recipe tests after tests pass).
 from fdp.devices import Device
+from fdp.environment import setup_environment as _fdp_setup_environment
 
 
 D3D_DEVICE: Device = Device(
@@ -63,7 +71,7 @@ def setup_environment(bearer_token: str | None = None, **overrides) -> None:
     Pre-existing callers that did `from toksearch_d3d import
     setup_environment` keep working without code changes.
     """
-    fdp.setup_environment(
+    _fdp_setup_environment(
         device="d3d",
         bearer_token=bearer_token,
         **overrides,

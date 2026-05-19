@@ -64,11 +64,14 @@ class TestEntryPointRegistration(unittest.TestCase):
 class TestSetupEnvironmentWrapper(unittest.TestCase):
     def test_wrapper_calls_fdp_setup_environment_with_d3d(self):
         try:
-            import fdp
+            import fdp.environment  # noqa: F401
         except ImportError:
             self.skipTest("fdp package not installed yet")
         from toksearch_d3d.fdp import setup_environment
-        with mock.patch("fdp.setup_environment") as su:
+        # The wrapper imports the inner function as
+        # `_fdp_setup_environment` from `fdp.environment`; we patch at the
+        # toksearch_d3d.fdp module level to intercept that bound name.
+        with mock.patch("toksearch_d3d.fdp._fdp_setup_environment") as su:
             setup_environment()
         su.assert_called_once()
         self.assertEqual(su.call_args.kwargs.get("device"), "d3d")
