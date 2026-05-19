@@ -21,7 +21,7 @@ Exposes:
   the American Science Cloud (AmSC) Anthropic-compatible endpoint, with
   ``~/amsc_api_key`` as the key source, registered via the
   ``toksearch.llm.presets`` entry point. AmSC is generally available to
-  AmSC users; it is not GA-operated.
+  AmSC users.
 
 The ``toksearch.llm.namespace`` entry point points at ``toksearch_d3d``
 itself (whose ``__init__.py`` defines ``__llm_description__``).
