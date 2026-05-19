@@ -51,5 +51,41 @@ if __name__ == "__main__":
     res = runner.run(tests)
     exit_code = 0 if res.wasSuccessful() else 1
     if args.fast_exit:
+        # Kill any leftover descendants (joblib/loky workers, libfdpio
+        # helpers) before exiting, otherwise they inherit stdout/stderr
+        # and block the parent shell / rattler-build from seeing EOF on
+        # those pipes — which is what was causing the conda CI hang.
+        import glob, signal
+        me = os.getpid()
+        to_kill = set()
+        # Build pid->ppid map once. /proc/PID/stat is "pid (comm) state
+        # ppid ..."; comm can contain spaces/parens, so split on the last
+        # ')' before reading the remaining whitespace-separated fields.
+        pid_to_ppid = {}
+        for stat in glob.glob("/proc/[0-9]*/stat"):
+            try:
+                with open(stat) as f:
+                    data = f.read()
+                rparen = data.rfind(")")
+                pid = int(data[: data.index("(")].strip())
+                ppid = int(data[rparen + 2 :].split()[1])
+                pid_to_ppid[pid] = ppid
+            except Exception:
+                continue
+        # BFS over the map to collect descendants of self
+        frontier = [me]
+        while frontier:
+            parent = frontier.pop()
+            for pid, ppid in pid_to_ppid.items():
+                if ppid == parent and pid != me and pid not in to_kill:
+                    to_kill.add(pid)
+                    frontier.append(pid)
+        for pid in to_kill:
+            try:
+                os.kill(pid, signal.SIGKILL)
+            except OSError:
+                pass
+        sys.stdout.flush()
+        sys.stderr.flush()
         os._exit(exit_code)
     sys.exit(exit_code)
