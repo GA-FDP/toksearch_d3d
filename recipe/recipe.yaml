@@ -51,7 +51,10 @@ tests:
       env:
         BEARER_TOKEN: ${{ env.get("BEARER_TOKEN", default="") }}
       content:
-        - fdp run bash -c 'cd tests && python testit.py'
+        # --fast-exit avoids Python's interpreter shutdown hang on
+        # C-extension worker threads (libfdpio/XRootD/Pelican). Test
+        # outcomes and exit code are preserved; see testit.py for details.
+        - fdp run bash -c 'cd tests && python testit.py --fast-exit'
     files:
       source:
         - tests/
