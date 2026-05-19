@@ -33,11 +33,10 @@ dependencies = []
 imas = ["imas_composer", "awkward>=2.0"]
 
 [project.scripts]
-fdp = "toksearch_d3d.fdp.cli:main"
 pcssetup-to-wa10 = "toksearch_d3d.tools.pcssetup_to_wa10:main"
 
 [tool.setuptools]
-packages = ["toksearch_d3d", "toksearch_d3d.fdp", "toksearch_d3d.llm", "toksearch_d3d.signal", "toksearch_d3d.tools"]
+packages = ["toksearch_d3d", "toksearch_d3d.llm", "toksearch_d3d.signal", "toksearch_d3d.tools"]
 zip-safe = false
 
 [tool.setuptools.package-data]
@@ -59,3 +58,6 @@ toksearch_d3d = "toksearch_d3d.llm:skills_path"
 
 [project.entry-points."toksearch.llm.presets"]
 amsc = "toksearch_d3d.llm:AMSC_PRESET"
+
+[project.entry-points."fdp.devices"]
+d3d = "toksearch_d3d._fdp_new:D3D_DEVICE"
