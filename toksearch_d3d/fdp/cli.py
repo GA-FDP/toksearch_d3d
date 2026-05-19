@@ -245,6 +245,47 @@ def do_ls(args):
         sys.exit(1)
 
 
+def _build_llm_cmd(subcommand: str, passthrough_args: list[str]) -> list[str]:
+    """Construct argv for the toksearch.llm CLI delegate."""
+    cmd = [sys.executable, "-m", "toksearch.llm.cli", subcommand]
+    # Default backend: amsc, preserves existing `fdp query` behavior so
+    # users with ~/amsc_api_key see no change.  The user can override with
+    # --backend on the fdp side.
+    if "--backend" not in passthrough_args:
+        cmd.extend(["--backend", "amsc"])
+    cmd.extend(passthrough_args)
+    return cmd
+
+
+def do_query(args):
+    # Re-exec into python -m toksearch.llm.cli query.  The exec replaces
+    # this Python process so libfdpio/XRootD env vars set by
+    # setup_environment() are honored at the new process's C-library load
+    # time (subprocess vs re-exec is equivalent here for env block; re-exec
+    # is simpler and avoids subprocess wait/return-code plumbing).
+    passthrough = [args.query]
+    if args.backend:
+        passthrough.extend(["--backend", args.backend])
+    if args.model:
+        passthrough.extend(["--model", args.model])
+    if args.max_iterations is not None:
+        passthrough.extend(["-n", str(args.max_iterations)])
+    cmd = _build_llm_cmd("query", passthrough)
+    os.execvpe(cmd[0], cmd, os.environ)
+
+
+def do_chat(args):
+    passthrough = []
+    if args.backend:
+        passthrough.extend(["--backend", args.backend])
+    if args.model:
+        passthrough.extend(["--model", args.model])
+    if args.max_iterations is not None:
+        passthrough.extend(["-n", str(args.max_iterations)])
+    cmd = _build_llm_cmd("chat", passthrough)
+    os.execvpe(cmd[0], cmd, os.environ)
+
+
 ##############################################################################
 #
 # MAIN
@@ -303,6 +344,37 @@ def main():
     )
 
     skills_parser.set_defaults(func=do_skills)
+
+    def _add_llm_args(parser):
+        parser.add_argument(
+            "--backend", default=None,
+            help="Backend / preset name (default: amsc). Options: amsc, "
+                 "anthropic, openai, claude-max, or any user preset.")
+        parser.add_argument(
+            "--model", default=None,
+            help="Override the preset's default model.")
+        parser.add_argument(
+            "-n", "--max-iterations", type=int, default=None,
+            help="Cap on tool-call rounds per turn.")
+
+    query_parser = subparsers.add_parser(
+        "query",
+        help="Run a one-shot natural-language query against TokSearch",
+    )
+    query_parser.add_argument(
+        "query",
+        type=str,
+        help="Natural-language query (quote it on the shell)",
+    )
+    _add_llm_args(query_parser)
+    query_parser.set_defaults(func=do_query)
+
+    chat_parser = subparsers.add_parser(
+        "chat",
+        help="Interactive conversational query against TokSearch",
+    )
+    _add_llm_args(chat_parser)
+    chat_parser.set_defaults(func=do_chat)
 
     args = parser.parse_args()
 

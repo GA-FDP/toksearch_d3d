@@ -34,10 +34,16 @@ requirements:
     - versioneer
   run:
     - python
+    # TODO: bump to `toksearch >=2.7` once release-2.7.0 (with the
+    # toksearch.llm entry-point discovery from core toksearch PR 30)
+    # is tagged and uploaded to ga-fdp. Keeping >=2.6.0 for now so this
+    # package can be built+published against the currently-released
+    # toksearch 2.6.0; the new fdp chat / fdp query paths only work
+    # against the post-2.6.0 toksearch but degrade gracefully (skip
+    # llm tests) when the older release is installed.
     - toksearch >=2.6.0
     - ptdata >=2.0.2,<3
     - imas_composer >=0.2
-    - anthropic >=0.101.0,<1
 
 tests:
   - script:
