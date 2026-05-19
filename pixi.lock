@@ -5592,8 +5592,8 @@ packages:
   timestamp: 1777933206156
 - pypi: ./
   name: toksearch-d3d
-  version: 0.7.0+4.g55e4a58.dirty
-  sha256: 7fc75c068252f2c9c6f7ef32f28765a8dbe78f73fd9bf06e82c694313c39f9ad
+  version: 0.7.0+7.gf53adb7.dirty
+  sha256: b8a76d460b9c8f536c02c47684683824e205a2df5ce03f16da343ea475205566
   requires_dist:
   - imas-composer ; extra == 'imas'
   - awkward>=2.0 ; extra == 'imas'
