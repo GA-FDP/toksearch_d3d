@@ -245,53 +245,45 @@ def do_ls(args):
         sys.exit(1)
 
 
-QUERY_RUNNER_SCRIPT = """
-import json
-import sys
-from pathlib import Path
-from toksearch_d3d.agents.claude_toksearch_agent import query_toksearch
-
-kw = json.loads(sys.stdin.read())
-api_key_file = Path(kw["api_key_file"]) if kw["api_key_file"] else None
-result = query_toksearch(
-    kw["prompt"],
-    max_iterations=kw["max_iterations"],
-    verbose=kw["verbose"],
-    debug=kw["debug"],
-    api_key_file=api_key_file,
-)
-print(result)
-"""
+def _build_llm_cmd(subcommand: str, passthrough_args: list[str]) -> list[str]:
+    """Construct argv for the toksearch.llm CLI delegate."""
+    cmd = [sys.executable, "-m", "toksearch.llm.cli", subcommand]
+    # Default backend: amsc, preserves existing `fdp query` behavior so
+    # users with ~/amsc_api_key see no change.  The user can override with
+    # --backend on the fdp side.
+    if "--backend" not in passthrough_args:
+        cmd.extend(["--backend", "amsc"])
+    cmd.extend(passthrough_args)
+    return cmd
 
 
 def do_query(args):
-    # Run the agent in a fresh Python subprocess that inherits the FDP
-    # environment from os.environ. The subprocess approach is load-bearing:
-    # several C libraries pulled in by `import toksearch` (libfdpio2 +
-    # libXrdCl) read env vars (XRD_PLUGINCONFDIR, default_tree_path,
-    # PTDATA_*, BEARER_TOKEN) at library load time, and reliable access
-    # via libXrdCl's Pelican plugin requires those vars to be in the
-    # initial process env block -- mutating os.environ from inside a
-    # running process is not sufficient for some code paths (notably
-    # MdsSignal tree opens via the default Pelican-backed tree path).
-    # `setup_environment()` has populated os.environ in main() before
-    # dispatch, so spawning a fresh Python here makes the child inherit
-    # those vars at startup.
-    import json
-    payload = json.dumps({
-        "prompt": args.query,
-        "max_iterations": args.max_iterations,
-        "verbose": not args.quiet,
-        "debug": args.debug,
-        "api_key_file": args.api_key_file,
-    })
-    result = subprocess.run(
-        [sys.executable, "-c", QUERY_RUNNER_SCRIPT],
-        env=os.environ,
-        input=payload,
-        text=True,
-    )
-    sys.exit(result.returncode)
+    # Re-exec into python -m toksearch.llm.cli query.  The exec replaces
+    # this Python process so libfdpio/XRootD env vars set by
+    # setup_environment() are honored at the new process's C-library load
+    # time (subprocess vs re-exec is equivalent here for env block; re-exec
+    # is simpler and avoids subprocess wait/return-code plumbing).
+    passthrough = [args.query]
+    if args.backend:
+        passthrough.extend(["--backend", args.backend])
+    if args.model:
+        passthrough.extend(["--model", args.model])
+    if args.max_iterations is not None:
+        passthrough.extend(["-n", str(args.max_iterations)])
+    cmd = _build_llm_cmd("query", passthrough)
+    os.execvpe(cmd[0], cmd, os.environ)
+
+
+def do_chat(args):
+    passthrough = []
+    if args.backend:
+        passthrough.extend(["--backend", args.backend])
+    if args.model:
+        passthrough.extend(["--model", args.model])
+    if args.max_iterations is not None:
+        passthrough.extend(["-n", str(args.max_iterations)])
+    cmd = _build_llm_cmd("chat", passthrough)
+    os.execvpe(cmd[0], cmd, os.environ)
 
 
 ##############################################################################
@@ -353,28 +345,36 @@ def main():
 
     skills_parser.set_defaults(func=do_skills)
 
+    def _add_llm_args(parser):
+        parser.add_argument(
+            "--backend", default=None,
+            help="Backend / preset name (default: amsc). Options: amsc, "
+                 "anthropic, openai, claude-max, or any user preset.")
+        parser.add_argument(
+            "--model", default=None,
+            help="Override the preset's default model.")
+        parser.add_argument(
+            "-n", "--max-iterations", type=int, default=None,
+            help="Cap on tool-call rounds per turn.")
+
     query_parser = subparsers.add_parser(
         "query",
-        help="Run a natural-language query against TokSearch via the agent",
+        help="Run a one-shot natural-language query against TokSearch",
     )
     query_parser.add_argument(
         "query",
         type=str,
         help="Natural-language query (quote it on the shell)",
     )
-    query_parser.add_argument(
-        "--max-iterations", "-n", type=int, default=10,
-        help="Maximum agent tool-call rounds (default: 10)",
-    )
-    query_parser.add_argument(
-        "--quiet", "-q", action="store_true",
-        help="Suppress per-iteration progress output",
-    )
-    query_parser.add_argument(
-        "--api-key-file", type=str, default=None,
-        help="Path to AmSC API key file (default: ~/amsc_api_key)",
-    )
+    _add_llm_args(query_parser)
     query_parser.set_defaults(func=do_query)
+
+    chat_parser = subparsers.add_parser(
+        "chat",
+        help="Interactive conversational query against TokSearch",
+    )
+    _add_llm_args(chat_parser)
+    chat_parser.set_defaults(func=do_chat)
 
     args = parser.parse_args()
 

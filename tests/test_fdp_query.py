@@ -2,108 +2,92 @@
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
-"""Tests for the `fdp query` CLI subcommand.
+"""Tests for the `fdp query` and `fdp chat` CLI shims.
 
-`do_query` runs the agent in a fresh Python subprocess so the child inherits
-the FDP-prepared os.environ at startup (required for libXrdCl + MDSplus tree
-opens via the Pelican-backed default_tree_path). These tests mock
-`subprocess.run` to assert that the right command, environment, and stdin
-payload are built from the CLI arguments -- they do not actually spawn a
-subprocess or invoke the LLM.
+After PR 4 of the toksearch.llm migration, both subcommands are thin
+re-exec shims that call `setup_environment()` (already invoked by
+`main()` before dispatch) and then `os.execvpe` into
+`python -m toksearch.llm.cli {query,chat} ...`.  These tests mock
+`os.execvpe` to verify the argv and env are constructed correctly
+without actually exec'ing.
 
 `setup_environment` is patched on `cli` (not on `.environment`) because
-`cli.py` does `from .environment import setup_environment`, binding the name
-into the `cli` module namespace; that is the binding `main()` calls.
+`cli.py` does `from .environment import setup_environment`, binding the
+name into the `cli` module namespace; that is the binding `main()` calls.
 """
 
-import io
-import json
+import os
 import sys
 import unittest
-from contextlib import redirect_stdout
 from unittest import mock
 
 
-class TestFdpQuery(unittest.TestCase):
-    def _run_cli(self, argv, subprocess_returncode=0):
-        """Invoke `toksearch_d3d.fdp.cli.main` with patched sys.argv, a
-        no-op setup_environment, and a mocked subprocess.run.
-
-        Returns (subprocess_run_mock, captured_stdout, sys_exit_code).
-        """
+class _ShimTestBase(unittest.TestCase):
+    def _run_cli(self, argv):
         from toksearch_d3d.fdp import cli
-        buf = io.StringIO()
-        fake_proc = mock.MagicMock()
-        fake_proc.returncode = subprocess_returncode
-        exit_code = None
         with mock.patch.object(sys, "argv", argv), \
                 mock.patch.object(cli, "setup_environment"), \
-                mock.patch.object(cli.subprocess, "run", return_value=fake_proc) as run_mock, \
-                redirect_stdout(buf):
+                mock.patch.object(cli.os, "execvpe") as execvpe_mock:
+            # os.execvpe normally never returns; we don't want main() to
+            # continue, so mock it to no-op.  In production it never returns
+            # to Python because the process image is replaced.
             try:
                 cli.main()
-            except SystemExit as e:
-                exit_code = e.code
-        return run_mock, buf.getvalue(), exit_code
+            except SystemExit:
+                pass
+        return execvpe_mock
 
-    def _payload_from_call(self, run_mock):
-        """Pull the JSON stdin payload out of the mocked subprocess.run call."""
-        self.assertEqual(run_mock.call_count, 1)
-        _args, kwargs = run_mock.call_args
-        self.assertIn("input", kwargs)
-        return json.loads(kwargs["input"])
 
-    def test_defaults(self):
-        """`fdp query "hello"` builds a payload with default kwargs."""
-        run_mock, _, _ = self._run_cli(["fdp", "query", "hello"])
-        payload = self._payload_from_call(run_mock)
-        self.assertEqual(payload, {
-            "prompt": "hello",
-            "max_iterations": 10,
-            "verbose": True,
-            "debug": False,
-            "api_key_file": None,
-        })
+class TestFdpQuery(_ShimTestBase):
+    def test_query_dispatches_to_toksearch_llm_cli(self):
+        m = self._run_cli(["fdp", "query", "hello"])
+        m.assert_called_once()
+        _, args, env = m.call_args.args
+        self.assertEqual(args[0], sys.executable)
+        self.assertEqual(args[1:4], ["-m", "toksearch.llm.cli", "query"])
+        self.assertIn("hello", args)
+        # Default --backend is amsc
+        self.assertEqual(args[args.index("--backend") + 1], "amsc")
+        # Env passes os.environ
+        self.assertIs(env, os.environ)
 
-    def test_all_flags(self):
-        """All flags wire through: -n, --quiet, --api-key-file, top-level --debug."""
-        run_mock, _, _ = self._run_cli([
-            "fdp", "--debug",
-            "query", "hi",
-            "-n", "3",
-            "--quiet",
-            "--api-key-file", "/tmp/key",
-        ])
-        payload = self._payload_from_call(run_mock)
-        self.assertEqual(payload, {
-            "prompt": "hi",
-            "max_iterations": 3,
-            "verbose": False,
-            "debug": True,
-            "api_key_file": "/tmp/key",
-        })
+    def test_query_backend_flag_forwarded(self):
+        m = self._run_cli(
+            ["fdp", "query", "--backend", "anthropic", "hi"])
+        args = m.call_args.args[1]
+        self.assertEqual(args[args.index("--backend") + 1], "anthropic")
 
-    def test_subprocess_command_shape(self):
-        """The subprocess command is [sys.executable, '-c', runner_script]."""
-        from toksearch_d3d.fdp import cli
-        run_mock, _, _ = self._run_cli(["fdp", "query", "anything"])
-        cmd = run_mock.call_args.args[0]
-        self.assertEqual(cmd[0], sys.executable)
-        self.assertEqual(cmd[1], "-c")
-        self.assertEqual(cmd[2], cli.QUERY_RUNNER_SCRIPT)
+    def test_query_max_iterations_flag_forwarded(self):
+        m = self._run_cli(["fdp", "query", "-n", "3", "hi"])
+        args = m.call_args.args[1]
+        self.assertIn("-n", args)
+        self.assertEqual(args[args.index("-n") + 1], "3")
 
-    def test_subprocess_env_is_os_environ(self):
-        """The subprocess inherits os.environ (populated by setup_environment)."""
-        import os
-        run_mock, _, _ = self._run_cli(["fdp", "query", "anything"])
-        self.assertIs(run_mock.call_args.kwargs["env"], os.environ)
 
-    def test_exit_code_propagates(self):
-        """sys.exit is called with the subprocess's returncode."""
-        _, _, exit_code = self._run_cli(["fdp", "query", "anything"],
-                                        subprocess_returncode=7)
-        self.assertEqual(exit_code, 7)
+class TestFdpChat(_ShimTestBase):
+    def test_chat_dispatches_to_toksearch_llm_cli(self):
+        m = self._run_cli(["fdp", "chat"])
+        m.assert_called_once()
+        _, args, env = m.call_args.args
+        self.assertEqual(args[1:4], ["-m", "toksearch.llm.cli", "chat"])
+        # Default --backend is amsc
+        self.assertEqual(args[args.index("--backend") + 1], "amsc")
+        self.assertIs(env, os.environ)
+
+    def test_chat_backend_flag_forwarded(self):
+        m = self._run_cli(["fdp", "chat", "--backend", "claude-max"])
+        args = m.call_args.args[1]
+        self.assertEqual(args[args.index("--backend") + 1], "claude-max")
 
 
 if __name__ == "__main__":
