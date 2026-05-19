@@ -323,6 +323,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/snappy-1.2.2-h03e3b7b_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/sniffio-1.3.1-pyhd8ed1ab_2.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/socat-1.8.1.1-h20ad521_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/socksio-1.0.0-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/soupsieve-2.8.3-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/stack_data-0.6.3-pyhd8ed1ab_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/statsmodels-0.14.6-py312h4f23490_0.conda
@@ -5435,6 +5436,17 @@ packages:
   purls: []
   size: 255781
   timestamp: 1770944061145
+- conda: https://conda.anaconda.org/conda-forge/noarch/socksio-1.0.0-pyhd8ed1ab_0.conda
+  sha256: abb70405b0ae8ff568eb8c94a2dbaffa8feeab41491ad180a60bce1a0d7bd608
+  md5: 61c4227968001893dcff60e779289eb5
+  depends:
+  - python >=3.6
+  license: MIT
+  license_family: MIT
+  purls:
+  - pkg:pypi/socksio?source=hash-mapping
+  size: 16612
+  timestamp: 1701782816871
 - conda: https://conda.anaconda.org/conda-forge/noarch/soupsieve-2.8.3-pyhd8ed1ab_0.conda
   sha256: 23b71ecf089967d2900126920e7f9ff18cdcef82dbff3e2f54ffa360243a17ac
   md5: 18de09b20462742fe093ba39185d9bac
@@ -5568,8 +5580,8 @@ packages:
   timestamp: 1777933206156
 - pypi: ./
   name: toksearch-d3d
-  version: 0.6.0+1.g0d23032
-  sha256: b8468bc89b95b5aa8a966d6ef258345bab6c1504e47b47b532050329d1c8dda7
+  version: 0.7.0+14.gdfb02f8.dirty
+  sha256: 7fc75c068252f2c9c6f7ef32f28765a8dbe78f73fd9bf06e82c694313c39f9ad
   requires_dist:
   - imas-composer ; extra == 'imas'
   - awkward>=2.0 ; extra == 'imas'
