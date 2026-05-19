@@ -20,6 +20,9 @@ repo_name: GA-FDP/toksearch_d3d
 repo_url: https://github.com/GA-FDP/toksearch_d3d
 edit_uri: ""
 
+# Internal planning docs -- not user-facing.
+exclude_docs: |
+  superpowers/
 
 plugins:
   - mkdocstrings:
