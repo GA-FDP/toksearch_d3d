@@ -200,3 +200,8 @@ from .fdp import setup_environment
 
 from . import _version
 __version__ = _version.get_versions()['version']
+
+__llm_description__ = (
+    "toksearch_d3d - DIII-D signal classes (PtDataSignal, ImasSignal, "
+    "CakeSignal) + FDP/Pelican data access via the `fdp` CLI"
+)
