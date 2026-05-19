@@ -23,7 +23,7 @@ description = "TokSearch DIII-D: Signal retrieval classes for DIII-D fusion expe
 readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = ["toksearch>=2.7"]
 
 [project.optional-dependencies]
 imas = ["imas_composer", "awkward>=2.0"]
@@ -33,7 +33,7 @@ fdp = "toksearch_d3d.fdp.cli:main"
 pcssetup-to-wa10 = "toksearch_d3d.tools.pcssetup_to_wa10:main"
 
 [tool.setuptools]
-packages = ["toksearch_d3d", "toksearch_d3d.fdp", "toksearch_d3d.signal", "toksearch_d3d.tools", "toksearch_d3d.agents"]
+packages = ["toksearch_d3d", "toksearch_d3d.fdp", "toksearch_d3d.llm", "toksearch_d3d.signal", "toksearch_d3d.tools"]
 zip-safe = false
 
 [tool.setuptools.package-data]
@@ -46,3 +46,12 @@ versionfile_source = "toksearch_d3d/_version.py"
 versionfile_build = "toksearch_d3d/_version.py"
 tag_prefix = "release-"
 parentdir_prefix = "toksearch_d3d-"
+
+[project.entry-points."toksearch.llm.namespace"]
+toksearch_d3d = "toksearch_d3d"
+
+[project.entry-points."toksearch.llm.skills"]
+toksearch_d3d = "toksearch_d3d.llm:skills_path"
+
+[project.entry-points."toksearch.llm.presets"]
+amsc = "toksearch_d3d.llm:AMSC_PRESET"
