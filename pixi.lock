@@ -83,6 +83,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/double-conversion-3.4.0-hecca717_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/exceptiongroup-1.3.1-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/executing-2.2.1-pyhd8ed1ab_0.conda
+      - conda: https://conda.anaconda.org/ga-fdp/noarch/fdp-0.1.0-pyh4616a5c_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/filelock-3.29.0-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/font-ttf-dejavu-sans-mono-2.37-hab24e00_0.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/noarch/font-ttf-inconsolata-3.000-h77eed37_0.tar.bz2
@@ -377,6 +378,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/xorg-libxtst-1.2.5-hb9d3cd8_3.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/xorg-libxxf86vm-1.1.7-hb03c661_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/xorg-xorgproto-2025.1-hb03c661_0.conda
+      - conda: https://conda.anaconda.org/ga-fdp/linux-64/xrdcl-pelican-1.6.1+fdp_fork-hc11ce1e_3.tar.bz2
       - conda: https://conda.anaconda.org/ga-fdp/linux-64/xrdcl-pelican-fdp-0.2.0-hc11ce1e_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/xrootd-5.9.2-py312h00f1e7c_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/yaml-0.2.5-h280c20c_3.conda
@@ -1545,6 +1547,16 @@ packages:
   - pkg:pypi/executing?source=hash-mapping
   size: 30753
   timestamp: 1756729456476
+- conda: https://conda.anaconda.org/ga-fdp/noarch/fdp-0.1.0-pyh4616a5c_0.conda
+  sha256: 584d634589d2d60dd1bff26ad34d8c80ca41be6097bdf7cc612014b2e92160e1
+  md5: 588f0db6c79f47cae73f6e03e05e8a31
+  depends:
+  - python
+  - xrdcl-pelican
+  - pelicanplatform >=7.24.3,<8
+  license: Apache-2.0
+  size: 29855
+  timestamp: 1779197649042
 - conda: https://conda.anaconda.org/conda-forge/noarch/filelock-3.29.0-pyhd8ed1ab_0.conda
   sha256: 6b471a18372bbd52bdf32fc965f71de3bc1b5219418b8e6b3875a67a7b08c483
   md5: 8fa8358d022a3a9bd101384a808044c6
@@ -5580,7 +5592,7 @@ packages:
   timestamp: 1777933206156
 - pypi: ./
   name: toksearch-d3d
-  version: 0.7.0+14.gdfb02f8.dirty
+  version: 0.7.0+4.g55e4a58.dirty
   sha256: 7fc75c068252f2c9c6f7ef32f28765a8dbe78f73fd9bf06e82c694313c39f9ad
   requires_dist:
   - imas-composer ; extra == 'imas'
@@ -6197,6 +6209,20 @@ packages:
   purls: []
   size: 570010
   timestamp: 1766154256151
+- conda: https://conda.anaconda.org/ga-fdp/linux-64/xrdcl-pelican-1.6.1+fdp_fork-hc11ce1e_3.tar.bz2
+  sha256: 583cfab920c8a3856f3b3b8ed9b98cffa5c93c418e5d37b3ac8256ff8539467a
+  md5: 3fa252ea40fa896d4f5cf74023d2b95f
+  depends:
+  - __glibc >=2.28,<3.0.a0
+  - libcurl >=8.17.0,<9.0a0
+  - libgcc >=14
+  - libgfortran
+  - libgfortran5 >=14.3.0
+  - libstdcxx >=14
+  - xrootd >=5.8,<6
+  - xrootd >=5.8.4,<6.0a0
+  size: 631380
+  timestamp: 1762960493978
 - conda: https://conda.anaconda.org/ga-fdp/linux-64/xrdcl-pelican-fdp-0.2.0-hc11ce1e_0.conda
   sha256: ec9c2960e17bc52abed2e50623dcb9c55a47babc497ce1142db7511e338f23df
   md5: acb20f375159f1f7bbbbcbfa45edc7db
