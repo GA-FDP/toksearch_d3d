@@ -37,7 +37,7 @@ requirements:
     - toksearch >=2.7.1
     - ptdata >=2.0.2,<3
     - imas_composer >=0.2
-    - fdp >=0.1.0
+    - fdp >=0.1.1
 
 tests:
   - script:

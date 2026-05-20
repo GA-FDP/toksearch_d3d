@@ -19,7 +19,7 @@ platforms = ["linux-64"]
 
 [dependencies]
 python = ">=3.11"
-fdp = ">=0.1.0"
+fdp = ">=0.1.1"
 ptdata = ">=2.0.2,<3"
 toksearch = ">=2.7.1"
 matplotlib = "*"
