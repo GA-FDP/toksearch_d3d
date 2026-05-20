@@ -187,6 +187,17 @@ DIII-D Gotchas
 - ``pathlib.Path()`` mangles ``pelican://`` URLs — use f-strings
 """
 
+# libXrdCl reads XRD_PLUGINCONFDIR in its static initializer, and the signal
+# imports below pull libXrdCl in transitively (MDSplus → libTreeShr →
+# libfdpio2 → libXrdCl). Populate FDP generic env vars NOW, before that chain
+# loads, so the Pelican plugin registers correctly even when callers use a
+# bare ``import toksearch_d3d`` instead of going through ``fdp run``.
+import os as _os
+from fdp.environment import _generic_config as _fdp_generic_config
+from fdp.environment import apply_environment as _fdp_apply_environment
+_fdp_apply_environment(_fdp_generic_config(), _os.environ)
+del _os, _fdp_generic_config, _fdp_apply_environment
+
 from .signal.ptdata import PtDataSignal
 from .signal.ptdata import RDataSignal
 from .signal.cake import CakeSignal
