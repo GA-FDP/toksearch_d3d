@@ -395,15 +395,13 @@ class TestImasSignalEce(unittest.TestCase):
         sig = self.ImasSignal(ids_path, composer=self.composer)
         return sig.gather(SHOT_MAGNETICS)
 
-    def test_channel_te_data(self):
-        """ece.channel.t_e.data must be a non-empty ndarray."""
+    def test_channel_te(self):
+        """ece.channel.t_e.data must be a non-empty ndarray with ms times."""
+        # ECE fetch is the slowest signal in this suite (~2.5 min each).
+        # Combining the two original tests halves the CI cost.
         result = self._gather('ece.channel.t_e.data')
         self.assertIsInstance(result['data'], np.ndarray)
         self.assertGreater(result['data'].size, 0)
-
-    def test_channel_te_has_times(self):
-        """ece.channel.t_e.data times must be present and in milliseconds."""
-        result = self._gather('ece.channel.t_e.data')
         self.assertIn('times', result)
         self.assertIsInstance(result['times'], np.ndarray)
         self.assertGreater(result['times'].max(), 100.0)
