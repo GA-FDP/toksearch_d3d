@@ -188,23 +188,35 @@ DIII-D Gotchas
 """
 
 # The signal imports below pull in libd3 (PTData) and libXrdCl
-# transitively (MDSplus → libTreeShr → libfdpio2 → libXrdCl). Both
-# libraries read env vars in their static initializers — libXrdCl needs
-# XRD_PLUGINCONFDIR to register the Pelican plugin, and libd3 needs
-# PTDATA_LOC=1 plus PTDATA_JSON_INDEX_DIR (device-specific) to route
-# through Pelican instead of falling back to the legacy PTATHENA RPC.
-# Populate the full FDP env (generic + d3d-specific) NOW, before those
-# imports, so a bare ``import toksearch_d3d`` works without ``fdp run``.
-# Bearer-token resolution is deferred to setup_environment() so import
-# stays warning-free when no token is configured.
+# transitively. Both libraries read env vars in their static
+# initializers — libXrdCl needs XRD_PLUGINCONFDIR to register the
+# Pelican plugin, and libd3 needs PTDATA_LOC=1 plus PTDATA_JSON_INDEX_DIR
+# to route through Pelican instead of falling back to the legacy
+# PTATHENA RPC. Populate the full FDP env (generic + d3d-specific) NOW,
+# before those imports, so a bare ``import toksearch_d3d`` works without
+# ``fdp run``.
+#
+# XRD_PLUGINCONFDIR is set FIRST with stdlib only, because just
+# *importing* anything from fdp triggers fdp/__init__.py →
+# fdp.filesystem → XRootD.client, which loads libXrdCl and reads
+# XRD_PLUGINCONFDIR in its static initializer. We have to beat that
+# load — even a "from fdp.environment import ..." is too late.
 import os as _os
+import sys as _sys
+_conda_prefix = (_os.environ.get("CONDA_PREFIX")
+                 or _os.path.dirname(_os.path.dirname(_sys.executable)))
+_os.environ.setdefault(
+    "XRD_PLUGINCONFDIR",
+    _os.path.join(_conda_prefix, "etc", "xrootd", "client.plugins.d"),
+)
 from fdp.environment import _generic_config as _fdp_generic_config
 from fdp.environment import apply_environment as _fdp_apply_environment
 from .fdp import D3D_DEVICE as _D3D_DEVICE
 _fdp_cfg = _fdp_generic_config()
 _fdp_cfg.update(_D3D_DEVICE.to_env())
 _fdp_apply_environment(_fdp_cfg, _os.environ)
-del _os, _fdp_generic_config, _fdp_apply_environment, _D3D_DEVICE, _fdp_cfg
+del _os, _sys, _conda_prefix
+del _fdp_generic_config, _fdp_apply_environment, _D3D_DEVICE, _fdp_cfg
 
 from .signal.ptdata import PtDataSignal
 from .signal.ptdata import RDataSignal
