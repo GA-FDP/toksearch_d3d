@@ -97,18 +97,6 @@ class TestSetupEnvironmentIntegration(unittest.TestCase):
     by exporting XRD_PLUGINCONFDIR before Python starts -- this test does not.
     """
 
-    # The fresh-subprocess Pelican fetch consistently exceeds 300s on the
-    # GitHub Actions runner (it completes in ~90s locally). The bare
-    # ``import toksearch_d3d`` entrypoint isn't being relied on by users
-    # yet, so skip in CI to unblock the release; revisit when we can
-    # debug the runner-vs-local network gap.
-    @unittest.skip(
-        "Pelican fetch times out on GitHub Actions runners (>300s); the "
-        "bare-import path is not in use yet. Verify locally with "
-        "`env -i PATH=$PATH HOME=$HOME CONDA_PREFIX=$CONDA_PREFIX "
-        "BEARER_TOKEN=$BEARER_TOKEN pixi run python -m unittest "
-        "tests.test_fdp_decoupling -v`."
-    )
     def test_pelican_fetch_from_fresh_python_subprocess(self):
         bearer = os.environ.get("BEARER_TOKEN")
         conda_prefix = os.environ.get("CONDA_PREFIX")
