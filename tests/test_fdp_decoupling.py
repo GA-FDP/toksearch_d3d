@@ -129,7 +129,9 @@ class TestSetupEnvironmentIntegration(unittest.TestCase):
             env=clean_env,
             capture_output=True,
             text=True,
-            timeout=120,
+            # Generous timeout: CI Pelican fetch can be slower than
+            # local. Locally this completes in ~90s.
+            timeout=300,
         )
         self.assertEqual(
             result.returncode, 0,
