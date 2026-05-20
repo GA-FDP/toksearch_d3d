@@ -19,8 +19,15 @@ Verifies:
     in pyproject.toml).
   - toksearch_d3d.setup_environment() back-compat wrapper delegates to
     fdp.setup_environment(device="d3d").
+  - ``import toksearch_d3d`` populates XRD_PLUGINCONFDIR before the signal
+    classes pull in libXrdCl, so Pelican fetches work from a fresh Python
+    process that doesn't go through ``fdp run``.
 """
 
+import os
+import subprocess
+import sys
+import textwrap
 import unittest
 from unittest import mock
 
@@ -75,6 +82,60 @@ class TestSetupEnvironmentWrapper(unittest.TestCase):
             setup_environment()
         su.assert_called_once()
         self.assertEqual(su.call_args.kwargs.get("device"), "d3d")
+
+
+class TestSetupEnvironmentIntegration(unittest.TestCase):
+    """End-to-end: ``import toksearch_d3d`` must enable Pelican access from a
+    fresh Python process that inherits no FDP env vars.
+
+    Regression for an XRootD load-order bug: libXrdCl's static initializer
+    reads XRD_PLUGINCONFDIR at library-load time, and libXrdCl is pulled in as
+    a transitive dep of MDSplus (libTreeShr -> libfdpio2 -> libXrdCl). If the
+    var isn't set before the signal imports in ``toksearch_d3d/__init__.py``
+    run, the Pelican plugin is never registered and ``pelican://`` fetches
+    fail with "Error opening network link connection". ``fdp run`` masks this
+    by exporting XRD_PLUGINCONFDIR before Python starts -- this test does not.
+    """
+
+    def test_pelican_fetch_from_fresh_python_subprocess(self):
+        bearer = os.environ.get("BEARER_TOKEN")
+        conda_prefix = os.environ.get("CONDA_PREFIX")
+        if not bearer or not conda_prefix:
+            self.skipTest("requires BEARER_TOKEN and CONDA_PREFIX")
+
+        clean_env = {
+            "PATH": os.environ.get("PATH", ""),
+            "HOME": os.environ.get("HOME", ""),
+            "CONDA_PREFIX": conda_prefix,
+            "BEARER_TOKEN": bearer,
+        }
+        # Pass through proxy settings if the host requires them to reach the
+        # Pelican origin -- these aren't part of the FDP setup we're testing.
+        for k in ("http_proxy", "https_proxy", "no_proxy", "all_proxy",
+                  "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "ALL_PROXY"):
+            if k in os.environ:
+                clean_env[k] = os.environ[k]
+
+        script = textwrap.dedent("""
+            from toksearch_d3d import setup_environment, PtDataSignal
+            setup_environment()
+            res = PtDataSignal("ip").fetch(165920)
+            assert len(res["data"]) > 1, "empty data"
+            print("OK")
+        """)
+
+        result = subprocess.run(
+            [sys.executable, "-c", script],
+            env=clean_env,
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+        self.assertEqual(
+            result.returncode, 0,
+            f"subprocess failed.\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}",
+        )
+        self.assertIn("OK", result.stdout)
 
 
 if __name__ == "__main__":
