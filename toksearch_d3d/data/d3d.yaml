@@ -1,0 +1,36 @@
+schema_version: 1
+name: d3d
+description: DIII-D fusion experiment, via Pelican
+pelican_root: pelican://osg-htc.org:443/fdp-d3d
+origin_server: root://fdp-d3d-origin.nationalresearchplatform.org:8443
+
+locators:
+  - kind: mds_tree
+    name: main
+    transport: pelican
+    search_path:
+      - pelican://osg-htc.org:443/fdp-d3d/archives/mdsplus/codes/~t/~j~i/~h~g/~f~e/~d~c
+      - pelican://osg-htc.org:443/fdp-d3d/archives/mdsplus/usershots/~t
+      - pelican://osg-htc.org:443/fdp-d3d/archives/mdsplus/models/~t
+      - pelican://osg-htc.org:443/fdp-d3d/archives/mdsplus/shots/~t/~f~e/~d~c
+    auth: { kind: bearer_token, env: BEARER_TOKEN }
+
+  - kind: ptdata_indexed
+    name: main
+    transport: pelican
+    index_dir: pelican://osg-htc.org:443/fdp-d3d/archives/index/json/json_indexes_2026-01-13_12:22:11
+    auth: { kind: bearer_token, env: BEARER_TOKEN }
+
+  - kind: sql
+    name: d3drdb
+    driver: mssql
+    host: d3drdb.gat.com
+    port: 8001
+    database: d3drdb
+    tdsver: "7.0"
+    auth: { kind: password_file, path: ~/D3DRDB.sybase_login }
+
+extra_env:
+  D3DATA: "yes"
+  SYS_D3_DELIM: ";"
+  CAKE_DB_PATH: "pelican://osg-htc.org:443/fdp-d3d/metadata/iri_logs.db"
