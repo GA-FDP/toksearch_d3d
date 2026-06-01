@@ -26,7 +26,7 @@ imas_composer = ">=0.2"
 # Phase 1 catalog migration. `fdp` is needed for the recipe test step
 # (which runs `fdp run testit.py`); `fdp-schema` is needed by fdp.catalog.
 fdp = ">=0.2.1"
-fdp-schema = ">=0.1.0"
+fdp-schema = ">=0.1.1"
 socat = ">=1.8.1.1,<2"
 seaborn = ">=0.13.2,<0.14"
 pelicanplatform = ">=7.24.3,<8"
