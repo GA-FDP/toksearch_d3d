@@ -35,17 +35,24 @@ Three main modules exported from `toksearch_d3d/__init__.py`:
 
 - **`toksearch_d3d.signal.ptdata`** — `PtDataSignal` and `RDataSignal` classes wrapping `ptdata.PtDataFetcher` for time-series diagnostic data. Inherits from `toksearch.Signal`.
 - **`toksearch_d3d.signal.cake`** — `CakeSignal` for equilibrium/profile data from MDSplus with SQLite database lookup. Inherits from `toksearch.MdsSignal`. Currently disabled in tests (needs rework away from sqlite).
-- **`toksearch_d3d.fdp.cli`** — `fdp` CLI tool for running commands with FDP environment configured (XRootD/Pelican access, MDSplus tree paths, PTData settings). Entry point defined in `pyproject.toml` as `[project.scripts] fdp`.
+- **`toksearch_d3d.data`** — Ships `d3d.yaml`, the D3D tokamak catalog,
+  declared via the `fdp_schema.catalogs` entry-point group. Consumed by
+  `fdp.catalog` at runtime; replaces the old `fdp.devices` entry-point
+  contribution.
+- **`toksearch_d3d.fdp`** — Thin back-compat shim exposing `setup_environment()`,
+  which delegates to `fdp.setup_environment(device="d3d", ...)`. The `fdp` CLI
+  itself now lives in the separate `fdp` package.
 
 ## Key Dependencies
 
 - `toksearch >=2.4` — Base Signal classes and parallel framework
 - `ptdata >=1.4` — PTData diagnostic data fetcher (with libfdpio/Pelican support)
+- `fdp_schema` — Pydantic schema for tokamak catalog entries; `toksearch_d3d` contributes `d3d.yaml` via the `fdp_schema.catalogs` entry-point group
 - Conda channels: `ga-fdp`, `conda-forge`
 
 ## Pelican/OSDF Configuration
 
-The `fdp` CLI configures environment variables for Pelican object store access at `pelican://osg-htc.org:443/fdp-d3d/`. Key variables: `XRD_PLUGINCONFDIR`, `XRDCP_ALLOW_HTTP`, `XRD_PELICANUSEAUTHHEADERS`, `BEARER_TOKEN`, `PTDATA_LOC=1`, `PTDATA_JSON_INDEX_DIR`.
+The `fdp` CLI (from the `fdp` package, configured via `fdp.catalog["d3d"]`) sets environment variables for Pelican object store access at `pelican://osg-htc.org:443/fdp-d3d/`. Key variables: `XRD_PLUGINCONFDIR`, `XRDCP_ALLOW_HTTP`, `XRD_PELICANUSEAUTHHEADERS`, `BEARER_TOKEN`, `PTDATA_LOC=1`, `PTDATA_JSON_INDEX_DIR`. The D3D catalog entry (`d3d.yaml`) is contributed by `toksearch_d3d.data` via the `fdp_schema.catalogs` entry-point group.
 
 ## Build Files
 
