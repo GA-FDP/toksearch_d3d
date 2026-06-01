@@ -19,9 +19,14 @@ platforms = ["linux-64"]
 
 [dependencies]
 python = ">=3.11"
+toksearch = ">=2.7.3"
 ptdata = ">=2.0.2,<3"
 matplotlib = "*"
 imas_composer = ">=0.2"
+# Phase 1 catalog migration. `fdp` is needed for the recipe test step
+# (which runs `fdp run testit.py`); `fdp-schema` is needed by fdp.catalog.
+fdp = ">=0.2.1"
+fdp-schema = ">=0.1.0"
 socat = ">=1.8.1.1,<2"
 seaborn = ">=0.13.2,<0.14"
 pelicanplatform = ">=7.24.3,<8"
@@ -53,11 +58,12 @@ mcp = ">=1.23"
 
 [pypi-dependencies]
 toksearch_d3d = { path = ".", editable = true }
-# Use local checkouts as editable installs so in-progress changes to
-# fdp.catalog, toksearch.llm, and fdp_schema are picked up live.
-fdp = { path = "../fdp", editable = true }
-toksearch = { path = "../toksearch", editable = true }
-fdp_schema = { path = "../fdp_schema", editable = true }
+# Sibling editable installs (fdp, toksearch, fdp_schema) are no longer
+# wired here because `../fdp`, `../toksearch`, `../fdp_schema` don't
+# resolve on CI runners (only this repo is checked out). The released
+# conda packages are pulled via `[dependencies]` below. Devs who need to
+# iterate against local checkouts can `pixi run pip install -e ../<repo>
+# --force-reinstall` after `pixi install`.
 
 [feature.docs.dependencies]
 python = "3.10.*"

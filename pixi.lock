@@ -96,6 +96,8 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/fastapi-cli-0.0.23-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/fastapi-core-0.136.1-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/fastar-0.11.0-py312h42cbcb6_0.conda
+      - conda: https://conda.anaconda.org/ga-fdp/noarch/fdp-0.2.1-pyh4616a5c_0.conda
+      - conda: https://conda.anaconda.org/ga-fdp/noarch/fdp-schema-0.1.0-pyh4616a5c_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/ffmpeg-8.1.1-gpl_hee00b0e_901.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/ffmpy-0.3.0-pyhb6f538c_0.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/noarch/filelock-3.29.0-pyhd8ed1ab_0.conda
@@ -435,6 +437,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/tinycss2-1.4.0-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/tk-8.6.13-noxft_h366c992_103.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/tokenizers-0.22.2-py312hf875000_0.conda
+      - conda: https://conda.anaconda.org/ga-fdp/linux-64/toksearch-2.7.4-py312h2e77849_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/tomli-2.4.1-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/tomlkit-0.13.3-pyha770c72_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/tornado-6.5.5-py312h4c3975b_0.conda
@@ -499,9 +502,6 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/zipp-3.23.1-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/zlib-1.3.2-h25fd6f3_2.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/zstd-1.5.7-hb78ec9c_6.conda
-      - pypi: ../fdp
-      - pypi: ../fdp_schema
-      - pypi: ../toksearch
       - pypi: ./
   docs:
     channels:
@@ -1855,20 +1855,29 @@ packages:
   - pkg:pypi/fastar?source=hash-mapping
   size: 423329
   timestamp: 1776177827826
-- pypi: ../fdp
-  name: fdp
-  version: 0.1.4+0.g6aeb1c9.dirty
-  sha256: 53b71aea9a5b718d2eeb20a6ac5cb4db694b5c36a3bb214813c562bb49d707d4
-  requires_python: '>=3.11'
-- pypi: ../fdp_schema
-  name: fdp-schema
-  version: 0.0.0
-  sha256: d848310dada0a002e51e036c41179ac1800d255096da37e2e0c787356cb45f70
-  requires_dist:
-  - pydantic>=2
+- conda: https://conda.anaconda.org/ga-fdp/noarch/fdp-0.2.1-pyh4616a5c_0.conda
+  sha256: ddfbe070010e1244f1308ab877fb87aabe0b52bbe3a9493318bc948957d33cbd
+  md5: c9401dec27318e73ade66b924e5b1548
+  depends:
+  - python
+  - xrdcl-pelican-fdp
+  - pelicanplatform >=7.24.3,<8
+  - fdp-schema
+  - toksearch
+  license: Apache-2.0
+  size: 139384
+  timestamp: 1780348467508
+- conda: https://conda.anaconda.org/ga-fdp/noarch/fdp-schema-0.1.0-pyh4616a5c_0.conda
+  sha256: 38da26d4bdf8fbff0c0f4c18f2a80f6af59be8ec2025c5d3f97c2b0deae8631c
+  md5: f0b730b259a67e5a354e349b80dd8796
+  depends:
+  - python >=3.11
+  - pydantic >=2
   - pyyaml
-  - pytest ; extra == 'test'
-  requires_python: '>=3.11'
+  - python
+  license: Apache-2.0
+  size: 26650
+  timestamp: 1780347931224
 - conda: https://conda.anaconda.org/conda-forge/linux-64/ffmpeg-8.1.1-gpl_hee00b0e_901.conda
   sha256: 6af3f45857478c28fa134e23a8ab7a81ce63cdd29aa2d899232eb7d9410b26e7
   md5: 57b938a79ebb6b996505ea79394bd0c9
@@ -7269,20 +7278,44 @@ packages:
   - pkg:pypi/tokenizers?source=hash-mapping
   size: 2465644
   timestamp: 1764695075374
-- pypi: ../toksearch
-  name: toksearch
-  version: 2.7.2+0.gd93cff5.dirty
-  sha256: 191e44f87fbe93f8bc9c0b7425df83d3a8fdb40b1efe03f0f6eb3727392abda2
-  requires_dist:
-  - anthropic>=0.34 ; extra == 'llm'
-  - openai>=1.50 ; extra == 'llm'
-  - matplotlib ; extra == 'llm'
-  - claude-agent-sdk>=0.2 ; extra == 'llm'
-  - mcp>=1.23 ; extra == 'llm'
+- conda: https://conda.anaconda.org/ga-fdp/linux-64/toksearch-2.7.4-py312h2e77849_0.conda
+  sha256: 0cd22b20bcaf82151175eba956553db7c87b6843b132ce712f838fd0b58c419f
+  md5: 2fc1fdc9efee142a378dd337615e8724
+  depends:
+  - python
+  - mdsplus-xrdcl >=1,<2
+  - numpy >=1.20,<2
+  - pymssql
+  - ray-core
+  - pyspark >=4
+  - scipy
+  - sh
+  - xarray
+  - bottleneck
+  - openblas
+  - joblib >=1.3
+  - jupyter
+  - fsspec
+  - zarr 3.*
+  - anthropic >=0.34
+  - openai >=1.50
+  - claude-agent-sdk >=0.2
+  - gradio >=4
+  - mcp >=1.23
+  - matplotlib
+  - plotly
+  - python-kaleido
+  - __glibc >=2.28,<3.0.a0
+  - libgcc >=15
+  - numpy >=1.26.4,<2.0a0
+  - python_abi 3.12.* *_cp312
+  license: Apache-2.0
+  size: 5348651
+  timestamp: 1779368865938
 - pypi: ./
   name: toksearch-d3d
-  version: 0.8.0+5.g0c3ad59.dirty
-  sha256: e17e535ba55e0ceaa98953be7b16a3b6947bf1a17ef2c363a4acf62d64a19e15
+  version: 0.9.0+0.gd9df961.dirty
+  sha256: e4d729b20ca23137c18fde910a61b4e02fefb6120f6c3f0ddd8af32b723b8dc2
   requires_dist:
   - imas-composer ; extra == 'imas'
   - awkward>=2.0 ; extra == 'imas'

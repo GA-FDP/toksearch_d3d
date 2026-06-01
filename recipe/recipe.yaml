@@ -50,6 +50,12 @@ tests:
     files:
       source:
         - tests/
+    requirements:
+      run:
+        # `fdp run` is invoked above; fdp is no longer a release run-dep
+        # of toksearch_d3d (Phase 1 catalog migration), but the recipe
+        # test driver still needs it. Declared here so the test env has it.
+        - fdp >=0.2.1
   # NOTE: removed the `python: imports: - toksearch_d3d` test. It ran
   # `import toksearch_d3d` in a clean env (no FDP env vars set), which
   # triggered libfdpio + libXrdCl load with no XRD_PLUGINCONFDIR, hanging
