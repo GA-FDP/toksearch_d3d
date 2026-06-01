@@ -96,7 +96,6 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/fastapi-cli-0.0.23-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/fastapi-core-0.136.1-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/fastar-0.11.0-py312h42cbcb6_0.conda
-      - conda: https://conda.anaconda.org/ga-fdp/noarch/fdp-0.1.3-pyh4616a5c_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/ffmpeg-8.1.1-gpl_hee00b0e_901.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/ffmpy-0.3.0-pyhb6f538c_0.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/noarch/filelock-3.29.0-pyhd8ed1ab_0.conda
@@ -500,6 +499,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/zipp-3.23.1-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/zlib-1.3.2-h25fd6f3_2.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/zstd-1.5.7-hb78ec9c_6.conda
+      - pypi: ../fdp
       - pypi: ../fdp_schema
       - pypi: ../toksearch
       - pypi: ./
@@ -1855,16 +1855,11 @@ packages:
   - pkg:pypi/fastar?source=hash-mapping
   size: 423329
   timestamp: 1776177827826
-- conda: https://conda.anaconda.org/ga-fdp/noarch/fdp-0.1.3-pyh4616a5c_0.conda
-  sha256: 8f3aedc35c7abf1f8a49950d71248eaf49d3aae030169f67946269ca6cb1da6e
-  md5: f7a97146195f6d83991827a79c429eec
-  depends:
-  - python
-  - xrdcl-pelican-fdp
-  - pelicanplatform >=7.24.3,<8
-  license: Apache-2.0
-  size: 30632
-  timestamp: 1779313692111
+- pypi: ../fdp
+  name: fdp
+  version: 0.1.4+0.g6aeb1c9.dirty
+  sha256: 53b71aea9a5b718d2eeb20a6ac5cb4db694b5c36a3bb214813c562bb49d707d4
+  requires_python: '>=3.11'
 - pypi: ../fdp_schema
   name: fdp-schema
   version: 0.0.0
@@ -7286,8 +7281,8 @@ packages:
   - mcp>=1.23 ; extra == 'llm'
 - pypi: ./
   name: toksearch-d3d
-  version: 0.7.0+5.gfa87bba.dirty
-  sha256: b8a76d460b9c8f536c02c47684683824e205a2df5ce03f16da343ea475205566
+  version: 0.8.0+5.g0c3ad59.dirty
+  sha256: e17e535ba55e0ceaa98953be7b16a3b6947bf1a17ef2c363a4acf62d64a19e15
   requires_dist:
   - imas-composer ; extra == 'imas'
   - awkward>=2.0 ; extra == 'imas'

@@ -19,7 +19,6 @@ platforms = ["linux-64"]
 
 [dependencies]
 python = ">=3.11"
-fdp = ">=0.1.1"
 ptdata = ">=2.0.2,<3"
 matplotlib = "*"
 imas_composer = ">=0.2"
@@ -54,12 +53,9 @@ mcp = ">=1.23"
 
 [pypi-dependencies]
 toksearch_d3d = { path = ".", editable = true }
-# Use the local toksearch checkout as an editable install so changes
-# to toksearch.llm (and the rest of the package) are picked up live
-# without rebuilding the conda package or maintaining the old
-# .pixi/.../site-packages/toksearch/llm symlink. Pull in the `llm`
-# optional-dependency extras to match what the released package's
-# conda recipe lists as run-deps.
+# Use local checkouts as editable installs so in-progress changes to
+# fdp.catalog, toksearch.llm, and fdp_schema are picked up live.
+fdp = { path = "../fdp", editable = true }
 toksearch = { path = "../toksearch", editable = true }
 fdp_schema = { path = "../fdp_schema", editable = true }
 
