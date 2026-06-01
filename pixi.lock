@@ -500,6 +500,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/zipp-3.23.1-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/zlib-1.3.2-h25fd6f3_2.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/zstd-1.5.7-hb78ec9c_6.conda
+      - pypi: ../fdp_schema
       - pypi: ../toksearch
       - pypi: ./
   docs:
@@ -1864,6 +1865,15 @@ packages:
   license: Apache-2.0
   size: 30632
   timestamp: 1779313692111
+- pypi: ../fdp_schema
+  name: fdp-schema
+  version: 0.0.0
+  sha256: d848310dada0a002e51e036c41179ac1800d255096da37e2e0c787356cb45f70
+  requires_dist:
+  - pydantic>=2
+  - pyyaml
+  - pytest ; extra == 'test'
+  requires_python: '>=3.11'
 - conda: https://conda.anaconda.org/conda-forge/linux-64/ffmpeg-8.1.1-gpl_hee00b0e_901.conda
   sha256: 6af3f45857478c28fa134e23a8ab7a81ce63cdd29aa2d899232eb7d9410b26e7
   md5: 57b938a79ebb6b996505ea79394bd0c9

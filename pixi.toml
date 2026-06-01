@@ -61,6 +61,7 @@ toksearch_d3d = { path = ".", editable = true }
 # optional-dependency extras to match what the released package's
 # conda recipe lists as run-deps.
 toksearch = { path = "../toksearch", editable = true }
+fdp_schema = { path = "../fdp_schema", editable = true }
 
 [feature.docs.dependencies]
 python = "3.10.*"
