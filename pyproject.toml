@@ -60,8 +60,5 @@ toksearch_d3d = "toksearch_d3d.llm:skills_path"
 [project.entry-points."toksearch.llm.presets"]
 amsc = "toksearch_d3d.llm:AMSC_PRESET"
 
-[project.entry-points."fdp.devices"]
-d3d = "toksearch_d3d.fdp:D3D_DEVICE"
-
 [project.entry-points."fdp_schema.catalogs"]
 d3d = "toksearch_d3d.data:d3d_yaml"
