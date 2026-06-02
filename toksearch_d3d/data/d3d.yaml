@@ -3,6 +3,7 @@ name: d3d
 description: DIII-D fusion experiment, via Pelican
 pelican_root: pelican://osg-htc.org:443/fdp-d3d
 origin_server: root://fdp-d3d-origin.nationalresearchplatform.org:8443
+default_llm_preset: amsc
 
 locators:
   - kind: mds_tree
