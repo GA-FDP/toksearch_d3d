@@ -586,3 +586,10 @@ class ImasSignal(Signal):
                 pass
         else:
             MdsTreeRegistry().close_all_trees()
+
+
+# Device-prefixed alias for cross-device symmetry with other device packages
+# (e.g. toksearch_mast.MastImasSignal). ``D3dImasSignal`` is exactly
+# equivalent to ``ImasSignal``; the unprefixed name is preserved for
+# backward compatibility.
+D3dImasSignal = ImasSignal

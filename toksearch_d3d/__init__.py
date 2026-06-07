@@ -89,7 +89,9 @@ ImasSignal (Experimental)
 =========================
 
 Fetches DIII-D data via the IMAS IDS schema using ``imas_composer``.
-Only available when ``imas_composer`` is installed.
+Only available when ``imas_composer`` is installed. Also exported as
+``D3dImasSignal`` (an exact alias) for device-prefixed symmetry with other
+device packages, e.g. ``toksearch_mast.MastImasSignal``.
 
 **Leaf path** — fetches one field::
 
@@ -222,7 +224,7 @@ from .signal.ptdata import RDataSignal
 from .signal.cake import CakeSignal
 
 try:
-    from .signal.imas import ImasSignal, list_imas_fields
+    from .signal.imas import ImasSignal, D3dImasSignal, list_imas_fields
 except ImportError:
     pass
 
