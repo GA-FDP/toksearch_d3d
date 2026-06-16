@@ -23,7 +23,8 @@ locators:
   - kind: ptdata_indexed
     name: main
     transport: pelican
-    index_dir: pelican://osg-htc.org:443/fdp-d3d/archives/index/json/json_indexes_2026-01-13_12:22:11
+    index_dir: pelican://osg-htc.org:443/fdp-d3d/archives/index/json
+    index_pattern: "json_indexes_*"
     auth: { kind: bearer_token, env: BEARER_TOKEN }
 
   - kind: sql
