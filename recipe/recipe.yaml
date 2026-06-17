@@ -35,7 +35,7 @@ requirements:
   run:
     - python
     - toksearch >=2.8.0
-    - ptdata >=2.0.2,<3
+    - ptdata >=2.0.8,<3
     - imas_composer >=0.2
 
 tests:
@@ -55,7 +55,7 @@ tests:
         # `fdp run` is invoked above; fdp is no longer a release run-dep
         # of toksearch_d3d (Phase 1 catalog migration), but the recipe
         # test driver still needs it. Declared here so the test env has it.
-        - fdp >=0.2.1
+        - fdp >=0.2.4
   # NOTE: removed the `python: imports: - toksearch_d3d` test. It ran
   # `import toksearch_d3d` in a clean env (no FDP env vars set), which
   # triggered libfdpio + libXrdCl load with no XRD_PLUGINCONFDIR, hanging
