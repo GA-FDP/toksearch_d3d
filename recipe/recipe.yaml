@@ -35,7 +35,7 @@ requirements:
   run:
     - python
     - toksearch >=2.8.0
-    - ptdata >=2.0.8,<3
+    - ptdata >=2.0.9,<3
     - imas_composer >=0.2
 
 tests:
