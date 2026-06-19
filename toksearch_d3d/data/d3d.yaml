@@ -3,7 +3,11 @@ name: d3d
 description: DIII-D fusion experiment, via Pelican
 pelican_root: pelican://osg-htc.org:443/fdp-d3d
 origin_server: root://fdp-d3d-origin.nationalresearchplatform.org:8443
-default_llm_preset: amsc
+# The LLM backend/preset is a deployment-level choice (set via
+# $FDP_LLM_BACKEND or ~/.fdp/config.toml [llm].backend), not a per-device
+# one. GA on-prem users select the `amsc` preset there. The `amsc` preset
+# itself is still contributed (toksearch.llm.presets entry point); only the
+# per-device default pointer was removed.
 
 locators:
   - kind: mds_tree
@@ -19,7 +23,8 @@ locators:
   - kind: ptdata_indexed
     name: main
     transport: pelican
-    index_dir: pelican://osg-htc.org:443/fdp-d3d/archives/index/json/json_indexes_2026-01-13_12:22:11
+    index_dir: pelican://osg-htc.org:443/fdp-d3d/archives/index/json
+    index_pattern: "json_indexes_*"
     auth: { kind: bearer_token, env: BEARER_TOKEN }
 
   - kind: sql

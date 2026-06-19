@@ -89,7 +89,9 @@ ImasSignal (Experimental)
 =========================
 
 Fetches DIII-D data via the IMAS IDS schema using ``imas_composer``.
-Only available when ``imas_composer`` is installed.
+Only available when ``imas_composer`` is installed. Also exported as
+``D3dImasSignal`` (an exact alias) for device-prefixed symmetry with other
+device packages, e.g. ``toksearch_mast.MastImasSignal``.
 
 **Leaf path** — fetches one field::
 
@@ -209,21 +211,20 @@ _os.environ.setdefault(
     "XRD_PLUGINCONFDIR",
     _os.path.join(_conda_prefix, "etc", "xrootd", "client.plugins.d"),
 )
-from fdp.environment import _generic_config as _fdp_generic_config
+from fdp.environment import build_device_config as _fdp_build_device_config
+from fdp.environment import _resolve_device_handle as _fdp_resolve_device_handle
 from fdp.environment import apply_environment as _fdp_apply_environment
-from fdp.environment import _resolve_device_env as _fdp_resolve_device_env
-_fdp_cfg = _fdp_generic_config()
-_fdp_cfg.update(_fdp_resolve_device_env("d3d"))
+_fdp_cfg = _fdp_build_device_config(_fdp_resolve_device_handle("d3d"))
 _fdp_apply_environment(_fdp_cfg, _os.environ)
 del _os, _sys, _conda_prefix
-del _fdp_generic_config, _fdp_apply_environment, _fdp_resolve_device_env, _fdp_cfg
+del _fdp_build_device_config, _fdp_resolve_device_handle, _fdp_apply_environment, _fdp_cfg
 
 from .signal.ptdata import PtDataSignal
 from .signal.ptdata import RDataSignal
 from .signal.cake import CakeSignal
 
 try:
-    from .signal.imas import ImasSignal, list_imas_fields
+    from .signal.imas import ImasSignal, D3dImasSignal, list_imas_fields
 except ImportError:
     pass
 
