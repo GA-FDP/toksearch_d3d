@@ -156,6 +156,17 @@ class TestEnsureLocalRefresh(unittest.TestCase):
         cc.ensure_local_cake_db(self.URL, force=True)
         self.assertEqual(fx.dl_calls, 2)
 
+    def test_volatile_mtime_only_does_not_redownload(self):
+        # Pelican returns a near-now (volatile) MTime on every stat. With size
+        # and url unchanged, a differing mtime must NOT trigger a re-download.
+        fx = _RemoteFixture(self, contents=b"DBDATA")
+        cc.ensure_local_cake_db(self.URL)
+        self.assertEqual(fx.dl_calls, 1)
+        cc._validated.clear()  # simulate a fresh process, same cache dir
+        fx.set_signature({"size": len(b"DBDATA"), "mtime": "2099-12-31 23:59:59"})
+        cc.ensure_local_cake_db(self.URL)
+        self.assertEqual(fx.dl_calls, 1)  # mtime ignored -> no re-download
+
 
 class TestEnsureLocalMemo(unittest.TestCase):
     URL = "pelican://h:443/fdp-d3d/metadata/iri_logs.db"
