@@ -38,6 +38,21 @@ def _split_host_path(url: str):
     return p.netloc, p.path
 
 
+def _parse_xrdfs_stat(output: str) -> dict:
+    """Extract {'size': int, 'mtime': str} from `xrdfs stat` text output."""
+    sig: dict = {}
+    for line in output.splitlines():
+        line = line.strip()
+        if line.startswith("Size:"):
+            try:
+                sig["size"] = int(line.split(":", 1)[1].strip())
+            except ValueError:
+                pass
+        elif line.startswith("MTime:"):
+            sig["mtime"] = line.split(":", 1)[1].strip()
+    return sig
+
+
 def _remote_signature(source: str):
     """Return {'size','mtime'} via `xrdfs <host> stat <path>`, or None on failure."""
     host, path = _split_host_path(source)
@@ -102,26 +117,30 @@ def ensure_local_cake_db(source: str, *, force: bool = False) -> str:
                 f"exists. Ensure the FDP environment is active (xrdfs/xrdcp on "
                 f"PATH, BEARER_TOKEN set)."
             )
-        if force or not local.exists() or _read_meta(local) != sig:
+        meta = {**sig, "url": source}
+        if force or not local.exists() or _read_meta(local) != meta:
             tmp = local.with_name(f"{local.name}.tmp.{os.getpid()}")
-            _download(source, str(tmp))
-            os.replace(tmp, local)
-            _write_meta(local, sig)
+            try:
+                _download(source, str(tmp))
+                os.replace(tmp, local)
+            except Exception as exc:
+                try:
+                    os.remove(tmp)
+                except OSError:
+                    pass
+                if local.exists():
+                    logger.warning(
+                        "Using cached CAKE DB (remote download failed): %s (%s)",
+                        local, exc,
+                    )
+                    _validated.add(source)
+                    return str(local)
+                raise RuntimeError(
+                    f"Failed to download remote CAKE DB {source!r} and no local "
+                    f"cache exists. Ensure the FDP environment is active "
+                    f"(xrdfs/xrdcp on PATH, BEARER_TOKEN set)."
+                ) from exc
+            _write_meta(local, meta)
 
     _validated.add(source)
     return str(local)
-
-
-def _parse_xrdfs_stat(output: str) -> dict:
-    """Extract {'size': int, 'mtime': str} from `xrdfs stat` text output."""
-    sig: dict = {}
-    for line in output.splitlines():
-        line = line.strip()
-        if line.startswith("Size:"):
-            try:
-                sig["size"] = int(line.split(":", 1)[1].strip())
-            except ValueError:
-                pass
-        elif line.startswith("MTime:"):
-            sig["mtime"] = line.split(":", 1)[1].strip()
-    return sig
