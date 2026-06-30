@@ -139,3 +139,15 @@ class TestEnsureLocalRefresh(unittest.TestCase):
         cc.ensure_local_cake_db(self.URL)
         cc.ensure_local_cake_db(self.URL, force=True)
         self.assertEqual(fx.dl_calls, 2)
+
+
+class TestEnsureLocalMemo(unittest.TestCase):
+    URL = "pelican://h:443/fdp-d3d/metadata/iri_logs.db"
+
+    def test_second_call_same_process_does_not_stat(self):
+        fx = _RemoteFixture(self)
+        cc.ensure_local_cake_db(self.URL)
+        cc.ensure_local_cake_db(self.URL)
+        cc.ensure_local_cake_db(self.URL)
+        self.assertEqual(fx.stat_calls, 1)  # memoized after first
+        self.assertEqual(fx.dl_calls, 1)
