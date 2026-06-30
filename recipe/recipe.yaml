@@ -37,6 +37,7 @@ requirements:
     - toksearch >=2.8.0
     - ptdata >=2.0.9,<3
     - imas_composer >=0.2
+    - filelock >=3
 
 tests:
   - script:
