@@ -51,3 +51,9 @@ class TestStatParse(unittest.TestCase):
         sig = cc._parse_xrdfs_stat("Path: /x\n")
         self.assertNotIn("size", sig)
         self.assertNotIn("mtime", sig)
+
+
+class TestEnsureLocalPassthrough(unittest.TestCase):
+    def test_local_path_returned_unchanged(self):
+        self.assertEqual(cc.ensure_local_cake_db("/data/iri_logs.db"),
+                         "/data/iri_logs.db")
