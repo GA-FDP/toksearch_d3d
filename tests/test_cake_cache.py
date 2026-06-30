@@ -224,6 +224,28 @@ class TestEnsureLocalDownloadFailure(unittest.TestCase):
         self.assertEqual(leftovers, [])
 
 
+from unittest import mock
+
+
+class TestCakeSignalUsesCache(unittest.TestCase):
+    def test_init_routes_db_location_through_cache(self):
+        # A remote URL should be converted to the local cache path during init,
+        # with no MDSplus/network access.
+        with mock.patch(
+            "toksearch_d3d.signal.cake.ensure_local_cake_db",
+            return_value="/cache/iri_logs.db",
+        ) as ensure:
+            from toksearch_d3d import CakeSignal
+            sig = CakeSignal(
+                r"\ipmhd", "eq",
+                cake_db_location="pelican://h:443/fdp-d3d/metadata/iri_logs.db",
+            )
+        ensure.assert_called_once_with(
+            "pelican://h:443/fdp-d3d/metadata/iri_logs.db"
+        )
+        self.assertEqual(sig.cake_db_location, "/cache/iri_logs.db")
+
+
 class TestEnsureLocalConcurrency(unittest.TestCase):
     URL = "pelican://h:443/fdp-d3d/metadata/iri_logs.db"
 
