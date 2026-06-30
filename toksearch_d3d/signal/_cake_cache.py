@@ -17,6 +17,12 @@ logger = logging.getLogger(__name__)
 
 _REMOTE_SCHEMES = ("pelican", "root", "http", "https")
 
+# Bounded timeouts so a stalled xrdfs/xrdcp cannot wedge the process forever;
+# without these the resilience fallback (stat fails -> serve cache / raise) can
+# never fire.
+_STAT_TIMEOUT_S = 30
+_DOWNLOAD_TIMEOUT_S = 600
+
 _validated: set = set()  # per-process memo of validated source URLs
 
 
@@ -34,8 +40,15 @@ def _local_path(source: str) -> Path:
 
 
 def _split_host_path(url: str):
+    """Return (host, path) for xrdfs.
+
+    The host MUST retain the URL scheme (e.g. ``pelican://osg-htc.org:443``) so
+    the Pelican client plugin engages — it matches on the scheme. Dropping the
+    scheme makes xrdfs fall back to ``root://`` against the HTTPS director port
+    and hang indefinitely.
+    """
     p = urlparse(url)
-    return p.netloc, p.path
+    return f"{p.scheme}://{p.netloc}", p.path
 
 
 def _parse_xrdfs_stat(output: str) -> dict:
@@ -60,8 +73,13 @@ def _remote_signature(source: str):
         proc = subprocess.run(
             ["xrdfs", host, "stat", path],
             capture_output=True, text=True, check=True,
+            timeout=_STAT_TIMEOUT_S,
         )
-    except (subprocess.CalledProcessError, FileNotFoundError) as exc:
+    except (
+        subprocess.CalledProcessError,
+        subprocess.TimeoutExpired,
+        FileNotFoundError,
+    ) as exc:
         logger.warning("xrdfs stat failed for %s: %s", source, exc)
         return None
     return _parse_xrdfs_stat(proc.stdout)
@@ -69,7 +87,11 @@ def _remote_signature(source: str):
 
 def _download(source: str, dest: str) -> None:
     """Copy the remote DB to `dest` with `xrdcp -f`."""
-    subprocess.run(["xrdcp", "-f", source, str(dest)], check=True)
+    subprocess.run(
+        ["xrdcp", "-f", source, str(dest)],
+        check=True,
+        timeout=_DOWNLOAD_TIMEOUT_S,
+    )
 
 
 def _meta_path(local: Path) -> Path:

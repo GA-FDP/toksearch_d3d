@@ -280,3 +280,37 @@ class TestEnsureLocalConcurrency(unittest.TestCase):
         self.assertEqual(counter["n"], 1)  # FileLock + post-lock check serialized
         self.assertEqual(len(results), 2)
         self.assertEqual(set(results), {os.path.join(self.tmp, "fdp/cake/iri_logs.db")})
+
+
+class TestRemoteSignatureXrdfsInvocation(unittest.TestCase):
+    URL = "pelican://osg-htc.org:443/fdp-d3d/metadata/iri_logs.db"
+
+    def test_xrdfs_host_keeps_scheme_and_passes_timeout(self):
+        from unittest import mock
+
+        captured = {}
+
+        def fake_run(argv, **kwargs):
+            captured["argv"] = argv
+            captured["kwargs"] = kwargs
+            return mock.Mock(stdout="Size:   6\nMTime:  2025-05-01 12:00:00\n")
+
+        with mock.patch.object(cc.subprocess, "run", fake_run):
+            sig = cc._remote_signature(self.URL)
+
+        self.assertEqual(
+            captured["argv"],
+            ["xrdfs", "pelican://osg-htc.org:443", "stat",
+             "/fdp-d3d/metadata/iri_logs.db"],
+        )
+        self.assertIn("timeout", captured["kwargs"])
+        self.assertEqual(sig, {"size": 6, "mtime": "2025-05-01 12:00:00"})
+
+    def test_timeout_makes_remote_signature_return_none(self):
+        from unittest import mock
+
+        def fake_run(argv, **kwargs):
+            raise cc.subprocess.TimeoutExpired(cmd=argv, timeout=1)
+
+        with mock.patch.object(cc.subprocess, "run", fake_run):
+            self.assertIsNone(cc._remote_signature(self.URL))
