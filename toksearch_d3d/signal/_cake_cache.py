@@ -112,6 +112,16 @@ def _write_meta(local: Path, sig: dict) -> None:
     _meta_path(local).write_text(json.dumps(sig))
 
 
+def _staleness_key(meta) -> tuple:
+    """The stable fields used to decide staleness. Endpoint MTime is volatile
+    (Pelican returns a near-now MTime on every stat), so mtime is excluded —
+    only size and source url are compared. CAKE is append-mostly, so size
+    reliably grows when new shots are blessed."""
+    if not meta:
+        return (None, None)
+    return (meta.get("size"), meta.get("url"))
+
+
 def ensure_local_cake_db(source: str, *, force: bool = False) -> str:
     """Return a local path to the CAKE DB.
 
@@ -140,7 +150,8 @@ def ensure_local_cake_db(source: str, *, force: bool = False) -> str:
                 f"PATH, BEARER_TOKEN set)."
             )
         meta = {**sig, "url": source}
-        if force or not local.exists() or _read_meta(local) != meta:
+        if (force or not local.exists()
+                or _staleness_key(_read_meta(local)) != _staleness_key(meta)):
             tmp = local.with_name(f"{local.name}.tmp.{os.getpid()}")
             try:
                 _download(source, str(tmp))
