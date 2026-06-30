@@ -25,6 +25,17 @@ def _local_path(source: str) -> Path:
     return _cache_dir() / os.path.basename(urlparse(source).path)
 
 
+def ensure_local_cake_db(source: str, *, force: bool = False) -> str:
+    """Return a local path to the CAKE DB.
+
+    Local `source` paths are returned unchanged. Remote URLs (pelican://,
+    root://, http(s)://) are cached locally and re-validated; see module docs.
+    """
+    if not _is_remote(source):
+        return source
+    raise NotImplementedError  # remote handling added in Task 4
+
+
 def _parse_xrdfs_stat(output: str) -> dict:
     """Extract {'size': int, 'mtime': str} from `xrdfs stat` text output."""
     sig: dict = {}
