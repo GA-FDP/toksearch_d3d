@@ -151,3 +151,21 @@ class TestEnsureLocalMemo(unittest.TestCase):
         cc.ensure_local_cake_db(self.URL)
         self.assertEqual(fx.stat_calls, 1)  # memoized after first
         self.assertEqual(fx.dl_calls, 1)
+
+
+class TestEnsureLocalResilience(unittest.TestCase):
+    URL = "pelican://h:443/fdp-d3d/metadata/iri_logs.db"
+
+    def test_stat_fail_with_cache_uses_cache(self):
+        fx = _RemoteFixture(self)
+        cc.ensure_local_cake_db(self.URL)   # populate cache
+        cc._validated.clear()
+        cc._remote_signature = lambda source: None  # remote now unreachable
+        path = cc.ensure_local_cake_db(self.URL)
+        self.assertEqual(Path(path).read_bytes(), b"DBDATA")
+
+    def test_stat_fail_without_cache_raises(self):
+        _RemoteFixture(self)
+        cc._remote_signature = lambda source: None
+        with self.assertRaises(RuntimeError):
+            cc.ensure_local_cake_db(self.URL)
