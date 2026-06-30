@@ -23,3 +23,18 @@ def _cache_dir() -> Path:
 
 def _local_path(source: str) -> Path:
     return _cache_dir() / os.path.basename(urlparse(source).path)
+
+
+def _parse_xrdfs_stat(output: str) -> dict:
+    """Extract {'size': int, 'mtime': str} from `xrdfs stat` text output."""
+    sig: dict = {}
+    for line in output.splitlines():
+        line = line.strip()
+        if line.startswith("Size:"):
+            try:
+                sig["size"] = int(line.split(":", 1)[1].strip())
+            except ValueError:
+                pass
+        elif line.startswith("MTime:"):
+            sig["mtime"] = line.split(":", 1)[1].strip()
+    return sig

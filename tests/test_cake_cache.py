@@ -31,3 +31,23 @@ class TestCachePaths(unittest.TestCase):
             )
         finally:
             del os.environ["XDG_CACHE_HOME"]
+
+
+class TestStatParse(unittest.TestCase):
+    SAMPLE = (
+        "Path:   /fdp-d3d/metadata/iri_logs.db\n"
+        "Id:     0001\n"
+        "Size:   8388608\n"
+        "MTime:  2025-05-01 12:00:00\n"
+        "Flags:  16 (IsReadable)\n"
+    )
+
+    def test_parse_extracts_size_and_mtime(self):
+        sig = cc._parse_xrdfs_stat(self.SAMPLE)
+        self.assertEqual(sig["size"], 8388608)
+        self.assertEqual(sig["mtime"], "2025-05-01 12:00:00")
+
+    def test_parse_missing_fields_returns_partial(self):
+        sig = cc._parse_xrdfs_stat("Path: /x\n")
+        self.assertNotIn("size", sig)
+        self.assertNotIn("mtime", sig)
