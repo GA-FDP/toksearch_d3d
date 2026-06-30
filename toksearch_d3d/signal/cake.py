@@ -3,6 +3,7 @@ import sqlite3
 from contextlib import closing
 from toksearch import MdsSignal, MdsTreePath
 from typing import Optional, Union, Iterable
+from toksearch_d3d.signal._cake_cache import ensure_local_cake_db
 
 _conn_cache = None
 
@@ -72,6 +73,11 @@ class CakeSignal(MdsSignal):
         if not self.cake_db_location:
             msg = f"cake_db_location not set"
             raise Exception(msg)
+
+        # If the location is a remote (e.g. pelican://) URL, download it to a
+        # process-shared local cache and use that path. Local paths pass
+        # through unchanged.
+        self.cake_db_location = ensure_local_cake_db(self.cake_db_location)
 
     def get_db_conn(self) -> sqlite3.Connection:
         # Use self.cake_db_location to get connection.
