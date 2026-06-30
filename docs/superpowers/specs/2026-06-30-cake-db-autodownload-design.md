@@ -44,7 +44,12 @@ so it "just works" under the standard FDP environment with no manual step.
    sessions.
 2. **Refresh policy:** re-validate against the remote and re-download if it
    changed. The DB grows as new shots are blessed; a stale cache must not go
-   silently out of date.
+   silently out of date. **Change detection compares remote `Size` only**
+   (plus the source URL): the Pelican endpoint returns a volatile `MTime` from
+   `xrdfs stat` (a near-now timestamp that differs on every call, verified
+   2026-06-30), so `mtime` cannot be used to detect change — it is recorded in
+   the sidecar for information but excluded from the comparison. CAKE is
+   append-mostly, so `Size` reliably grows when new shots are blessed.
 3. **URL source:** already solved by the catalog — `CAKE_DB_PATH` in `d3d.yaml`
    `extra_env` carries the Pelican URL. No new locator. The job is to detect
    that the resolved value is a *remote URL* and download it. A plain local path
@@ -104,8 +109,11 @@ Behavior:
   immediately (no network).
 - **Coordinated validate/download**, under a cross-process `filelock`
   (`local + ".lock"`):
-  1. `xrdfs <host> stat <path>` → `(size, mtime)`.
-  2. If the DB is missing, or the stat differs from the sidecar, or `force`:
+  1. `xrdfs <host> stat <path>` → `(size, mtime)` (host keeps the URL scheme,
+     e.g. `pelican://osg-htc.org:443`, or the Pelican plugin won't engage and
+     `xrdfs` hangs; both subprocess calls use a bounded `timeout`).
+  2. If the DB is missing, or the stable staleness key `(size, url)` differs
+     from the sidecar (mtime is recorded but excluded — see decision 2), or `force`:
      `xrdcp -f <source> <tmp>` where `tmp = local + ".tmp.<pid>"`, then
      `os.replace(tmp, local)` (atomic publish), then write the sidecar.
   3. Add `source` to the memo; return `local`.
