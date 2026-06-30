@@ -14,26 +14,26 @@
 
 import unittest
 import os
+import sqlite3
 
-# TODO: CakeSignal tests need to be reworked to use something other than sqlite
-# from toksearch_d3d import CakeSignal
-#
-#
-# class TestCakeSignal(unittest.TestCase):
-#     @classmethod
-#     def setUpClass(cls):
-#         cls.eq_ptname = r"\ipmhd"
-#         cls.prof_ptname = r"\OMFIT_PROFS::TOP:ZEFF"
-#         cls.shot =165920
-#
-#
-#     def test_fetch_eq(self):
-#         results = CakeSignal(self.eq_ptname, "eq").fetch(self.shot)
-#         self.assertGreater(len(results["data"]), 1)
-#         self.assertGreater(len(results["times"]), 1)
-#
-#
-#     def test_fetch_profile(self):
-#         results = CakeSignal(self.prof_ptname, "prof").fetch(self.shot)
-#         self.assertGreater(len(results["data"]), 1)
-#         self.assertGreater(len(results["times"]), 1)
+from toksearch_d3d.signal._cake_cache import ensure_local_cake_db
+
+CAKE_DB_URL = "pelican://osg-htc.org:443/fdp-d3d/metadata/iri_logs.db"
+
+
+class TestCakeDbDownload(unittest.TestCase):
+    """Network-gated: exercises the real Pelican download path."""
+
+    def setUp(self):
+        if os.environ.get("TOKSEARCH_INTEGRATION") != "yes":
+            self.skipTest("integration test (set via testit.py without --mock)")
+        if not (os.environ.get("BEARER_TOKEN") and os.environ.get("CONDA_PREFIX")):
+            self.skipTest("requires BEARER_TOKEN and CONDA_PREFIX (FDP env)")
+
+    def test_downloads_and_opens_blessed_cakes(self):
+        path = ensure_local_cake_db(CAKE_DB_URL, force=True)
+        self.assertTrue(os.path.exists(path))
+        with sqlite3.connect(path) as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT COUNT(*) FROM blessed_cakes")
+            self.assertGreater(cur.fetchone()[0], 0)
