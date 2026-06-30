@@ -57,3 +57,58 @@ class TestEnsureLocalPassthrough(unittest.TestCase):
     def test_local_path_returned_unchanged(self):
         self.assertEqual(cc.ensure_local_cake_db("/data/iri_logs.db"),
                          "/data/iri_logs.db")
+
+
+import tempfile
+import shutil
+
+
+class _RemoteFixture:
+    """Helper: a fake remote DB file plus a monkeypatched seam set."""
+    def __init__(self, testcase, contents=b"DBDATA", sig=None):
+        self.dl_calls = 0
+        self.stat_calls = 0
+        self._contents = contents
+        self._sig = sig or {"size": len(contents), "mtime": "2025-05-01 12:00:00"}
+        testcase.tmp = tempfile.mkdtemp()
+        os.environ["XDG_CACHE_HOME"] = testcase.tmp
+        cc._validated.clear()
+        testcase.addCleanup(lambda: shutil.rmtree(testcase.tmp, ignore_errors=True))
+        testcase.addCleanup(lambda: os.environ.pop("XDG_CACHE_HOME", None))
+        testcase.addCleanup(cc._validated.clear)
+
+        def fake_stat(source):
+            self.stat_calls += 1
+            return dict(self._sig)
+
+        def fake_download(source, dest):
+            self.dl_calls += 1
+            Path(dest).write_bytes(self._contents)
+
+        testcase._orig = (cc._remote_signature, cc._download)
+        cc._remote_signature = fake_stat
+        cc._download = fake_download
+        testcase.addCleanup(self._restore, testcase)
+
+    def _restore(self, testcase):
+        cc._remote_signature, cc._download = testcase._orig
+
+    def set_signature(self, sig):
+        self._sig = sig
+
+
+class TestEnsureLocalDownload(unittest.TestCase):
+    URL = "pelican://h:443/fdp-d3d/metadata/iri_logs.db"
+
+    def test_downloads_and_returns_local_path(self):
+        fx = _RemoteFixture(self)
+        path = cc.ensure_local_cake_db(self.URL)
+        self.assertEqual(path, os.path.join(self.tmp, "fdp/cake/iri_logs.db"))
+        self.assertEqual(Path(path).read_bytes(), b"DBDATA")
+        self.assertEqual(fx.dl_calls, 1)
+
+    def test_writes_sidecar_meta(self):
+        _RemoteFixture(self)
+        path = cc.ensure_local_cake_db(self.URL)
+        meta = Path(path + ".meta.json")
+        self.assertTrue(meta.exists())

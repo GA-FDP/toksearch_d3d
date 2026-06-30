@@ -5,11 +5,19 @@ current local file path. Local paths pass through unchanged; remote URLs are
 downloaded once to ~/.cache/fdp/cake/ and re-validated against the remote on the
 first call in each process.
 """
+import json
+import logging
 import os
+import subprocess
 from pathlib import Path
 from urllib.parse import urlparse
+from filelock import FileLock
+
+logger = logging.getLogger(__name__)
 
 _REMOTE_SCHEMES = ("pelican", "root", "http", "https")
+
+_validated: set = set()  # per-process memo of validated source URLs
 
 
 def _is_remote(source: str) -> bool:
@@ -25,6 +33,48 @@ def _local_path(source: str) -> Path:
     return _cache_dir() / os.path.basename(urlparse(source).path)
 
 
+def _split_host_path(url: str):
+    p = urlparse(url)
+    return p.netloc, p.path
+
+
+def _remote_signature(source: str):
+    """Return {'size','mtime'} via `xrdfs <host> stat <path>`, or None on failure."""
+    host, path = _split_host_path(source)
+    try:
+        proc = subprocess.run(
+            ["xrdfs", host, "stat", path],
+            capture_output=True, text=True, check=True,
+        )
+    except (subprocess.CalledProcessError, FileNotFoundError) as exc:
+        logger.warning("xrdfs stat failed for %s: %s", source, exc)
+        return None
+    return _parse_xrdfs_stat(proc.stdout)
+
+
+def _download(source: str, dest: str) -> None:
+    """Copy the remote DB to `dest` with `xrdcp -f`."""
+    subprocess.run(["xrdcp", "-f", source, str(dest)], check=True)
+
+
+def _meta_path(local: Path) -> Path:
+    return local.with_name(local.name + ".meta.json")
+
+
+def _read_meta(local: Path):
+    mp = _meta_path(local)
+    if not mp.exists():
+        return None
+    try:
+        return json.loads(mp.read_text())
+    except (json.JSONDecodeError, OSError):
+        return None
+
+
+def _write_meta(local: Path, sig: dict) -> None:
+    _meta_path(local).write_text(json.dumps(sig))
+
+
 def ensure_local_cake_db(source: str, *, force: bool = False) -> str:
     """Return a local path to the CAKE DB.
 
@@ -33,7 +83,33 @@ def ensure_local_cake_db(source: str, *, force: bool = False) -> str:
     """
     if not _is_remote(source):
         return source
-    raise NotImplementedError  # remote handling added in Task 4
+
+    if source in _validated and not force:
+        return str(_local_path(source))
+
+    local = _local_path(source)
+    local.parent.mkdir(parents=True, exist_ok=True)
+
+    with FileLock(str(local) + ".lock"):
+        sig = _remote_signature(source)
+        if sig is None:
+            if local.exists():
+                logger.warning("Using cached CAKE DB (remote stat failed): %s", local)
+                _validated.add(source)
+                return str(local)
+            raise RuntimeError(
+                f"Cannot stat remote CAKE DB {source!r} and no local cache "
+                f"exists. Ensure the FDP environment is active (xrdfs/xrdcp on "
+                f"PATH, BEARER_TOKEN set)."
+            )
+        if force or not local.exists() or _read_meta(local) != sig:
+            tmp = local.with_name(f"{local.name}.tmp.{os.getpid()}")
+            _download(source, str(tmp))
+            os.replace(tmp, local)
+            _write_meta(local, sig)
+
+    _validated.add(source)
+    return str(local)
 
 
 def _parse_xrdfs_stat(output: str) -> dict:
