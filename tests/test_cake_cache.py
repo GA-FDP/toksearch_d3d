@@ -112,3 +112,30 @@ class TestEnsureLocalDownload(unittest.TestCase):
         path = cc.ensure_local_cake_db(self.URL)
         meta = Path(path + ".meta.json")
         self.assertTrue(meta.exists())
+
+
+class TestEnsureLocalRefresh(unittest.TestCase):
+    URL = "pelican://h:443/fdp-d3d/metadata/iri_logs.db"
+
+    def test_unchanged_signature_skips_download_on_new_process(self):
+        fx = _RemoteFixture(self)
+        cc.ensure_local_cake_db(self.URL)
+        self.assertEqual(fx.dl_calls, 1)
+        cc._validated.clear()  # simulate a fresh process, same cache dir
+        cc.ensure_local_cake_db(self.URL)
+        self.assertEqual(fx.dl_calls, 1)  # signature matched -> no re-download
+
+    def test_changed_signature_redownloads(self):
+        fx = _RemoteFixture(self)
+        cc.ensure_local_cake_db(self.URL)
+        self.assertEqual(fx.dl_calls, 1)
+        cc._validated.clear()
+        fx.set_signature({"size": 999, "mtime": "2025-06-01 00:00:00"})
+        cc.ensure_local_cake_db(self.URL)
+        self.assertEqual(fx.dl_calls, 2)
+
+    def test_force_redownloads_even_when_unchanged(self):
+        fx = _RemoteFixture(self)
+        cc.ensure_local_cake_db(self.URL)
+        cc.ensure_local_cake_db(self.URL, force=True)
+        self.assertEqual(fx.dl_calls, 2)
