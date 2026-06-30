@@ -34,15 +34,15 @@ Two ways to configure the FDP environment:
 
 **2. CLI wrapper** (preferred when launching a subprocess)::
 
-    TDSVER="7.0" pixi run fdp run python <script.py>
+    pixi run fdp run python <script.py>
 
 ``setup_environment`` and ``fdp run`` apply the same defaults: XRootD plugin
 paths, MDSplus tree paths, PTData configuration. The bearer token is
 resolved from the ``bearer_token`` argument, then ``$BEARER_TOKEN``, then
 ``~/.fdp/token``.
 
-``TDSVER="7.0"`` is required whenever the script connects to d3drdb (the
-default config sets it, so this only matters if you've overridden it).
+Connecting to d3drdb needs no manual ``TDSVER`` — ``connect_d3drdb`` reads
+``tdsver`` from the ``d3d.yaml`` d3drdb locator and sets it for you.
 
 Imports
 =======
@@ -178,7 +178,9 @@ or ``-t TOKEN`` flag.
 DIII-D Gotchas
 ==============
 
-- ``TDSVER="7.0"`` must be set before connecting to d3drdb
+- ``connect_d3drdb`` sets ``TDSVER`` automatically (from the ``d3d.yaml``
+  d3drdb locator); the deprecated ``toksearch.sql.mssql.connect_d3drdb``
+  still needs ``TDSVER="7.0"`` set manually
 - ``PtDataSignal('pinj')`` returns "Invalid shot number" for recent shots —
   use ``ImasSignal('nbi.unit.power_launched.data')`` instead
 - ``PTDATA2`` TDI expressions hang inside ``fdp run`` due to XRootD
