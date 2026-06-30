@@ -112,6 +112,22 @@ class TestEnsureLocalDownload(unittest.TestCase):
         path = cc.ensure_local_cake_db(self.URL)
         meta = Path(path + ".meta.json")
         self.assertTrue(meta.exists())
+        import json
+        rec = json.loads(meta.read_text())
+        self.assertEqual(rec["url"], self.URL)
+        self.assertIn("size", rec)
+        self.assertIn("mtime", rec)
+
+    def test_different_url_same_basename_redownloads(self):
+        # Same basename (iri_logs.db) + identical size/mtime but a different
+        # source URL must still force a re-download (sidecar records the url).
+        fx = _RemoteFixture(self)
+        other = "pelican://other:443/elsewhere/iri_logs.db"
+        cc.ensure_local_cake_db(self.URL)
+        self.assertEqual(fx.dl_calls, 1)
+        cc._validated.clear()
+        cc.ensure_local_cake_db(other)
+        self.assertEqual(fx.dl_calls, 2)
 
 
 class TestEnsureLocalRefresh(unittest.TestCase):
@@ -169,3 +185,76 @@ class TestEnsureLocalResilience(unittest.TestCase):
         cc._remote_signature = lambda source: None
         with self.assertRaises(RuntimeError):
             cc.ensure_local_cake_db(self.URL)
+
+
+class TestEnsureLocalDownloadFailure(unittest.TestCase):
+    URL = "pelican://h:443/fdp-d3d/metadata/iri_logs.db"
+
+    def test_download_fail_with_cache_serves_cache(self):
+        fx = _RemoteFixture(self)
+        path = cc.ensure_local_cake_db(self.URL)  # populate cache
+        self.assertEqual(Path(path).read_bytes(), b"DBDATA")
+        # Force a refresh that fails mid-download; a valid cache exists.
+        cc._validated.clear()
+        fx.set_signature({"size": 999, "mtime": "2025-06-01 00:00:00"})
+
+        def boom(source, dest):
+            raise RuntimeError("xrdcp exploded")
+
+        cc._download = boom
+        served = cc.ensure_local_cake_db(self.URL)
+        self.assertEqual(served, path)
+        self.assertEqual(Path(served).read_bytes(), b"DBDATA")
+        # No leftover tmp file.
+        cache = Path(self.tmp) / "fdp" / "cake"
+        leftovers = [p.name for p in cache.iterdir() if ".tmp." in p.name]
+        self.assertEqual(leftovers, [])
+
+    def test_download_fail_without_cache_raises(self):
+        _RemoteFixture(self)
+
+        def boom(source, dest):
+            raise RuntimeError("xrdcp exploded")
+
+        cc._download = boom
+        with self.assertRaises(RuntimeError):
+            cc.ensure_local_cake_db(self.URL)
+        cache = Path(self.tmp) / "fdp" / "cake"
+        leftovers = [p.name for p in cache.iterdir() if ".tmp." in p.name]
+        self.assertEqual(leftovers, [])
+
+
+class TestEnsureLocalConcurrency(unittest.TestCase):
+    URL = "pelican://h:443/fdp-d3d/metadata/iri_logs.db"
+
+    def test_concurrent_calls_download_once(self):
+        import threading
+        import time
+
+        fx = _RemoteFixture(self)
+        lock = threading.Lock()
+        counter = {"n": 0}
+
+        def slow_download(source, dest):
+            with lock:
+                counter["n"] += 1
+            time.sleep(0.1)
+            Path(dest).write_bytes(b"DBDATA")
+
+        cc._download = slow_download
+
+        results = []
+
+        def worker():
+            results.append(cc.ensure_local_cake_db(self.URL))
+
+        t1 = threading.Thread(target=worker)
+        t2 = threading.Thread(target=worker)
+        t1.start()
+        t2.start()
+        t1.join()
+        t2.join()
+
+        self.assertEqual(counter["n"], 1)  # FileLock + post-lock check serialized
+        self.assertEqual(len(results), 2)
+        self.assertEqual(set(results), {os.path.join(self.tmp, "fdp/cake/iri_logs.db")})
