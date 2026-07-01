@@ -35,20 +35,19 @@ class TestCachePaths(unittest.TestCase):
 
 class TestStatParse(unittest.TestCase):
     SAMPLE = (
-        "Path:   /fdp-d3d/metadata/iri_logs.db\n"
-        "Id:     0001\n"
-        "Size:   8388608\n"
-        "MTime:  2025-05-01 12:00:00\n"
-        "Flags:  16 (IsReadable)\n"
+        "Name: /fdp-d3d/metadata/iri_logs.db\n"
+        "Size: 8388608\n"
+        "ModTime: 2025-05-01 12:00:00 +0000 GMT\n"
+        "IsCollection: false\n"
     )
 
     def test_parse_extracts_size_and_mtime(self):
-        sig = cc._parse_xrdfs_stat(self.SAMPLE)
+        sig = cc._parse_pelican_stat(self.SAMPLE)
         self.assertEqual(sig["size"], 8388608)
-        self.assertEqual(sig["mtime"], "2025-05-01 12:00:00")
+        self.assertEqual(sig["mtime"], "2025-05-01 12:00:00 +0000 GMT")
 
     def test_parse_missing_fields_returns_partial(self):
-        sig = cc._parse_xrdfs_stat("Path: /x\n")
+        sig = cc._parse_pelican_stat("Name: /x\n")
         self.assertNotIn("size", sig)
         self.assertNotIn("mtime", sig)
 
@@ -210,7 +209,7 @@ class TestEnsureLocalDownloadFailure(unittest.TestCase):
         fx.set_signature({"size": 999, "mtime": "2025-06-01 00:00:00"})
 
         def boom(source, dest):
-            raise RuntimeError("xrdcp exploded")
+            raise RuntimeError("pelican get exploded")
 
         cc._download = boom
         served = cc.ensure_local_cake_db(self.URL)
@@ -225,7 +224,7 @@ class TestEnsureLocalDownloadFailure(unittest.TestCase):
         _RemoteFixture(self)
 
         def boom(source, dest):
-            raise RuntimeError("xrdcp exploded")
+            raise RuntimeError("pelican get exploded")
 
         cc._download = boom
         with self.assertRaises(RuntimeError):
@@ -293,10 +292,10 @@ class TestEnsureLocalConcurrency(unittest.TestCase):
         self.assertEqual(set(results), {os.path.join(self.tmp, "fdp/cake/iri_logs.db")})
 
 
-class TestRemoteSignatureXrdfsInvocation(unittest.TestCase):
+class TestRemoteSignaturePelicanInvocation(unittest.TestCase):
     URL = "pelican://osg-htc.org:443/fdp-d3d/metadata/iri_logs.db"
 
-    def test_xrdfs_host_keeps_scheme_and_passes_timeout(self):
+    def test_uses_pelican_object_stat_with_full_url_and_timeout(self):
         from unittest import mock
 
         captured = {}
@@ -304,18 +303,19 @@ class TestRemoteSignatureXrdfsInvocation(unittest.TestCase):
         def fake_run(argv, **kwargs):
             captured["argv"] = argv
             captured["kwargs"] = kwargs
-            return mock.Mock(stdout="Size:   6\nMTime:  2025-05-01 12:00:00\n")
+            return mock.Mock(
+                stdout="Size: 6\nModTime: 2025-05-01 12:00:00 +0000 GMT\n")
 
         with mock.patch.object(cc.subprocess, "run", fake_run):
             sig = cc._remote_signature(self.URL)
 
         self.assertEqual(
             captured["argv"],
-            ["xrdfs", "pelican://osg-htc.org:443", "stat",
-             "/fdp-d3d/metadata/iri_logs.db"],
+            ["pelican", "object", "stat", self.URL],
         )
         self.assertIn("timeout", captured["kwargs"])
-        self.assertEqual(sig, {"size": 6, "mtime": "2025-05-01 12:00:00"})
+        self.assertEqual(
+            sig, {"size": 6, "mtime": "2025-05-01 12:00:00 +0000 GMT"})
 
     def test_timeout_makes_remote_signature_return_none(self):
         from unittest import mock
@@ -325,3 +325,45 @@ class TestRemoteSignatureXrdfsInvocation(unittest.TestCase):
 
         with mock.patch.object(cc.subprocess, "run", fake_run):
             self.assertIsNone(cc._remote_signature(self.URL))
+
+    def test_stat_failure_detail_surfaced_in_error(self):
+        # An auth failure from `pelican object stat` should appear in the
+        # RuntimeError when there is no local cache to fall back on.
+        from unittest import mock
+        import tempfile
+        import shutil
+
+        tmp = tempfile.mkdtemp()
+        os.environ["XDG_CACHE_HOME"] = tmp
+        cc._validated.clear()
+        self.addCleanup(lambda: shutil.rmtree(tmp, ignore_errors=True))
+        self.addCleanup(lambda: os.environ.pop("XDG_CACHE_HOME", None))
+        self.addCleanup(cc._validated.clear)
+
+        def fake_run(argv, **kwargs):
+            raise cc.subprocess.CalledProcessError(
+                returncode=1, cmd=argv,
+                stderr="level=error msg=\"no token available\"\n")
+
+        with mock.patch.object(cc.subprocess, "run", fake_run):
+            with self.assertRaises(RuntimeError) as ctx:
+                cc.ensure_local_cake_db(self.URL)
+        self.assertIn("no token available", str(ctx.exception))
+        self.assertIn("pelican object get", str(ctx.exception))
+
+    def test_download_uses_pelican_object_get(self):
+        from unittest import mock
+
+        captured = {}
+
+        def fake_run(argv, **kwargs):
+            captured["argv"] = argv
+            return mock.Mock(stdout="", stderr="")
+
+        with mock.patch.object(cc.subprocess, "run", fake_run):
+            cc._download(self.URL, "/tmp/dest.db")
+
+        self.assertEqual(
+            captured["argv"],
+            ["pelican", "object", "get", self.URL, "/tmp/dest.db"],
+        )
