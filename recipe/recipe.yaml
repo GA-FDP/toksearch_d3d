@@ -38,6 +38,11 @@ requirements:
     - ptdata >=2.0.9,<3
     - imas_composer >=0.2
     - filelock >=3
+    # CakeSignal fetches the CAKE DB by shelling out to the `pelican` CLI
+    # (toksearch_d3d/signal/_cake_cache.py). Declare it so a standalone
+    # `conda install toksearch_d3d` has the binary, rather than relying on
+    # it being present transitively via fdp.
+    - pelicanplatform >=7.24.3,<8
 
 tests:
   - script:
