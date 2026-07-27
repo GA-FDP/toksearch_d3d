@@ -21,18 +21,20 @@ fails with `PtDataError: Shot.extension not found`. Use this table.
 | Thomson Te (per channel) | `ImasSignal('thomson_scattering.channel.t_e.data', split_by='channel')` | dict keyed by channel |
 | Plasma boundary outline | `ImasSignal('equilibrium.time_slice.boundary.outline.r')` | ragged object array |
 
-`PtDataSignal`/`ImasSignal` come from `toksearch_d3d`; `MdsSignal` from `toksearch`.
+`PtDataSignal` comes from `toksearch_d3d`; `MdsSignal` from `toksearch`;
+`ImasSignal` from the separate **`toksearch_imas`** package
+(`conda install -c ga-fdp -c conda-forge toksearch_imas`).
 
 ## Discovering IMAS paths (don't guess)
 
 ```python
-from toksearch_d3d import list_imas_fields
+from toksearch_imas import list_imas_fields
 list_imas_fields()          # all supported IDS names -> fields
 list_imas_fields('nbi')     # fields under one IDS
 ```
-Supported IDSs: core_profiles, ec_launchers, ece, equilibrium, gas_injection,
-magnetics, nbi, reflectometer_profile, tf, thomson_scattering, wall. There is
-**no `summary` IDS**; line-averaged density is not available via IMAS here.
+`list_imas_fields()` reads the installed `imas_composer`'s mapper registry, so
+it is always accurate for the version in use. The supported IDS set grows
+between releases — always enumerate, never rely on a written-down list.
 
 ## Recipe: total injected NBI power (object array)
 
@@ -81,6 +83,7 @@ Canonical shot-type classification is the **`shots_type` table**
 
 ## See also
 
-- **toksearch-d3d-imas** — full ImasSignal API (ragged data, `split_by`, dims).
+- **toksearch-imas** — full ImasSignal API (ragged data, `split_by`, dims);
+  ships with the separate `toksearch_imas` package.
 - **toksearch-datasets** — `fetch_dataset`/`align` for multi-signal grids.
 - **toksearch-d3d-ptdata** / **toksearch-mds** — per-backend details.

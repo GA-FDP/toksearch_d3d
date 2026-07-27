@@ -29,9 +29,6 @@ requires-python = ">=3.11"
 # resolver don't try to fetch `toksearch` from PyPI.
 dependencies = []
 
-[project.optional-dependencies]
-imas = ["imas_composer", "awkward>=2.0"]
-
 [project.scripts]
 pcssetup-to-wa10 = "toksearch_d3d.tools.pcssetup_to_wa10:main"
 

@@ -49,9 +49,7 @@ nav:
   - Home: index.md
   - Tutorials:
     - "PTData Diagnostics": ptdata.md
-    - "IMAS Data Access": imas.md
   - API:
-    - "ImasSignal": imas_api.md
     - "PtDataSignal / RDataSignal": ptdata_api.md
 
 theme:

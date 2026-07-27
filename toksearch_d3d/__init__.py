@@ -16,7 +16,8 @@
 toksearch_d3d — DIII-D signal classes and FDP CLI for the TokSearch framework.
 
 Extends ``toksearch`` with DIII-D-specific signal types (PtDataSignal,
-ImasSignal, CakeSignal) and the ``fdp`` CLI for Pelican/OSDF data access.
+RDataSignal, CakeSignal) and the ``fdp`` CLI for Pelican/OSDF data access.
+IMAS IDS access lives in the separate ``toksearch_imas`` package.
 For core Pipeline documentation, see ``help(toksearch)``.
 
 Invocation
@@ -51,12 +52,11 @@ Imports
 
     from toksearch import Pipeline
     from toksearch_d3d import PtDataSignal     # DIII-D PTDATA diagnostics
-    from toksearch_d3d import ImasSignal       # IMAS IDS paths (requires imas_composer)
     from toksearch_d3d import CakeSignal       # Equilibrium/profile via MDSplus+SQLite
+    from toksearch_imas import ImasSignal      # IMAS IDS paths (separate package)
     from toksearch.sql.mssql import connect_d3drdb  # Shot metadata DB
 
-Import ``PtDataSignal`` and ``ImasSignal`` from ``toksearch_d3d``, **not**
-``toksearch``.
+Import ``PtDataSignal`` from ``toksearch_d3d``, **not** ``toksearch``.
 
 PtDataSignal
 ============
@@ -79,64 +79,24 @@ Point       Description
 ip          Plasma current (A)
 dssdenest   Line-averaged electron density
 btor        Toroidal magnetic field
-pinj        NBI power (unreliable for recent shots — prefer ImasSignal)
+pinj        NBI power (unreliable for recent shots — see ``toksearch_imas``)
 echpwr      ECH power
 prad        Radiated power
 wmhd        MHD stored energy
 ==========  ============================
 
-ImasSignal (Experimental)
-=========================
+IMAS IDS data
+=============
 
-Fetches DIII-D data via the IMAS IDS schema using ``imas_composer``.
-Only available when ``imas_composer`` is installed. Also exported as
-``D3dImasSignal`` (an exact alias) for device-prefixed symmetry with other
-device packages, e.g. ``toksearch_mast.MastImasSignal``.
+``ImasSignal`` used to live here. It now ships in the separate
+``toksearch_imas`` package (``conda install -c ga-fdp -c conda-forge
+toksearch_imas``), which depends on ``toksearch_d3d``. There is no
+back-compat shim — import it from its new home::
 
-**Leaf path** — fetches one field::
+    from toksearch_imas import ImasSignal, list_imas_fields
 
-    ImasSignal('equilibrium.time_slice.global_quantities.ip')
-
-**Prefix path** — fetches all fields under a subtree::
-
-    ImasSignal('equilibrium.time_slice.global_quantities')
-
-**Ragged arrays**: channel-indexed data returns a numpy object array.
-Use ``split_by='channel'`` for a dict keyed by channel name::
-
-    ImasSignal('thomson_scattering.channel.n_e.data', split_by='channel')
-
-**NBI power recipe** (object array of 8 per-unit time series)::
-
-    import numpy as np
-    nbi_data = rec.get('nbi', None)
-    if nbi_data is not None and nbi_data.get('data') is not None:
-        units = np.stack(list(nbi_data['data']), axis=0).astype(float)
-        total_mw = np.nanmax(np.nansum(units, axis=0)) / 1e6
-
-**Sharing a composer** avoids repeated mapper init::
-
-    from imas_composer import ImasComposer
-    composer = ImasComposer(efit_tree='EFIT01')
-    ImasSignal('equilibrium.time_slice.global_quantities.ip', composer=composer)
-
-**Discovering fields**::
-
-    from toksearch_d3d import list_imas_fields
-    fields = list_imas_fields()          # all IDS
-    fields = list_imas_fields('ece')     # one IDS
-
-Common IDS paths::
-
-    equilibrium.time_slice.global_quantities.ip
-    equilibrium.time_slice.global_quantities.q_95
-    equilibrium.time_slice.global_quantities.beta_normal
-    equilibrium.time_slice.profiles_1d.q
-    nbi.unit.power_launched.data
-    ece.channel.t_e.data
-    magnetics.ip.data
-    core_profiles.profiles_1d.electrons.density_thermal
-    thomson_scattering.channel.n_e.data
+See ``help(toksearch_imas)`` for leaf and prefix paths, ragged arrays,
+``split_by='channel'``, the NBI power recipe, and the supported IDS list.
 
 Shot List from d3drdb
 =====================
@@ -182,12 +142,13 @@ DIII-D Gotchas
   d3drdb locator); the deprecated ``toksearch.sql.mssql.connect_d3drdb``
   still needs ``TDSVER="7.0"`` set manually
 - ``PtDataSignal('pinj')`` returns "Invalid shot number" for recent shots —
-  use ``ImasSignal('nbi.unit.power_launched.data')`` instead
+  fetch NBI power from the separate ``toksearch_imas`` package instead:
+  ``ImasSignal('nbi.unit.power_launched.data')``
 - ``PTDATA2`` TDI expressions hang inside ``fdp run`` due to XRootD
   fork-after-threading — fetch via ``PtDataSignal`` directly
 - Only the ``efit01`` MDSplus tree is available via FDP Pelican
-- PTData JSON index has a coverage cap (~shot 201,299) — use ImasSignal
-  for newer shots
+- PTData JSON index has a coverage cap (~shot 201,299) — for newer shots use
+  ``MdsSignal`` or the separate ``toksearch_imas`` package
 - ``pathlib.Path()`` mangles ``pelican://`` URLs — use f-strings
 """
 
@@ -225,17 +186,12 @@ from .signal.ptdata import PtDataSignal
 from .signal.ptdata import RDataSignal
 from .signal.cake import CakeSignal
 
-try:
-    from .signal.imas import ImasSignal, D3dImasSignal, list_imas_fields
-except ImportError:
-    pass
-
 from .fdp import setup_environment
 
 from . import _version
 __version__ = _version.get_versions()['version']
 
 __llm_description__ = (
-    "toksearch_d3d - DIII-D signal classes (PtDataSignal, ImasSignal, "
+    "toksearch_d3d - DIII-D signal classes (PtDataSignal, RDataSignal, "
     "CakeSignal) + FDP/Pelican data access via the `fdp` CLI"
 )
