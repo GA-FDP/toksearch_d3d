@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import logging
+import os
 
 from MDSplus.mdsExceptions import MDSplusException
 from toksearch.signal.mds import MdsTreeRegistry, MdsConnectionRegistry
@@ -23,6 +24,11 @@ _log = logging.getLogger(__name__)
 _PTDATA_TREENAME = "__ptdata__"
 _FALLBACK_MDS_SERVER = "atlas.gat.com"
 
+# Set in environments (e.g. GitHub CI) that cannot reach atlas, so a failed
+# origin/Pelican fetch raises immediately instead of hanging on an
+# unreachable fallback connection.
+_NO_ATLAS_ENV_VAR = "TOKSEARCH_D3D_NO_ATLAS"
+
 # (treename, shot) pairs where opening the tree at the origin/local path is
 # known to fail. Populated the first time MdsTreeRegistry().open_tree() raises
 # for a given pair -- every other requirement on that same tree+shot would
@@ -32,6 +38,11 @@ _ORIGIN_OPEN_FAILURES = set()
 
 
 def _fetch_remote(req, server):
+    if server == _FALLBACK_MDS_SERVER and os.environ.get(_NO_ATLAS_ENV_VAR):
+        raise RuntimeError(
+            f"Refusing to contact {_FALLBACK_MDS_SERVER}: {_NO_ATLAS_ENV_VAR} is "
+            f"set, and this environment cannot reach atlas."
+        )
     conn = MdsConnectionRegistry().connect(server)
     conn.openTree(req.treename, req.shot)
     return conn.get(req.mds_path).value
