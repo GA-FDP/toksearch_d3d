@@ -306,6 +306,14 @@ class TestImasSignalMagnetics(unittest.TestCase):
         self.assertEqual(result['times'].ndim, 2)
         self.assertGreater(result['times'].max(), 100.0)
 
+    def test_ip_data_fetch_as_xarray_times_coord(self):
+        """fetch_as_xarray squeezes the singleton measurement axis and
+        attaches a times coordinate, so align() works on magnetics.ip.data."""
+        sig = self.ImasSignal('magnetics.ip.data', composer=self.composer)
+        da = sig.fetch_as_xarray(SHOT_MAGNETICS)
+        self.assertEqual(da.dims, ('times',))
+        self.assertGreater(da['times'].values.max(), 100.0)
+
     def test_diamagnetic_flux_shape(self):
         """magnetics.diamagnetic_flux.data is (n_measurements, n_time); DIII-D has 1."""
         result = self._gather('magnetics.diamagnetic_flux.data')
@@ -605,3 +613,69 @@ class TestImasSignalAsAwkward(unittest.TestCase):
         result = sig.gather(SHOT)
         for val in result.values():
             self.assertIsInstance(val, (ak.Array, np.ndarray))
+
+
+class _FakeLeafComposer:
+    """Stand-in composer for unit tests of xarray conversion (no network)."""
+
+    def __init__(self, ids_path):
+        self._ids_path = ids_path
+
+    def get_supported_fields(self, ids_path):
+        return [self._ids_path]
+
+
+class TestImasSignalFetchAsXarrayChannelDims(unittest.TestCase):
+    """fetch_as_xarray must attach a times coordinate to channel-indexed data.
+
+    Channel-indexed leaves (e.g. magnetics.ip.data) gather as data (n_chan, N)
+    with times also (n_chan, N). When the per-channel timebases are identical,
+    the DataArray must get a real 'times' coordinate; a singleton channel axis
+    must be squeezed so the result behaves like a plain 1-D signal.
+    """
+
+    def _signal_with_gather(self, result):
+        from toksearch_d3d import ImasSignal
+        sig = ImasSignal('fake.path', composer=_FakeLeafComposer('fake.path'))
+        sig.gather = lambda shot: result
+        return sig
+
+    def test_single_channel_2d_squeezed_with_times_coord(self):
+        """(1, N) data + (1, N) times -> 1-D DataArray with times coordinate."""
+        times = np.arange(5, dtype=float)
+        data = np.arange(5, dtype=float)[np.newaxis, :] * 2.0
+        sig = self._signal_with_gather({'data': data, 'times': times[np.newaxis, :]})
+        da = sig.fetch_as_xarray(0)
+        self.assertEqual(da.dims, ('times',))
+        np.testing.assert_array_equal(da['times'].values, times)
+        np.testing.assert_array_equal(da.values, data[0])
+
+    def test_multichannel_identical_times_get_times_coord(self):
+        """(3, N) data with identical per-channel times keeps the channel axis
+        but labels the time axis with a times coordinate."""
+        times = np.arange(4, dtype=float)
+        data = np.arange(12, dtype=float).reshape(3, 4)
+        times_2d = np.tile(times, (3, 1))
+        sig = self._signal_with_gather({'data': data, 'times': times_2d})
+        da = sig.fetch_as_xarray(0)
+        self.assertEqual(da.shape, (3, 4))
+        self.assertIn('times', da.dims)
+        np.testing.assert_array_equal(da['times'].values, times)
+
+    def test_multichannel_ragged_times_left_unlabeled(self):
+        """Differing per-channel timebases cannot be a shared coordinate;
+        generic dim labels and no times coordinate (existing behavior)."""
+        data = np.arange(8, dtype=float).reshape(2, 4)
+        times_2d = np.stack([np.arange(4.0), np.arange(4.0) + 0.5])
+        sig = self._signal_with_gather({'data': data, 'times': times_2d})
+        da = sig.fetch_as_xarray(0)
+        self.assertEqual(da.shape, (2, 4))
+        self.assertNotIn('times', da.coords)
+
+    def test_plain_1d_signal_unchanged(self):
+        """(N,) data + (N,) times keeps existing behavior (regression guard)."""
+        times = np.arange(6, dtype=float)
+        sig = self._signal_with_gather({'data': times * 3.0, 'times': times})
+        da = sig.fetch_as_xarray(0)
+        self.assertEqual(da.dims, ('times',))
+        np.testing.assert_array_equal(da['times'].values, times)
