@@ -500,6 +500,12 @@ class ImasSignal(Signal):
             if dim_name not in result:
                 continue
             dim_arr = np.asarray(result[dim_name])
+            if dim_arr.ndim == 2 and np.array_equal(
+                dim_arr, np.broadcast_to(dim_arr[0], dim_arr.shape)
+            ):
+                # Channel-indexed dim (e.g. magnetics.ip times of shape
+                # (n_chan, N)) whose rows are all identical: one shared axis.
+                dim_arr = dim_arr[0]
             if dim_arr.ndim != 1:
                 continue
             for ax in range(data.ndim):
@@ -508,6 +514,20 @@ class ImasSignal(Signal):
                     axis_coords[dim_name] = dim_arr
                     used_axes.add(ax)
                     break
+
+        # Singleton axes with no dim array (e.g. the 1-element measurement
+        # axis of magnetics.ip.data) would block alignment along 'times';
+        # drop them so single-channel signals behave like plain 1-D signals.
+        squeeze_axes = tuple(
+            ax for ax in range(data.ndim)
+            if ax not in axis_dims and data.shape[ax] == 1
+        )
+        if squeeze_axes:
+            data = np.squeeze(data, axis=squeeze_axes)
+            axis_dims = {
+                ax - sum(1 for s in squeeze_axes if s < ax): name
+                for ax, name in axis_dims.items()
+            }
 
         xr_dims = [axis_dims.get(ax, f'dim_{ax}') for ax in range(data.ndim)]
 
