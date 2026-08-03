@@ -14,6 +14,7 @@
 
 import logging
 import os
+import socket
 
 from MDSplus.mdsExceptions import MDSplusException
 from toksearch.signal.mds import MdsTreeRegistry, MdsConnectionRegistry
@@ -23,11 +24,16 @@ _log = logging.getLogger(__name__)
 
 _PTDATA_TREENAME = "__ptdata__"
 _FALLBACK_MDS_SERVER = "atlas.gat.com"
+_ATLAS_PORT = 8000
 
 # Set in environments (e.g. GitHub CI) that cannot reach atlas, so a failed
 # origin/Pelican fetch raises immediately instead of hanging on an
 # unreachable fallback connection.
 _NO_ATLAS_ENV_VAR = "TOKSEARCH_D3D_NO_ATLAS"
+
+# Tri-state cache (None = unchecked) for whether atlas is directly reachable
+# from this process. Populated on first use by _atlas_reachable().
+_atlas_reachable_cache = None
 
 # (treename, shot) pairs where opening the tree at the origin/local path is
 # known to fail. Populated the first time MdsTreeRegistry().open_tree() raises
@@ -46,6 +52,97 @@ def _fetch_remote(req, server):
     conn = MdsConnectionRegistry().connect(server)
     conn.openTree(req.treename, req.shot)
     return conn.get(req.mds_path).value
+
+
+def _atlas_reachable(timeout=2.0):
+    """Whether atlas is directly reachable from this process, cached process-wide.
+
+    A raw TCP precheck is used instead of just trying MDSplus.Connection and
+    catching failure, because MDSplus.Connection connects via a native call
+    with no timeout -- on an unreachable host that can hang far longer than
+    the toksearch round trip this check exists to avoid.
+    """
+    global _atlas_reachable_cache
+    if os.environ.get(_NO_ATLAS_ENV_VAR):
+        return False
+    if _atlas_reachable_cache is None:
+        try:
+            with socket.create_connection((_FALLBACK_MDS_SERVER, _ATLAS_PORT), timeout=timeout):
+                _atlas_reachable_cache = True
+        except OSError:
+            _atlas_reachable_cache = False
+    return _atlas_reachable_cache
+
+
+def _fetch_tree_group_via_atlas(treename, shot, reqs):
+    """Fetch all reqs sharing (treename, shot) in one atlas getMany() round trip."""
+    conn = MdsConnectionRegistry().connect(_FALLBACK_MDS_SERVER)
+    conn.openTree(treename, shot)
+    many = conn.getMany()
+    for req in reqs:
+        many.append(req.mds_path, req.mds_path)
+    many.execute()
+    results = {}
+    for req in reqs:
+        try:
+            results[req.as_key()] = many.get(req.mds_path).data()
+        except Exception as e:
+            results[req.as_key()] = e
+    return results
+
+
+def fetch_many_from_req(reqs, server, is_remote, location):
+    """Fetch many reqs at once, preferring a single batched atlas round trip
+    per (treename, shot) group over toksearch's per-requirement path.
+
+    req objects must additionally implement as_key() (see fetch_from_req's
+    docstring for the rest of the req contract).
+
+    ptdata reqs, and everything when an explicit remote server or location
+    was requested, fall through to fetch_from_req unchanged -- batching only
+    applies to plain MDSplus tree reqs read via the default (unset) location.
+
+    :return: dict mapping each req.as_key() to its fetched value, or to the
+        Exception if fetching failed.
+    """
+    if is_remote or location is not None:
+        results = {}
+        for req in reqs:
+            try:
+                results[req.as_key()] = fetch_from_req(req, server, is_remote, location)
+            except Exception as e:
+                results[req.as_key()] = e
+        return results
+
+    results = {}
+    tree_groups = {}
+    for req in reqs:
+        if req.treename == _PTDATA_TREENAME:
+            try:
+                results[req.as_key()] = fetch_from_req(req, server, is_remote, location)
+            except Exception as e:
+                results[req.as_key()] = e
+        else:
+            tree_groups.setdefault((req.treename, req.shot), []).append(req)
+
+    for (treename, shot), group in tree_groups.items():
+        if _atlas_reachable():
+            try:
+                results.update(_fetch_tree_group_via_atlas(treename, shot, group))
+                continue
+            except Exception as e:
+                _log.warning(
+                    "Batched atlas fetch failed for tree=%s shot=%s (%s); "
+                    "falling back to per-requirement fetch",
+                    treename, shot, e,
+                )
+        for req in group:
+            try:
+                results[req.as_key()] = fetch_from_req(req, server, is_remote, location)
+            except Exception as e:
+                results[req.as_key()] = e
+
+    return results
 
 
 def fetch_from_req(req, server, is_remote, location):
