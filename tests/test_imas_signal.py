@@ -742,3 +742,33 @@ class TestImasSignalLayoutKwarg(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.ImasSignal(self.LEAF, composer=self.composer,
                             as_awkward=True, layout='ragged')
+
+
+class TestImasSignalRenamedField(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        from toksearch_d3d import ImasSignal
+        from imas_composer import ImasComposer
+        cls.ImasSignal = ImasSignal
+        cls.composer = ImasComposer()
+
+    def test_old_electron_path_reports_the_rename(self):
+        old = 'core_profiles.profiles_1d.electrons.density_thermal'
+        with self.assertRaises(ValueError) as cm:
+            self.ImasSignal(old, composer=self.composer)
+        message = str(cm.exception)
+        self.assertIn('core_profiles.profiles_1d.electrons.density', message)
+        self.assertIn('0.2.4', message)
+        self.assertIn('ion', message.lower())
+
+    def test_unrelated_bad_path_keeps_the_generic_error(self):
+        with self.assertRaises(ValueError) as cm:
+            self.ImasSignal('core_profiles.not_a_real_field',
+                            composer=self.composer)
+        self.assertIn('No supported fields found', str(cm.exception))
+
+    def test_ion_density_thermal_still_resolves(self):
+        # 0.2.4 kept density_thermal for ions; only electrons were renamed.
+        sig = self.ImasSignal('core_profiles.profiles_1d.ion.density_thermal',
+                              composer=self.composer)
+        self.assertIsNotNone(sig)

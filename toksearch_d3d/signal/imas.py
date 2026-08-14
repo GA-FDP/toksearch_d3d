@@ -37,6 +37,15 @@ from toksearch_d3d.signal.imas_layout import (
 
 _PTDATA_TREENAME = "__ptdata__"
 
+# Paths renamed by imas_composer 0.2.4.  Reported as a targeted error rather
+# than silently aliased: upstream dropped the `_thermal` suffix as a
+# deliberate semantic decision (their PR #50), and ion paths legitimately
+# kept `density_thermal`, so a blind rewrite would be wrong.
+_RENAMED_PATHS = {
+    'core_profiles.profiles_1d.electrons.density_thermal':
+        'core_profiles.profiles_1d.electrons.density',
+}
+
 
 def list_imas_fields(ids=None, composer=None):
     """Return IMAS IDS fields supported by imas_composer.
@@ -238,6 +247,13 @@ class ImasSignal(Signal):
                 )
             self._leaf_paths = leaf_paths  # prefix mode — multi-field batch
         else:
+            renamed_to = _RENAMED_PATHS.get(ids_path)
+            if renamed_to is not None:
+                raise ValueError(
+                    f"'{ids_path}' was renamed to '{renamed_to}' in "
+                    f"imas_composer 0.2.4. Note that ion paths kept "
+                    f"'density_thermal' -- only the electron field changed."
+                )
             raise ValueError(f"No supported fields found for '{ids_path}'")
 
         # Layout default depends on the fetch kind: a leaf fetch returns one
