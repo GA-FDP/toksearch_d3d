@@ -862,3 +862,21 @@ class TestImasSignalPrefixLayout(unittest.TestCase):
                                  composer=self.composer).gather(SHOT)
         for value in result.values():
             self.assertIsInstance(value, np.ndarray)
+
+
+class TestImasSignalXarrayRaggedMessage(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        from toksearch_d3d import ImasSignal
+        from imas_composer import ImasComposer
+        cls.ImasSignal = ImasSignal
+        cls.composer = ImasComposer()
+
+    def test_ragged_layout_error_suggests_a_working_layout(self):
+        sig = self.ImasSignal('core_profiles.profiles_1d.electrons.density',
+                              composer=self.composer, layout='ragged')
+        with self.assertRaises(NotImplementedError) as cm:
+            sig.fetch_as_xarray(SHOT)
+        message = str(cm.exception)
+        self.assertIn("layout='filled'", message)
+        self.assertIn("layout='compact'", message)
