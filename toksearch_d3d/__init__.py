@@ -135,7 +135,7 @@ Common IDS paths::
     nbi.unit.power_launched.data
     ece.channel.t_e.data
     magnetics.ip.data
-    core_profiles.profiles_1d.electrons.density_thermal
+    core_profiles.profiles_1d.electrons.density
     thomson_scattering.channel.n_e.data
 
 Shot List from d3drdb
