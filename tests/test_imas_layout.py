@@ -25,6 +25,7 @@ import awkward as ak
 from toksearch_d3d.signal.imas_layout import (
     LAYOUTS,
     _as_object_array,
+    apply_layout,
     is_time_axis,
     to_numpy,
     validate_layout,
@@ -159,3 +160,70 @@ class TestIsTimeAxisEntityHint(unittest.TestCase):
         value = truly_ragged()
         times = [np.zeros(4), np.zeros(7)]
         self.assertFalse(is_time_axis(value, times, None))
+
+
+class TestCompact(unittest.TestCase):
+    def test_holes_become_rectangular(self):
+        value = holey(n_slots=5, n_rho=3, empty_at=(1, 3))
+        dims = {'times': np.arange(5, dtype=np.float64)}
+        data, out_dims = apply_layout(value, dims, 'compact')
+        self.assertEqual(data.shape, (3, 3))
+        self.assertNotEqual(data.dtype, object)
+
+    def test_times_filtered_in_lockstep(self):
+        value = holey(n_slots=5, n_rho=3, empty_at=(1, 3))
+        dims = {'times': np.arange(5, dtype=np.float64)}
+        data, out_dims = apply_layout(value, dims, 'compact')
+        np.testing.assert_array_equal(out_dims['times'], [0.0, 2.0, 4.0])
+        self.assertEqual(len(out_dims['times']), data.shape[0])
+
+    def test_surviving_rows_keep_their_values(self):
+        value = holey(n_slots=5, n_rho=3, empty_at=(1, 3))
+        dims = {'times': np.arange(5, dtype=np.float64)}
+        data, _ = apply_layout(value, dims, 'compact')
+        # rows 0, 2, 4 were arange(3) + i
+        np.testing.assert_array_equal(data[0], [0.0, 1.0, 2.0])
+        np.testing.assert_array_equal(data[1], [2.0, 3.0, 4.0])
+        np.testing.assert_array_equal(data[2], [4.0, 5.0, 6.0])
+
+    def test_truly_ragged_stays_object_after_compaction(self):
+        value = truly_ragged()
+        dims = {'times': np.arange(2, dtype=np.float64)}
+        data, _ = apply_layout(value, dims, 'compact')
+        self.assertEqual(data.dtype, object)
+        self.assertEqual(len(data), 2)
+
+    def test_all_slots_empty_yields_length_zero(self):
+        value = holey(n_slots=3, empty_at=(0, 1, 2))
+        dims = {'times': np.arange(3, dtype=np.float64)}
+        data, out_dims = apply_layout(value, dims, 'compact')
+        self.assertEqual(len(data), 0)
+        self.assertEqual(len(out_dims['times']), 0)
+
+    def test_no_empty_slots_is_a_no_op(self):
+        value = holey(n_slots=4, n_rho=2, empty_at=())
+        dims = {'times': np.arange(4, dtype=np.float64)}
+        data, out_dims = apply_layout(value, dims, 'compact')
+        self.assertEqual(data.shape, (4, 2))
+        np.testing.assert_array_equal(out_dims['times'], np.arange(4.0))
+
+    def test_entity_axis_untouched(self):
+        # object times => measurement axis => no compaction even with a hole
+        value = np.empty(2, dtype=object)
+        value[0] = np.array([], dtype=np.float64)
+        value[1] = np.arange(4, dtype=np.float64)
+        times = np.empty(2, dtype=object)
+        times[0] = np.array([], dtype=np.float64)
+        times[1] = np.arange(4, dtype=np.float64)
+        data, out_dims = apply_layout(value, {'times': times}, 'compact')
+        self.assertEqual(len(data), 2)
+        self.assertEqual(len(out_dims['times']), 2)
+
+    def test_non_parallel_dims_are_not_filtered(self):
+        value = holey(n_slots=5, n_rho=3, empty_at=(1, 3))
+        dims = {'times': np.arange(5, dtype=np.float64),
+                'rho': np.arange(3, dtype=np.float64)}
+        _, out_dims = apply_layout(value, dims, 'compact')
+        self.assertEqual(len(out_dims['times']), 3)
+        self.assertEqual(len(out_dims['rho']), 3)  # length 3 != outer 5
+        np.testing.assert_array_equal(out_dims['rho'], [0.0, 1.0, 2.0])

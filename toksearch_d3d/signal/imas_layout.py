@@ -151,3 +151,73 @@ def is_time_axis(value, times, split_by, entity_hint=False):
         return False
     outer = _outer_len(value)
     return outer is not None and outer == len(times_arr)
+
+
+def _rows(value):
+    """Return ``value``'s outer entries as a list of numpy arrays."""
+    return [np.asarray(row) for row in value]
+
+
+def _stack_or_object(rows):
+    """Stack rows into a rectangular array, falling back to an object array."""
+    if not rows:
+        return np.array([], dtype=np.float64)
+    try:
+        return np.stack(rows)
+    except ValueError:
+        # Rows have differing shapes -- genuinely ragged, keep them separate.
+        return _as_object_array(rows)
+
+
+def _compact(value, dims):
+    """Drop empty slots; filter parallel dim arrays in lockstep."""
+    rows = _rows(value)
+    keep = np.array([row.size > 0 for row in rows], dtype=bool)
+    outer = len(rows)
+
+    data = _stack_or_object([row for row, k in zip(rows, keep) if k])
+
+    out_dims = {}
+    for name, arr in dims.items():
+        arr_np = np.asarray(arr)
+        # Only arrays parallel to the outer axis are filtered.  A dim such as
+        # 'rho' that indexes the *inner* axis must be left alone.
+        if arr_np.ndim >= 1 and len(arr_np) == outer:
+            out_dims[name] = arr_np[keep]
+        else:
+            out_dims[name] = arr
+    return data, out_dims
+
+
+def apply_layout(value, dims, layout, split_by=None, entity_hint=False):
+    """Apply ``layout`` to a composed value and its dimension arrays.
+
+    Args:
+        value: Composed value from imas_composer (``ak.Array`` or ndarray).
+        dims (dict): ``{dim_name: ndarray}``, already converted and scaled.
+        layout (str): One of :data:`LAYOUTS`.
+        split_by: ``ImasSignal``'s ``split_by`` setting; when not None the
+            outer axis is a channel axis and layout is never applied.
+        entity_hint (bool): True when a sibling entity-name array has one
+            entry per outer entry, meaning the outer axis enumerates entities
+            rather than times.  See :func:`is_time_axis`.
+
+    Returns:
+        tuple: ``(data, dims)`` after transformation.
+    """
+    validate_layout(layout)
+
+    if layout == 'awkward':
+        return value, dims
+
+    if not is_time_axis(value, dims.get('times'), split_by,
+                        entity_hint=entity_hint):
+        return to_numpy(value), dims
+
+    if layout == 'ragged':
+        return to_numpy(value), dims
+
+    if layout == 'compact':
+        return _compact(value, dims)
+
+    raise AssertionError(f"unreachable layout {layout!r}")  # pragma: no cover
