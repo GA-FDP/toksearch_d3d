@@ -326,11 +326,20 @@ break, because 0.2.4 < 0.3. Upstream shipped two contract changes in a patch
 release, so a semver-shaped ceiling is weak protection. It is a cheap backstop
 against a genuine 0.3 and nothing more.
 
-The real gap is that `main` sat red for eleven days because CI runs only on
-pull requests. A scheduled weekly run would have surfaced it the next day.
-That is a one-line workflow trigger but is scope creep on this spec; it is
-recorded here as **optional**, to be included or dropped at the user's
-discretion.
+The real gap is not the ceiling at all. `.github/workflows/conda_build.yaml`
+triggers only on `push` to `main`, `release-*` tags, and pull requests — there
+is no `schedule:`. This break involved no commit: a third party published a
+release and the conda test environment, which resolves fresh from the channels
+regardless of `pixi.lock`, picked it up. The build that was green on
+2026-08-03 fails today on unmodified source. That class of failure is
+invisible to a commit-triggered CI by construction.
+
+Adding a scheduled run is deliberately **out of scope here**. It is orthogonal
+to 0.2.4 — it would be wanted even if 0.2.4 had never happened — and it is not
+a `toksearch_d3d` question: every repo in the stack declares unpinned recipe
+floors, so `ptdata`, `toksearch`, and `fdp` share the same blind spot. Fixing
+it in one repo addresses a fraction of the exposure. Tracked as a separate
+cross-repo follow-up.
 
 ## Release coordination
 
