@@ -21,15 +21,11 @@ from toksearch import Signal
 from toksearch.utilities.utilities import set_env
 
 import ptdata
-from ptdata import _core
-
-
-# Legacy `ical` flag -> engine CalibrationMode. Mirrors ptdata.fetch._ICAL_MAP.
-_ICAL_MAP = {
-    0: _core.CalibrationMode.Raw,
-    1: _core.CalibrationMode.Full,
-    4: _core.CalibrationMode.Linear,
-}
+# calibration_mode_for_ical is ptdata's single source of truth for the legacy
+# `ical` flag -> CalibrationMode translation. It needs a newer ptdata than the
+# >=2.0.13 floor pinned in pixi.toml / recipe/recipe.yaml -- unreleased as of
+# this commit; bump both floors to the release that ships it.
+from ptdata import _core, calibration_mode_for_ical
 
 
 class PtDataReaderRegistry:
@@ -97,8 +93,15 @@ class PtDataSignal(Signal):
             routing (Pelican index vs local files vs ptserver/athena) is
             determined by the environment (`PTDATA_JSON_INDEX_DIR`, `SYS_D3`,
             `PTDATA_PTSERVERS`) set up by `fdp`, not by this flag.
-        ical: Calibration flag.  `1` (default) returns calibrated data;
-            `0` returns raw counts; `4` applies linear calibration.
+        ical: Legacy PTDATA calibration flag, translated by
+            `ptdata.calibration_mode_for_ical`. `1` (default) returns data in
+            physics units; `0` returns raw digitizer counts; `2` returns volts
+            into the digitizer; `4` returns the integrated signal (v-sec).
+            Any other value raises `ptdata.PtDataError` (code 110,
+            `InvalidConfiguration`) at construction rather than quietly
+            substituting a calibration -- returning differently-calibrated
+            data than the caller asked for is a units error that looks like
+            valid data.
         keep_header: If True, include the raw PTDATA header (a
             `ptdata.PtDataHeader`) in the result under the `'header'` key.
             Note: this incurs an extra header read.
@@ -114,6 +117,11 @@ class PtDataSignal(Signal):
         super().__init__()
         self.pointname = pointname
         self.remote = remote
+        # Reject an unsupported ical here, in the caller's own traceback,
+        # rather than once per shot inside a pipeline worker. The resolved
+        # mode is deliberately not cached on the instance: `ical` is a plain
+        # attribute a caller can reassign, so gather() re-resolves it.
+        calibration_mode_for_ical(ical)
         self.ical = ical
         self.keep_header = keep_header
         self.fetch_times = fetch_times
@@ -138,7 +146,7 @@ class PtDataSignal(Signal):
 
             params = _core.ExtractionParams()
             params.fetch_times = fetch_times
-            params.calibration = _ICAL_MAP.get(self.ical, _core.CalibrationMode.Full)
+            params.calibration = calibration_mode_for_ical(self.ical)
 
             result = reader.fetch(self.pointname, int(shot), params)
 
