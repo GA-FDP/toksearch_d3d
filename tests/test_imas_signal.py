@@ -292,27 +292,47 @@ class TestImasSignalMagnetics(unittest.TestCase):
         return sig.gather(SHOT_MAGNETICS)
 
     def test_ip_data_shape(self):
-        """magnetics.ip.data is (n_measurements, n_time); DIII-D has 1 measurement."""
+        """magnetics.ip.data holds one entry per ip measurement.
+
+        imas_composer 0.2.4 exposes two DIII-D ip measurements recorded on
+        different time bases (a new `ip.method_name` field names them), so
+        the value is a genuinely ragged object array rather than a
+        rectangular (n_measurements, n_time) block.  Because the per-entry
+        time arrays differ in length, `times` is itself an object array,
+        which is what makes this an entity axis: no layout mode transforms
+        it.
+        """
         result = self._gather('magnetics.ip.data')
-        self.assertIsInstance(result['data'], np.ndarray)
-        self.assertEqual(result['data'].ndim, 2)
-        self.assertEqual(result['data'].shape[0], 1)
-        self.assertGreater(result['data'].shape[1], 0)
+        data = result['data']
+        self.assertIsInstance(data, np.ndarray)
+        self.assertEqual(data.dtype, object)
+        self.assertEqual(len(data), 2)
+        for entry in data:
+            self.assertGreater(np.asarray(entry).size, 0)
+
+    def test_ip_measurements_have_distinct_lengths(self):
+        """The two ip measurements are on different time bases."""
+        result = self._gather('magnetics.ip.data')
+        lengths = {np.asarray(e).size for e in result['data']}
+        self.assertEqual(len(lengths), 2)
 
     def test_ip_times_in_ms(self):
-        """magnetics.ip.data times must be (n_measurements, n_time) and in ms."""
+        """Each ip measurement's time array is in milliseconds."""
         result = self._gather('magnetics.ip.data')
-        self.assertIn('times', result)
-        self.assertEqual(result['times'].ndim, 2)
-        self.assertGreater(result['times'].max(), 100.0)
+        times = result['times']
+        self.assertEqual(len(times), 2)
+        for entry in times:
+            arr = np.asarray(entry)
+            self.assertGreater(arr.size, 0)
+            # DIII-D shots run for seconds; in ms the span exceeds 100.
+            self.assertGreater(arr.max() - arr.min(), 100.0)
 
     def test_ip_data_fetch_as_xarray_times_coord(self):
-        """fetch_as_xarray squeezes the singleton measurement axis and
-        attaches a times coordinate, so align() works on magnetics.ip.data."""
-        sig = self.ImasSignal('magnetics.ip.data', composer=self.composer)
-        da = sig.fetch_as_xarray(SHOT_MAGNETICS)
-        self.assertEqual(da.dims, ('times',))
-        self.assertGreater(da['times'].values.max(), 100.0)
+        """Ragged ip data has no rectangular xarray form."""
+        from toksearch_d3d import ImasSignal
+        sig = ImasSignal('magnetics.ip.data', composer=self.composer)
+        with self.assertRaises(NotImplementedError):
+            sig.fetch_as_xarray(SHOT_MAGNETICS)
 
     def test_diamagnetic_flux_shape(self):
         """magnetics.diamagnetic_flux.data is (n_measurements, n_time); DIII-D has 1."""
@@ -369,8 +389,8 @@ class TestImasSignalCoreProfiles(unittest.TestCase):
         self.assertGreater(len(result['data']), 0)
 
     def test_electron_density_2d(self):
-        """profiles_1d.electrons.density_thermal must be 2D (n_time × n_rho)."""
-        result = self._gather('core_profiles.profiles_1d.electrons.density_thermal')
+        """profiles_1d.electrons.density must be 2D (n_time × n_rho)."""
+        result = self._gather('core_profiles.profiles_1d.electrons.density')
         self.assertIsInstance(result['data'], np.ndarray)
         self.assertEqual(result['data'].ndim, 2)
         self.assertGreater(result['data'].shape[0], 0)
@@ -386,7 +406,7 @@ class TestImasSignalCoreProfiles(unittest.TestCase):
 
     def test_density_temperature_same_shape(self):
         """Electron density and temperature profiles must have the same shape."""
-        ne = self._gather('core_profiles.profiles_1d.electrons.density_thermal')['data']
+        ne = self._gather('core_profiles.profiles_1d.electrons.density')['data']
         te = self._gather('core_profiles.profiles_1d.electrons.temperature')['data']
         self.assertEqual(ne.shape, te.shape)
 
@@ -455,7 +475,7 @@ class TestImasSignalXarray(unittest.TestCase):
     def test_profile_2d_dataarray(self):
         """core_profiles electron density must produce a 2-D DataArray."""
         sig = self.ImasSignal(
-            'core_profiles.profiles_1d.electrons.density_thermal',
+            'core_profiles.profiles_1d.electrons.density',
             composer=self.composer_cp,
         )
         da = sig.fetch_as_xarray(SHOT_MAGNETICS)
@@ -467,7 +487,7 @@ class TestImasSignalXarray(unittest.TestCase):
     def test_profile_2d_times_coord(self):
         """The 'times' coordinate of the 2-D DataArray must be present and in ms."""
         sig = self.ImasSignal(
-            'core_profiles.profiles_1d.electrons.density_thermal',
+            'core_profiles.profiles_1d.electrons.density',
             composer=self.composer_cp,
         )
         da = sig.fetch_as_xarray(SHOT_MAGNETICS)
