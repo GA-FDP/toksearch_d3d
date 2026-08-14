@@ -139,7 +139,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/hyperframe-6.1.0-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/icu-78.3-h33c6efd_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/idna-3.13-pyhcf101f3_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/noarch/imas_composer-0.2-pyhd8ed1ab_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/imas_composer-0.2.4-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/importlib-metadata-8.7.0-pyhe01879c_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/importlib_resources-7.1.0-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/iniconfig-2.3.0-pyhd8ed1ab_0.conda
@@ -2515,9 +2515,9 @@ packages:
   - pkg:pypi/idna?source=hash-mapping
   size: 59038
   timestamp: 1776947141407
-- conda: https://conda.anaconda.org/conda-forge/noarch/imas_composer-0.2-pyhd8ed1ab_0.conda
-  sha256: d23bcfde35cf03c878489d611884ea9faa412496ff227b475784f1dcd96094fb
-  md5: 401806621edf4e9f6ffbd4d4c251bb94
+- conda: https://conda.anaconda.org/conda-forge/noarch/imas_composer-0.2.4-pyhd8ed1ab_0.conda
+  sha256: c08a75204a5da83410f94d3e1065ab99d587d4359dd65eaf5a3e3b56f0313f38
+  md5: 1784068b3b397febb1c15459a4ab3480
   depends:
   - awkward >=2.0
   - numpy >=1.20
@@ -2527,8 +2527,8 @@ packages:
   license_family: APACHE
   purls:
   - pkg:pypi/imas-composer?source=hash-mapping
-  size: 68511
-  timestamp: 1773347073132
+  size: 145754
+  timestamp: 1785798742820
 - conda: https://conda.anaconda.org/conda-forge/noarch/importlib-metadata-8.7.0-pyhe01879c_1.conda
   sha256: c18ab120a0613ada4391b15981d86ff777b5690ca461ea7e9e49531e8f374745
   md5: 63ccfdc3a3ce25b027b8767eb722fca8
@@ -7315,7 +7315,7 @@ packages:
   timestamp: 1780358168616
 - pypi: ./
   name: toksearch-d3d
-  version: 0.9.10+0.ge9f8cca.dirty
+  version: 0.10.1+3.g0c71195.dirty
   sha256: e4d729b20ca23137c18fde910a61b4e02fefb6120f6c3f0ddd8af32b723b8dc2
   requires_dist:
   - imas-composer ; extra == 'imas'

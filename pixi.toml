@@ -22,7 +22,7 @@ python = ">=3.11"
 toksearch = ">=2.8.0"
 ptdata = ">=2.0.13,<3"
 matplotlib = "*"
-imas_composer = ">=0.2"
+imas_composer = ">=0.2.4,<0.3"
 filelock = ">=3"
 # Phase 1 catalog migration. `fdp` is needed for the recipe test step
 # (which runs `fdp run testit.py`); `fdp-schema` is needed by fdp.catalog.
