@@ -189,6 +189,43 @@ def _compact(value, dims):
     return data, out_dims
 
 
+def _filled(value, dims):
+    """Keep every slot; pad empty slots with NaN to the common inner shape."""
+    rows = _rows(value)
+    non_empty = [row for row in rows if row.size > 0]
+
+    if not non_empty:
+        # Every slot empty: the common inner shape is (0,), so the result is
+        # an (n_slots, 0) array.  Nothing to fill, and no dtype to infer.
+        return np.zeros((len(rows), 0), dtype=np.float64), dims
+
+    shapes = {row.shape for row in non_empty}
+    if len(shapes) > 1:
+        listed = ', '.join(str(s[0]) for s in sorted(shapes))
+        raise ValueError(
+            f"layout='filled' needs one common inner length to pad to, but "
+            f"the non-empty slots have {len(shapes)} distinct lengths: "
+            f"{listed}. This data is genuinely ragged rather than holey, so "
+            f"padding would fabricate values. Use layout='ragged' or "
+            f"layout='compact'."
+        )
+
+    dtype = np.result_type(*[row.dtype for row in non_empty])
+    if not np.issubdtype(dtype, np.floating):
+        raise ValueError(
+            f"layout='filled' requires floating-point data, but this field "
+            f"has dtype {dtype}. NaN has no meaning in a {dtype} array, so "
+            f"gaps cannot be marked. Use layout='ragged' or layout='compact'."
+        )
+
+    inner_shape = shapes.pop()
+    out = np.full((len(rows),) + inner_shape, np.nan, dtype=dtype)
+    for i, row in enumerate(rows):
+        if row.size > 0:
+            out[i] = row
+    return out, dims
+
+
 def apply_layout(value, dims, layout, split_by=None, entity_hint=False):
     """Apply ``layout`` to a composed value and its dimension arrays.
 
@@ -219,5 +256,8 @@ def apply_layout(value, dims, layout, split_by=None, entity_hint=False):
 
     if layout == 'compact':
         return _compact(value, dims)
+
+    if layout == 'filled':
+        return _filled(value, dims)
 
     raise AssertionError(f"unreachable layout {layout!r}")  # pragma: no cover

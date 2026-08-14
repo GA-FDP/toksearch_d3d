@@ -227,3 +227,69 @@ class TestCompact(unittest.TestCase):
         self.assertEqual(len(out_dims['times']), 3)
         self.assertEqual(len(out_dims['rho']), 3)  # length 3 != outer 5
         np.testing.assert_array_equal(out_dims['rho'], [0.0, 1.0, 2.0])
+
+
+class TestFilled(unittest.TestCase):
+    def test_holes_become_rectangular_at_full_length(self):
+        value = holey(n_slots=5, n_rho=3, empty_at=(1, 3))
+        dims = {'times': np.arange(5, dtype=np.float64)}
+        data, out_dims = apply_layout(value, dims, 'filled')
+        self.assertEqual(data.shape, (5, 3))
+        self.assertEqual(len(out_dims['times']), 5)
+
+    def test_gaps_are_nan(self):
+        value = holey(n_slots=5, n_rho=3, empty_at=(1, 3))
+        dims = {'times': np.arange(5, dtype=np.float64)}
+        data, _ = apply_layout(value, dims, 'filled')
+        self.assertTrue(np.all(np.isnan(data[1])))
+        self.assertTrue(np.all(np.isnan(data[3])))
+
+    def test_real_rows_are_not_nan(self):
+        value = holey(n_slots=5, n_rho=3, empty_at=(1, 3))
+        dims = {'times': np.arange(5, dtype=np.float64)}
+        data, _ = apply_layout(value, dims, 'filled')
+        for i in (0, 2, 4):
+            self.assertFalse(np.any(np.isnan(data[i])))
+        np.testing.assert_array_equal(data[0], [0.0, 1.0, 2.0])
+
+    def test_times_not_filtered(self):
+        value = holey(n_slots=5, n_rho=3, empty_at=(1, 3))
+        dims = {'times': np.arange(5, dtype=np.float64)}
+        _, out_dims = apply_layout(value, dims, 'filled')
+        np.testing.assert_array_equal(out_dims['times'], np.arange(5.0))
+
+    def test_no_empty_slots_agrees_with_compact(self):
+        value = holey(n_slots=4, n_rho=2, empty_at=())
+        dims = {'times': np.arange(4, dtype=np.float64)}
+        filled, filled_dims = apply_layout(value, dict(dims), 'filled')
+        compact, compact_dims = apply_layout(value, dict(dims), 'compact')
+        np.testing.assert_array_equal(filled, compact)
+        np.testing.assert_array_equal(filled_dims['times'],
+                                      compact_dims['times'])
+
+    def test_multiple_real_lengths_raises(self):
+        value = truly_ragged()
+        dims = {'times': np.arange(2, dtype=np.float64)}
+        with self.assertRaises(ValueError) as cm:
+            apply_layout(value, dims, 'filled')
+        message = str(cm.exception)
+        self.assertIn('filled', message)
+        self.assertIn('4', message)
+        self.assertIn('7', message)
+
+    def test_non_float_raises(self):
+        value = np.empty(3, dtype=object)
+        value[0] = np.array([1, 2], dtype=np.int64)
+        value[1] = np.array([], dtype=np.int64)
+        value[2] = np.array([3, 4], dtype=np.int64)
+        dims = {'times': np.arange(3, dtype=np.float64)}
+        with self.assertRaises(ValueError) as cm:
+            apply_layout(value, dims, 'filled')
+        self.assertIn('int', str(cm.exception).lower())
+
+    def test_all_slots_empty_yields_length_zero_rows(self):
+        value = holey(n_slots=3, empty_at=(0, 1, 2))
+        dims = {'times': np.arange(3, dtype=np.float64)}
+        data, out_dims = apply_layout(value, dims, 'filled')
+        self.assertEqual(data.shape, (3, 0))
+        self.assertEqual(len(out_dims['times']), 3)
