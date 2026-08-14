@@ -92,6 +92,13 @@ class TestIsTimeAxis(unittest.TestCase):
         times = np.zeros((3, 8))
         self.assertFalse(is_time_axis(value, times, None))
 
+    def test_string_times_is_not_time_axis(self):
+        # A channel-name array passed where 'times' was expected: matches in
+        # length but is not numeric, so must not be treated as a time axis.
+        value = holey(n_slots=3, n_rho=2, empty_at=())
+        names = np.array(['tecef01', 'tecef02', 'tecef03'])
+        self.assertFalse(is_time_axis(value, names, None))
+
     def test_length_mismatch_is_not_time_axis(self):
         self.assertFalse(is_time_axis(holey(n_slots=5), np.arange(4.0), None))
 
@@ -127,6 +134,16 @@ class TestToNumpyAwkward(unittest.TestCase):
         result = _as_object_array(rows)
         self.assertEqual(result.ndim, 1)
         self.assertEqual(len(result), 2)
+
+    def test_as_object_array_preserves_order(self):
+        # Every other fixture here is palindromic under reversal, so a
+        # mutant that reverses insertion order would go undetected. This is
+        # the same order entity values are later matched positionally
+        # against channel-name arrays, so it must be pinned explicitly.
+        rows = [np.array([1.0]), np.array([2.0, 3.0]), np.array([4.0, 5.0, 6.0])]
+        result = _as_object_array(rows)
+        for i, row in enumerate(rows):
+            np.testing.assert_array_equal(result[i], row)
 
     def test_rectangular_awkward_becomes_two_dimensional_numeric(self):
         result = to_numpy(ak.Array([[1.0, 2.0], [3.0, 4.0]]))
@@ -208,16 +225,37 @@ class TestCompact(unittest.TestCase):
         np.testing.assert_array_equal(out_dims['times'], np.arange(4.0))
 
     def test_entity_axis_untouched(self):
-        # object times => measurement axis => no compaction even with a hole
-        value = np.empty(2, dtype=object)
-        value[0] = np.array([], dtype=np.float64)
-        value[1] = np.arange(4, dtype=np.float64)
+        # object times => measurement axis => no compaction even with a hole.
+        # value is an ak.Array (as real composed data would be) so that a
+        # mutant skipping the to_numpy() conversion is actually caught: with
+        # a plain ndarray fixture, "return value, dims" and "return
+        # to_numpy(value), dims" are indistinguishable.
+        value = ak.Array([[], [1.0, 2.0, 3.0, 4.0]])
         times = np.empty(2, dtype=object)
         times[0] = np.array([], dtype=np.float64)
         times[1] = np.arange(4, dtype=np.float64)
         data, out_dims = apply_layout(value, {'times': times}, 'compact')
         self.assertEqual(len(data), 2)
         self.assertEqual(len(out_dims['times']), 2)
+        # A raw ak.Array lacks .dtype, which fetch_as_xarray relies on.
+        self.assertIsInstance(data, np.ndarray)
+
+    def test_apply_layout_forwards_entity_hint(self):
+        # An otherwise time-like axis (flat numeric times, matching length)
+        # must still be left untouched when entity_hint=True is passed
+        # through apply_layout, not just through is_time_axis directly.
+        value = holey(n_slots=5, n_rho=3, empty_at=(1, 3))
+        dims = {'times': np.arange(5, dtype=np.float64)}
+        data, out_dims = apply_layout(value, dims, 'compact', entity_hint=True)
+        self.assertEqual(len(data), 5)
+        self.assertEqual(len(out_dims['times']), 5)
+
+    def test_apply_layout_forwards_split_by(self):
+        value = holey(n_slots=5, n_rho=3, empty_at=(1, 3))
+        dims = {'times': np.arange(5, dtype=np.float64)}
+        data, out_dims = apply_layout(value, dims, 'compact', split_by='channel')
+        self.assertEqual(len(data), 5)
+        self.assertEqual(len(out_dims['times']), 5)
 
     def test_non_parallel_dims_are_not_filtered(self):
         value = holey(n_slots=5, n_rho=3, empty_at=(1, 3))
@@ -227,6 +265,29 @@ class TestCompact(unittest.TestCase):
         self.assertEqual(len(out_dims['times']), 3)
         self.assertEqual(len(out_dims['rho']), 3)  # length 3 != outer 5
         np.testing.assert_array_equal(out_dims['rho'], [0.0, 1.0, 2.0])
+
+    def test_inner_dim_coincidentally_matching_outer_length_is_not_filtered(self):
+        # n_rho happens to equal n_slots (e.g. DIII-D's n_rho=101 EFIT grid
+        # coinciding with a 101-slice GTIME axis). A dim must never be
+        # filtered just because len(dim) == outer -- only 'times' is known
+        # to be outer-parallel.
+        value = holey(n_slots=5, n_rho=3, empty_at=(1, 3))
+        dims = {'times': np.arange(5, dtype=np.float64),
+                'rho': np.arange(5, dtype=np.float64)}
+        _, out_dims = apply_layout(value, dims, 'compact')
+        self.assertEqual(len(out_dims['times']), 3)
+        self.assertEqual(len(out_dims['rho']), 5)
+        np.testing.assert_array_equal(out_dims['rho'], np.arange(5.0))
+
+    def test_three_level_jagged_compacts(self):
+        # time x species x rho: _rows must recurse via to_numpy rather than
+        # calling np.asarray directly, or this raises inside awkward.
+        jag = ak.Array([[[1.0, 2.0], [3.0]], [], [[5.0, 6.0], [7.0, 8.0]]])
+        dims = {'times': np.arange(3.0)}
+        data, out_dims = apply_layout(jag, dims, 'compact')
+        self.assertEqual(len(data), 2)
+        np.testing.assert_array_equal(out_dims['times'], [0.0, 2.0])
+        np.testing.assert_array_equal(data[1], [[5.0, 6.0], [7.0, 8.0]])
 
 
 class TestFilled(unittest.TestCase):
@@ -268,8 +329,14 @@ class TestFilled(unittest.TestCase):
                                       compact_dims['times'])
 
     def test_multiple_real_lengths_raises(self):
-        value = truly_ragged()
-        dims = {'times': np.arange(2, dtype=np.float64)}
+        # A hole is required here: with no empty slots at all, 'filled' takes
+        # the no-op path (see test_no_empty_slots_agrees_with_compact) and
+        # this same shape mismatch would *not* raise.
+        value = np.empty(3, dtype=object)
+        value[0] = np.arange(4, dtype=np.float64)
+        value[1] = np.array([], dtype=np.float64)
+        value[2] = np.arange(7, dtype=np.float64)
+        dims = {'times': np.arange(3, dtype=np.float64)}
         with self.assertRaises(ValueError) as cm:
             apply_layout(value, dims, 'filled')
         message = str(cm.exception)
@@ -285,7 +352,8 @@ class TestFilled(unittest.TestCase):
         dims = {'times': np.arange(3, dtype=np.float64)}
         with self.assertRaises(ValueError) as cm:
             apply_layout(value, dims, 'filled')
-        self.assertIn('int', str(cm.exception).lower())
+        # Not just "int" -- numpy's own errors would also satisfy that.
+        self.assertIn("layout='filled'", str(cm.exception))
 
     def test_all_slots_empty_yields_length_zero_rows(self):
         value = holey(n_slots=3, empty_at=(0, 1, 2))
@@ -293,6 +361,81 @@ class TestFilled(unittest.TestCase):
         data, out_dims = apply_layout(value, dims, 'filled')
         self.assertEqual(data.shape, (3, 0))
         self.assertEqual(len(out_dims['times']), 3)
+
+    def test_no_empty_slots_int_is_a_no_op_matching_compact(self):
+        # Hole-free non-float data must succeed under 'filled' since nothing
+        # would ever need to be fabricated -- only *holey* non-float data is
+        # a real error (see test_non_float_raises).
+        value = np.empty(3, dtype=object)
+        value[0] = np.array([1, 2], dtype=np.int64)
+        value[1] = np.array([3, 4], dtype=np.int64)
+        value[2] = np.array([5, 6], dtype=np.int64)
+        dims = {'times': np.arange(3, dtype=np.float64)}
+        filled, _ = apply_layout(value, dict(dims), 'filled')
+        compact, _ = apply_layout(value, dict(dims), 'compact')
+        np.testing.assert_array_equal(filled, compact)
+        self.assertEqual(filled.dtype, np.int64)
+
+    def test_no_empty_slots_string_is_a_no_op_matching_compact(self):
+        # Real case: core_profiles.profiles_1d.ion.label -- prefix mode
+        # defaults to 'filled' and applies it to every leaf, including this
+        # string field.
+        value = np.empty(3, dtype=object)
+        value[0] = np.array(['H', 'D'])
+        value[1] = np.array(['H', 'D'])
+        value[2] = np.array(['H', 'D'])
+        dims = {'times': np.arange(3, dtype=np.float64)}
+        filled, _ = apply_layout(value, dict(dims), 'filled')
+        compact, _ = apply_layout(value, dict(dims), 'compact')
+        np.testing.assert_array_equal(filled, compact)
+
+    def test_filled_preserves_float32_dtype(self):
+        # Real composed data is float32; silently upcasting to float64 would
+        # be a 2x memory regression.
+        value = np.empty(3, dtype=object)
+        value[0] = np.array([1.0, 2.0], dtype=np.float32)
+        value[1] = np.array([], dtype=np.float32)
+        value[2] = np.array([3.0, 4.0], dtype=np.float32)
+        dims = {'times': np.arange(3, dtype=np.float64)}
+        data, _ = apply_layout(value, dims, 'filled')
+        self.assertEqual(data.dtype, np.float32)
+
+    def test_shape_mismatch_message_shows_full_shapes(self):
+        # Shapes (3, 4) and (3, 5) share axis-0 length 3; printing only
+        # shape[0] (the pre-fix behavior) would misleadingly show "3, 3".
+        value = np.empty(3, dtype=object)
+        value[0] = np.zeros((3, 4))
+        value[1] = np.array([], dtype=np.float64)
+        value[2] = np.zeros((3, 5))
+        dims = {'times': np.arange(3, dtype=np.float64)}
+        with self.assertRaises(ValueError) as cm:
+            apply_layout(value, dims, 'filled')
+        message = str(cm.exception)
+        self.assertIn('(3, 4)', message)
+        self.assertIn('(3, 5)', message)
+
+    def test_zero_dim_row_does_not_raise_indexerror(self):
+        # A 0-d row has an empty shape tuple; indexing shape[0] (the pre-fix
+        # behavior) raised IndexError instead of the intended ValueError.
+        value = np.empty(3, dtype=object)
+        value[0] = np.array(5.0)
+        value[1] = np.array([], dtype=np.float64)
+        value[2] = np.array([1.0, 2.0])
+        dims = {'times': np.arange(3, dtype=np.float64)}
+        with self.assertRaises(ValueError) as cm:
+            apply_layout(value, dims, 'filled')
+        self.assertIn('()', str(cm.exception))
+
+    def test_three_level_jagged_raises_informative_error(self):
+        # time x species x rho with a hole: the non-empty slots have
+        # different inner (species, rho) shapes, so there is no common shape
+        # to pad to. Must raise the intended ValueError, not an opaque
+        # awkward internals error (which is what a non-recursing _rows gives).
+        jag = ak.Array([[[1.0, 2.0], [3.0]], [], [[5.0, 6.0], [7.0, 8.0]]])
+        dims = {'times': np.arange(3.0)}
+        with self.assertRaises(ValueError) as cm:
+            apply_layout(jag, dims, 'filled')
+        self.assertIn("layout='filled'", str(cm.exception))
 
 
 class TestRaggedAndAwkward(unittest.TestCase):
@@ -306,10 +449,15 @@ class TestRaggedAndAwkward(unittest.TestCase):
         self.assertEqual(len(out_dims['times']), 5)
 
     def test_awkward_returns_value_untouched(self):
-        value = holey(n_slots=5, n_rho=3, empty_at=(1, 3))
-        dims = {'times': np.arange(5, dtype=np.float64)}
+        # value must be an ak.Array: the previous ndarray fixture made
+        # assertIs pass unconditionally, since to_numpy(ndarray) can also
+        # return the same object, so the check couldn't distinguish "value
+        # was passed straight through" from "value was converted".
+        value = ak.Array([[1.0, 2.0, 3.0], [], [4.0, 5.0, 6.0]])
+        dims = {'times': np.arange(3, dtype=np.float64)}
         data, _ = apply_layout(value, dims, 'awkward')
         self.assertIs(data, value)
+        self.assertIsInstance(data, ak.Array)
 
     def test_awkward_skips_the_axis_rule(self):
         # No times at all: awkward must still pass the value straight through.
