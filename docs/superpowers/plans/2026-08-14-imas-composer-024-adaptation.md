@@ -55,7 +55,7 @@ pure. Add to `toksearch_d3d/signal/imas.py`:
 # indexes entities (channels, measurements) and must never be compacted --
 # entries are matched positionally against these very arrays, so dropping one
 # silently misattributes every entry after it.
-_ENTITY_NAME_LEAVES = ('name', 'identifier', 'method_name')
+_ENTITY_NAME_LEAVES = ('name', 'identifier', 'method_name', 'label')
 
 
 def _entity_hint(self, ids_path, shot, raw_data, outer_len):
