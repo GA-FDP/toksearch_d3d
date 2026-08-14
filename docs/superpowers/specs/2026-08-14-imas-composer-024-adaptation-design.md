@@ -111,14 +111,34 @@ raises `ValueError` rather than picking a winner.
 ### The axis rule
 
 A composed value's outer axis is treated as **time**, and therefore eligible
-for layout transformation, only when all three conditions hold:
+for layout transformation, only when all four conditions hold:
 
 1. `times` resolved to a **1-D non-object** array,
 2. `len(times)` equals the composed value's outer length,
-3. `split_by` is `None`.
+3. `split_by` is `None`,
+4. no sibling entity-name array matches the outer length (`entity_hint` is
+   False).
 
 Otherwise the outer axis is an entity axis (channel, measurement) and the
 value passes through untouched in every mode.
+
+**Condition 4 was added after review** and is the one that makes this a
+structural guarantee. Conditions 1 and 2 alone are not sufficient: the
+original design claimed entity axes always fail condition 1 because their
+`times` is per-entity, but `_resolve_dim_ids_path` falls back to the
+IDS-level `<ids>.time` — a flat 1-D numeric array — whenever the sibling
+`.time` does not resolve, and always for paths not ending in `.data` or
+`.data_error_upper`. In that case only a length coincidence separated a
+channel axis from a time axis. Demonstrated false positives: 48 per-channel
+rows with `times = np.arange(48.)`, and 2 ip measurements with
+`times = np.array([0., 1.])`, both returned True. "Came from the fallback"
+cannot be used as the discriminator either, because `core_profiles`' genuine
+time axis resolves through that same fallback.
+
+Condition 4 asks a structural question instead: does a sibling
+`name`/`identifier`/`method_name` array exist with one entry per outer entry?
+If so the outer axis enumerates entities, not times. `ImasSignal` computes
+this (it owns the I/O) and passes a bool, so `imas_layout` stays pure.
 
 This is grounded in the data's own structure, measured:
 
@@ -128,12 +148,16 @@ This is grounded in the data's own structure, measured:
 | `magnetics.ip.data` | measurement | `(2,) object` | no |
 | `ece.channel.t_e.data` | channel | `(48, 65536)` 2-D | no |
 
-Entity axes fail condition 1 because their `times` is either an object array
-of per-entry time arrays or a 2-D per-channel array. Consequently a channel
-axis **cannot** be compacted even by mistake, so the positional `names[i]`
-mapping in `_split_by_channel` is safe by construction rather than by
-convention. Dropping entries from a channel axis would shift every channel's
-identity — the same class of silent corruption as the mdsip tree-context bug.
+For the three shapes above, entity axes fail condition 1 because their `times`
+is either an object array of per-entry time arrays or a 2-D per-channel array.
+Condition 4 covers the remaining case, where `times` resolves to the flat
+IDS-level array and condition 1 does not fire.
+
+Together these make a channel axis un-compactable by construction rather than
+by convention, so the positional `names[i]` mapping in `_split_by_channel`
+stays correct. Dropping entries from a channel axis would shift every
+channel's identity — the same class of silent corruption as the mdsip
+tree-context bug.
 
 ### The four modes
 

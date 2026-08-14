@@ -12,6 +12,89 @@
 
 ---
 
+## AMENDMENT (post-review of Task 2) — READ BEFORE TASKS 3, 8, 9
+
+Review of Task 2 found that the three-condition axis rule does **not**
+structurally exclude entity axes, contrary to what Task 2's docstring claimed.
+`_resolve_dim_ids_path` (`imas.py:277-314`) falls back to the IDS-level
+`<ids>.time` — a flat 1-D numeric array — whenever the sibling `.time` does
+not resolve, and always for paths not ending in `.data`/`.data_error_upper`.
+When that happens, only a length coincidence separates a channel axis from a
+time axis. Verified false positives: 48 per-channel rows with
+`times = np.arange(48.)`, and 2 ip measurements with `times = np.array([0.,
+1.])`, both returned True. "Came from the fallback" is not a usable
+discriminator, because `core_profiles`' genuine time axis resolves through the
+same fallback.
+
+**A fourth condition is therefore added: `entity_hint`.** Task 2b (below)
+implements it. Tasks 3, 8, and 9 must thread it through.
+
+### Amended signatures
+
+```python
+# imas_layout.py
+def is_time_axis(value, times, split_by, entity_hint=False): ...
+def apply_layout(value, dims, layout, split_by=None, entity_hint=False): ...
+def apply_layout_prefix(composed, layout, entity_hints=None): ...
+```
+
+`entity_hints` in `apply_layout_prefix` is an optional
+`{leaf_path: bool}` mapping; a missing key means False.
+
+`is_time_axis` returns False when `entity_hint` is True. Everything else
+about the rule is unchanged.
+
+### Where the hint comes from
+
+`ImasSignal` owns the I/O, so it computes the bool and `imas_layout` stays
+pure. Add to `toksearch_d3d/signal/imas.py`:
+
+```python
+# Leaf names that enumerate entities rather than times.  If one of these
+# exists as a sibling with exactly one entry per outer entry, the outer axis
+# indexes entities (channels, measurements) and must never be compacted --
+# entries are matched positionally against these very arrays, so dropping one
+# silently misattributes every entry after it.
+_ENTITY_NAME_LEAVES = ('name', 'identifier', 'method_name')
+
+
+def _entity_hint(self, ids_path, shot, raw_data, outer_len):
+    """True when a sibling entity-name array has one entry per outer entry."""
+    if not outer_len:
+        return False
+    parts = ids_path.split('.')
+    # Walk from the most specific container up toward the IDS root.
+    for cut in range(len(parts) - 1, 0, -1):
+        prefix = '.'.join(parts[:cut])
+        for leaf in _ENTITY_NAME_LEAVES:
+            candidate = f'{prefix}.{leaf}'
+            try:
+                if not self._composer.get_supported_fields(candidate):
+                    continue
+            except ValueError:
+                # Unknown IDS name -- nothing to look up under this prefix.
+                continue
+            val = self._fetch_dim(candidate, shot, raw_data)
+            if val is None:
+                continue
+            arr = _to_numpy(val)
+            if arr.ndim >= 1 and len(arr) == outer_len:
+                return True
+    return False
+```
+
+Expected behaviour: `core_profiles.profiles_1d.electrons.density` finds no
+such sibling and yields False (time axis, compactable);
+`ece.channel.t_e.data` finds `ece.channel.name` with 48 entries and yields
+True; `magnetics.ip.data` finds `magnetics.ip.method_name` with 2 entries and
+yields True.
+
+Cost is a few in-memory `get_supported_fields` lookups plus at most one
+compose of a name array, which `raw_data` caches and `_split_by_channel`
+already fetches anyway.
+
+---
+
 ## Background the engineer needs
 
 `imas_composer` 0.2.4 changed two things relative to 0.2:
@@ -430,6 +513,191 @@ git commit -m "feat(imas_layout): add layout validation and the time-axis rule"
 
 ---
 
+## Task 2b: Close the review findings on imas_layout
+
+Applies the amendment above plus three defects review found in Task 2. Pure
+`imas_layout` work only — `ImasSignal` wiring is Tasks 6-9.
+
+**Files:**
+- Modify: `toksearch_d3d/signal/imas_layout.py`
+- Modify: `tests/test_imas_layout.py`
+
+- [ ] **Step 1: Write the failing tests**
+
+Append to `tests/test_imas_layout.py`:
+
+```python
+import awkward as ak
+
+
+class TestLayoutsContents(unittest.TestCase):
+    def test_layouts_is_exactly_the_four_documented_modes(self):
+        # Pinned explicitly: iterating LAYOUTS to test LAYOUTS asserts nothing
+        # about its contents, so a dropped or typo'd mode would go unnoticed.
+        self.assertEqual(set(LAYOUTS),
+                         {'compact', 'filled', 'ragged', 'awkward'})
+
+
+class TestToNumpyAwkward(unittest.TestCase):
+    def test_jagged_becomes_one_dimensional_object_array(self):
+        result = to_numpy(ak.Array([[1.0, 2.0, 3.0], [], [4.0, 5.0, 6.0]]))
+        self.assertEqual(result.dtype, object)
+        self.assertEqual(result.ndim, 1)
+        self.assertEqual([len(r) for r in result], [3, 0, 3])
+
+    def test_equal_length_rows_do_not_collapse_to_two_dimensions(self):
+        rows = [np.arange(3.0), np.arange(3.0) + 10]
+        result = _as_object_array(rows)
+        self.assertEqual(result.ndim, 1)
+        self.assertEqual(len(result), 2)
+
+    def test_rectangular_awkward_becomes_two_dimensional_numeric(self):
+        result = to_numpy(ak.Array([[1.0, 2.0], [3.0, 4.0]]))
+        self.assertEqual(result.shape, (2, 2))
+        self.assertNotEqual(result.dtype, object)
+
+    def test_three_level_jagged_does_not_raise(self):
+        # time x species x rho quantities are 3-level; the fallback's per-row
+        # conversion must recurse rather than escape with a ValueError.
+        value = ak.Array([[[1.0, 2.0], [3.0]], [[4.0]]])
+        result = to_numpy(value)
+        self.assertEqual(result.dtype, object)
+        self.assertEqual(len(result), 2)
+
+
+class TestIsTimeAxisEntityHint(unittest.TestCase):
+    def test_entity_hint_blocks_an_otherwise_time_like_axis(self):
+        # 48 per-channel rows whose times resolved to the flat IDS-level
+        # array and coincidentally match in length.
+        value = holey(n_slots=48, n_rho=3, empty_at=(7,))
+        times = np.arange(48, dtype=np.float64)
+        self.assertTrue(is_time_axis(value, times, None))
+        self.assertFalse(is_time_axis(value, times, None, entity_hint=True))
+
+    def test_entity_hint_defaults_to_false(self):
+        value = holey(n_slots=5, n_rho=3)
+        times = np.arange(5, dtype=np.float64)
+        self.assertTrue(is_time_axis(value, times, None))
+
+    def test_ragged_times_do_not_raise(self):
+        value = truly_ragged()
+        times = [np.zeros(4), np.zeros(7)]
+        self.assertFalse(is_time_axis(value, times, None))
+```
+
+- [ ] **Step 2: Run the tests to verify they fail**
+
+```bash
+pixi run python -m pytest tests/test_imas_layout.py -q -k "LayoutsContents or ToNumpyAwkward or EntityHint"
+```
+
+Expected: FAIL. `test_three_level_jagged_does_not_raise` raises `ValueError:
+cannot convert to RegularArray`; the `entity_hint` tests raise `TypeError:
+is_time_axis() got an unexpected keyword argument`.
+
+- [ ] **Step 3: Fix to_numpy to recurse**
+
+In `toksearch_d3d/signal/imas_layout.py`, in `to_numpy`, replace:
+
+```python
+            return _as_object_array([np.asarray(row) for row in val])
+```
+
+with:
+
+```python
+            # Recurse: a row of a 3-level jagged array is itself jagged, and
+            # np.asarray would raise on it outside any handler.
+            return _as_object_array([to_numpy(row) for row in val])
+```
+
+- [ ] **Step 4: Add entity_hint, a public outer_length, and safe times conversion**
+
+First, in `toksearch_d3d/signal/imas_layout.py`, add a public wrapper directly
+below `_outer_len` (Tasks 8 and 9 need the outer length from `imas.py`, and
+reaching across modules for a private name is worse than exporting one):
+
+```python
+def outer_length(value):
+    """Length of ``value``'s outer axis, or None when it has none.
+
+    Public wrapper over ``_outer_len`` for callers outside this module.
+    """
+    return _outer_len(value)
+```
+
+Then replace the whole `is_time_axis` function with:
+
+```python
+def is_time_axis(value, times, split_by, entity_hint=False):
+    """Return True when ``value``'s outer axis is a time axis.
+
+    All four conditions must hold:
+
+    1. ``times`` is a 1-D, non-object array,
+    2. ``len(times)`` equals ``value``'s outer length,
+    3. ``split_by`` is None,
+    4. ``entity_hint`` is False.
+
+    Conditions 1 and 2 are not sufficient on their own.  Entity axes usually
+    fail condition 1 -- ``magnetics.ip`` carries an *object* array of
+    per-measurement time arrays and ECE carries a *2-D* array with one time
+    row per channel -- but ``_resolve_dim_ids_path`` falls back to the flat
+    IDS-level ``<ids>.time`` whenever a sibling ``.time`` does not resolve, and
+    in that case only a length coincidence would separate a channel axis from
+    a time axis.  Condition 4 closes that gap structurally: the caller sets
+    ``entity_hint`` when a sibling ``name``/``identifier``/``method_name``
+    array has one entry per outer entry, which means the outer axis enumerates
+    entities.
+
+    This matters because entries on an entity axis are matched *positionally*
+    against those same name arrays.  Dropping or padding one would misattribute
+    every entry after it -- silent data corruption rather than a crash.
+    """
+    if split_by is not None:
+        return False
+    if entity_hint:
+        return False
+    if times is None:
+        return False
+    # to_numpy, not np.asarray: a ragged times sequence would otherwise raise
+    # instead of simply failing the dtype check below.
+    times_arr = to_numpy(times)
+    if times_arr.dtype == object or times_arr.ndim != 1:
+        return False
+    outer = _outer_len(value)
+    return outer is not None and outer == len(times_arr)
+```
+
+- [ ] **Step 5: Run the tests to verify they pass**
+
+```bash
+pixi run python -m pytest tests/test_imas_layout.py -q
+```
+
+Expected: `19 passed` (11 from Task 2, 8 added here).
+
+- [ ] **Step 6: Verify the new tests bite**
+
+Temporarily change `if entity_hint:` to `if False:` and re-run:
+
+```bash
+pixi run python -m pytest tests/test_imas_layout.py -q -k EntityHint
+```
+
+Expected: FAIL on `test_entity_hint_blocks_an_otherwise_time_like_axis`. Then
+revert with `git checkout toksearch_d3d/signal/imas_layout.py` **only if you
+have already committed**; otherwise undo the edit by hand.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add toksearch_d3d/signal/imas_layout.py tests/test_imas_layout.py
+git commit -m "fix(imas_layout): add the entity-axis guard and close review gaps"
+```
+
+---
+
 ## Task 3: Implement compact mode
 
 `compact` drops empty slots and filters every parallel dim array in lockstep.
@@ -581,7 +849,7 @@ def _compact(value, dims):
 Append to `toksearch_d3d/signal/imas_layout.py`:
 
 ```python
-def apply_layout(value, dims, layout, split_by=None):
+def apply_layout(value, dims, layout, split_by=None, entity_hint=False):
     """Apply ``layout`` to a composed value and its dimension arrays.
 
     Args:
@@ -590,6 +858,9 @@ def apply_layout(value, dims, layout, split_by=None):
         layout (str): One of :data:`LAYOUTS`.
         split_by: ``ImasSignal``'s ``split_by`` setting; when not None the
             outer axis is a channel axis and layout is never applied.
+        entity_hint (bool): True when a sibling entity-name array has one
+            entry per outer entry, meaning the outer axis enumerates entities
+            rather than times.  See :func:`is_time_axis`.
 
     Returns:
         tuple: ``(data, dims)`` after transformation.
@@ -599,7 +870,8 @@ def apply_layout(value, dims, layout, split_by=None):
     if layout == 'awkward':
         return value, dims
 
-    if not is_time_axis(value, dims.get('times'), split_by):
+    if not is_time_axis(value, dims.get('times'), split_by,
+                        entity_hint=entity_hint):
         return to_numpy(value), dims
 
     if layout == 'ragged':
@@ -956,6 +1228,7 @@ Then add to the import block near the top of the file, after the
 ```python
 from toksearch_d3d.signal.imas_layout import (
     apply_layout,
+    outer_length,
     to_numpy as _to_numpy,
     validate_layout,
 )
@@ -963,6 +1236,10 @@ from toksearch_d3d.signal.imas_layout import (
 
 Aliasing `to_numpy` to `_to_numpy` keeps the existing call sites in
 `_fetch_all_dims` and `_split_by_channel` working unchanged.
+
+Also add the `_ENTITY_NAME_LEAVES` constant and the `_entity_hint` method
+given in the **AMENDMENT** section near the top of this plan. `_entity_hint`
+is a method on `ImasSignal`; place it directly above `_fetch_dim`.
 
 Also add `import warnings` to the standard-library imports at the top of the
 file.
@@ -1311,8 +1588,14 @@ with:
         dims = self._fetch_all_dims(shot, raw_data)
 
         # Phase 4: shape the composed value the way the caller asked for.
+        # The entity hint keeps a channel/measurement axis from ever being
+        # compacted -- see imas_layout.is_time_axis.
+        entity_hint = self._entity_hint(
+            self.ids_path, shot, raw_data, outer_length(composed)
+        )
         data, dims = apply_layout(
-            composed, dims, self.layout, split_by=self._split_by
+            composed, dims, self.layout,
+            split_by=self._split_by, entity_hint=entity_hint,
         )
 
         out = {'data': data}
@@ -1446,7 +1729,7 @@ def _prefix_shared_time(composed):
     return None
 
 
-def apply_layout_prefix(composed, layout):
+def apply_layout_prefix(composed, layout, entity_hints=None):
     """Apply ``layout`` to every leaf of a prefix batch.
 
     Leaves whose outer length matches the batch's shared time axis are
@@ -1457,6 +1740,9 @@ def apply_layout_prefix(composed, layout):
         composed (dict): ``{leaf_path: composed_value}``.
         layout (str): One of :data:`LAYOUTS`. ``'compact'`` is rejected by
             ``ImasSignal.__init__`` before reaching here.
+        entity_hints (dict): Optional ``{leaf_path: bool}``; a leaf marked
+            True has an entity outer axis and is never transformed. A missing
+            key means False.
 
     Returns:
         dict: ``{leaf_path: value}``.
@@ -1467,10 +1753,13 @@ def apply_layout_prefix(composed, layout):
         return dict(composed)
 
     shared_time = _prefix_shared_time(composed)
+    hints = entity_hints or {}
 
     out = {}
     for path, value in composed.items():
-        if layout == 'ragged' or not is_time_axis(value, shared_time, None):
+        if layout == 'ragged' or not is_time_axis(
+            value, shared_time, None, entity_hint=hints.get(path, False)
+        ):
             out[path] = to_numpy(value)
             continue
         try:
@@ -1503,7 +1792,11 @@ with:
 
 ```python
         composed = self._composer.compose(self._leaf_paths, shot, raw_data)
-        return apply_layout_prefix(composed, self.layout)
+        entity_hints = {
+            path: self._entity_hint(path, shot, raw_data, outer_length(value))
+            for path, value in composed.items()
+        }
+        return apply_layout_prefix(composed, self.layout, entity_hints)
 ```
 
 Add `apply_layout_prefix` to the `imas_layout` import block added in Task 6:
@@ -1512,6 +1805,7 @@ Add `apply_layout_prefix` to the `imas_layout` import block added in Task 6:
 from toksearch_d3d.signal.imas_layout import (
     apply_layout,
     apply_layout_prefix,
+    outer_length,
     to_numpy as _to_numpy,
     validate_layout,
 )
