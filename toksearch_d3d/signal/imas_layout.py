@@ -130,9 +130,9 @@ def is_time_axis(value, times, split_by, entity_hint=False):
     IDS-level ``<ids>.time`` whenever a sibling ``.time`` does not resolve, and
     in that case only a length coincidence would separate a channel axis from
     a time axis.  Condition 4 closes that gap structurally: the caller sets
-    ``entity_hint`` when a sibling ``name``/``identifier``/``method_name``
-    array has one entry per outer entry, which means the outer axis enumerates
-    entities.
+    ``entity_hint`` when a sibling ``name``/``identifier``/``method_name``/
+    ``label`` array has one entry per outer entry, which means the outer axis
+    enumerates entities.
 
     This matters because entries on an entity axis are matched *positionally*
     against those same name arrays.  Dropping or padding one would misattribute
@@ -147,7 +147,7 @@ def is_time_axis(value, times, split_by, entity_hint=False):
     # to_numpy, not np.asarray: a ragged times sequence would otherwise raise
     # instead of simply failing the dtype check below.
     times_arr = to_numpy(times)
-    if times_arr.dtype == object or times_arr.ndim != 1:
+    if times_arr.ndim != 1 or not np.issubdtype(times_arr.dtype, np.number):
         return False
     outer = _outer_len(value)
     return outer is not None and outer == len(times_arr)
@@ -155,7 +155,7 @@ def is_time_axis(value, times, split_by, entity_hint=False):
 
 def _rows(value):
     """Return ``value``'s outer entries as a list of numpy arrays."""
-    return [np.asarray(row) for row in value]
+    return [to_numpy(row) for row in value]
 
 
 def _stack_or_object(rows):
@@ -173,17 +173,20 @@ def _compact(value, dims):
     """Drop empty slots; filter parallel dim arrays in lockstep."""
     rows = _rows(value)
     keep = np.array([row.size > 0 for row in rows], dtype=bool)
-    outer = len(rows)
 
     data = _stack_or_object([row for row, k in zip(rows, keep) if k])
 
     out_dims = {}
     for name, arr in dims.items():
-        arr_np = np.asarray(arr)
-        # Only arrays parallel to the outer axis are filtered.  A dim such as
-        # 'rho' that indexes the *inner* axis must be left alone.
-        if arr_np.ndim >= 1 and len(arr_np) == outer:
-            out_dims[name] = arr_np[keep]
+        # 'times' is the only dim known to be parallel to the outer axis --
+        # is_time_axis has already guaranteed len(times) == outer before we
+        # were called. No other dim can be inferred as outer-parallel from a
+        # length match: an inner-axis dim (e.g. 'rho') may coincidentally
+        # share that length without indexing the outer axis at all, and
+        # guessing from length coincidence is exactly the bug this avoids.
+        # Every other dim therefore passes through unchanged.
+        if name == 'times':
+            out_dims[name] = np.asarray(arr)[keep]
         else:
             out_dims[name] = arr
     return data, out_dims
@@ -199,9 +202,16 @@ def _filled(value, dims):
         # an (n_slots, 0) array.  Nothing to fill, and no dtype to infer.
         return np.zeros((len(rows), 0), dtype=np.float64), dims
 
+    if len(non_empty) == len(rows):
+        # No empty slots: there is nothing to fill, so 'filled' must be a
+        # no-op and agree exactly with 'compact' -- including for dtypes
+        # (int, string, ...) that the guards below would otherwise reject,
+        # even though no fill value would ever actually be fabricated.
+        return _stack_or_object(rows), dims
+
     shapes = {row.shape for row in non_empty}
     if len(shapes) > 1:
-        listed = ', '.join(str(s[0]) for s in sorted(shapes))
+        listed = ', '.join(str(s) for s in sorted(shapes))
         raise ValueError(
             f"layout='filled' needs one common inner length to pad to, but "
             f"the non-empty slots have {len(shapes)} distinct lengths: "
