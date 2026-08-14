@@ -499,11 +499,25 @@ class ImasSignal(Signal):
         if self._split_by == 'channel':
             return self._split_by_channel(shot, composed, raw_data)
 
-        out = {'data': composed if self._as_awkward else _to_numpy(composed)}
+        # Phase 3: supplementary dimension arrays.  Fetched *before* the
+        # layout is applied because 'compact' filters data and its parallel
+        # dim arrays in lockstep, and because the time-axis rule needs
+        # 'times' to decide whether the outer axis may be transformed at all.
+        dims = self._fetch_all_dims(shot, raw_data)
 
-        # Phase 3: supplementary dimension arrays
-        out.update(self._fetch_all_dims(shot, raw_data))
+        # Phase 4: shape the composed value the way the caller asked for.
+        # The entity hint keeps a channel/measurement axis from ever being
+        # compacted -- see imas_layout.is_time_axis.
+        entity_hint = self._entity_hint(
+            self.ids_path, shot, raw_data, outer_length(composed)
+        )
+        data, dims = apply_layout(
+            composed, dims, self.layout,
+            split_by=self._split_by, entity_hint=entity_hint,
+        )
 
+        out = {'data': data}
+        out.update(dims)
         return out
 
     def fetch_as_xarray(self, shot):

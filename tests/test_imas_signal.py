@@ -772,3 +772,66 @@ class TestImasSignalRenamedField(unittest.TestCase):
         sig = self.ImasSignal('core_profiles.profiles_1d.ion.density_thermal',
                               composer=self.composer)
         self.assertIsNotNone(sig)
+
+
+class TestImasSignalLayoutIntegration(unittest.TestCase):
+    """Layout behaviour against real composed data."""
+
+    @classmethod
+    def setUpClass(cls):
+        from toksearch_d3d import ImasSignal
+        from imas_composer import ImasComposer
+        cls.ImasSignal = ImasSignal
+        cls.composer = ImasComposer()
+
+    NE = 'core_profiles.profiles_1d.electrons.density'
+
+    def _gather(self, path, **kwargs):
+        return self.ImasSignal(path, composer=self.composer,
+                               **kwargs).gather(SHOT)
+
+    def test_compact_is_rectangular(self):
+        result = self._gather(self.NE, layout='compact')
+        data = result['data']
+        self.assertEqual(data.ndim, 2)
+        self.assertNotEqual(data.dtype, object)
+
+    def test_compact_times_match_data_rows(self):
+        result = self._gather(self.NE, layout='compact')
+        self.assertEqual(len(result['times']), result['data'].shape[0])
+
+    def test_compact_has_no_nan_rows(self):
+        result = self._gather(self.NE, layout='compact')
+        self.assertFalse(np.all(np.isnan(result['data']), axis=1).any())
+
+    def test_filled_keeps_every_slot(self):
+        compact = self._gather(self.NE, layout='compact')
+        filled = self._gather(self.NE, layout='filled')
+        self.assertEqual(filled['data'].ndim, 2)
+        self.assertGreater(filled['data'].shape[0], compact['data'].shape[0])
+        self.assertEqual(len(filled['times']), filled['data'].shape[0])
+
+    def test_filled_gaps_are_nan(self):
+        filled = self._gather(self.NE, layout='filled')
+        self.assertTrue(np.all(np.isnan(filled['data']), axis=1).any())
+
+    def test_filled_real_rows_equal_compact_rows(self):
+        compact = self._gather(self.NE, layout='compact')
+        filled = self._gather(self.NE, layout='filled')
+        real = ~np.all(np.isnan(filled['data']), axis=1)
+        np.testing.assert_allclose(filled['data'][real], compact['data'])
+
+    def test_ragged_is_an_object_array(self):
+        result = self._gather(self.NE, layout='ragged')
+        self.assertEqual(result['data'].dtype, object)
+
+    def test_default_matches_compact(self):
+        default = self._gather(self.NE)
+        compact = self._gather(self.NE, layout='compact')
+        np.testing.assert_array_equal(default['data'], compact['data'])
+
+    def test_entity_axis_unaffected_by_layout(self):
+        # magnetics.ip has object times, so every layout is a no-op.
+        compact = self._gather('magnetics.ip.data', layout='compact')
+        ragged = self._gather('magnetics.ip.data', layout='ragged')
+        self.assertEqual(len(compact['data']), len(ragged['data']))
