@@ -679,3 +679,66 @@ class TestImasSignalFetchAsXarrayChannelDims(unittest.TestCase):
         da = sig.fetch_as_xarray(0)
         self.assertEqual(da.dims, ('times',))
         np.testing.assert_array_equal(da['times'].values, times)
+
+
+class TestImasSignalLayoutKwarg(unittest.TestCase):
+    """Constructor-level layout handling. No data access required."""
+
+    @classmethod
+    def setUpClass(cls):
+        from toksearch_d3d import ImasSignal
+        from imas_composer import ImasComposer
+        cls.ImasSignal = ImasSignal
+        cls.composer = ImasComposer()
+
+    LEAF = 'core_profiles.profiles_1d.electrons.density'
+    PREFIX = 'core_profiles.profiles_1d'
+
+    def test_leaf_defaults_to_compact(self):
+        sig = self.ImasSignal(self.LEAF, composer=self.composer)
+        self.assertEqual(sig.layout, 'compact')
+
+    def test_prefix_defaults_to_filled(self):
+        sig = self.ImasSignal(self.PREFIX, composer=self.composer)
+        self.assertEqual(sig.layout, 'filled')
+
+    def test_explicit_layout_is_honored(self):
+        sig = self.ImasSignal(self.LEAF, composer=self.composer,
+                              layout='ragged')
+        self.assertEqual(sig.layout, 'ragged')
+
+    def test_unknown_layout_raises(self):
+        with self.assertRaises(ValueError):
+            self.ImasSignal(self.LEAF, composer=self.composer,
+                            layout='compacted')
+
+    def test_compact_on_prefix_raises(self):
+        with self.assertRaises(ValueError) as cm:
+            self.ImasSignal(self.PREFIX, composer=self.composer,
+                            layout='compact')
+        message = str(cm.exception)
+        self.assertIn('compact', message)
+        self.assertIn('filled', message)
+        self.assertIn(self.PREFIX, message)
+
+    def test_filled_on_prefix_is_allowed(self):
+        sig = self.ImasSignal(self.PREFIX, composer=self.composer,
+                              layout='filled')
+        self.assertEqual(sig.layout, 'filled')
+
+    def test_as_awkward_true_warns_and_maps(self):
+        with self.assertWarns(DeprecationWarning):
+            sig = self.ImasSignal(self.LEAF, composer=self.composer,
+                                  as_awkward=True)
+        self.assertEqual(sig.layout, 'awkward')
+
+    def test_as_awkward_false_warns_and_uses_default(self):
+        with self.assertWarns(DeprecationWarning):
+            sig = self.ImasSignal(self.LEAF, composer=self.composer,
+                                  as_awkward=False)
+        self.assertEqual(sig.layout, 'compact')
+
+    def test_passing_both_raises(self):
+        with self.assertRaises(ValueError):
+            self.ImasSignal(self.LEAF, composer=self.composer,
+                            as_awkward=True, layout='ragged')

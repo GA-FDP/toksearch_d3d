@@ -18,6 +18,8 @@ Signal classes that expose imas_composer output through the toksearch Pipeline A
 Requires imas_composer to be installed (optional dependency).
 """
 
+import warnings
+
 import numpy as np
 from urllib.parse import urlparse
 
@@ -26,29 +28,14 @@ from toksearch.signal.mds import MdsSignal, MdsTreeRegistry, MdsConnectionRegist
 from toksearch_d3d.signal.ptdata import PtDataSignal
 from imas_composer import ImasComposer
 
-try:
-    import awkward as ak
-    _AWKWARD_AVAILABLE = True
-except ImportError:
-    _AWKWARD_AVAILABLE = False
-    ak = None
+from toksearch_d3d.signal.imas_layout import (
+    apply_layout,
+    outer_length,
+    to_numpy as _to_numpy,
+    validate_layout,
+)
 
 _PTDATA_TREENAME = "__ptdata__"
-
-
-def _to_numpy(val):
-    """Convert a compose() value to a numpy array.
-
-    For regular arrays or uniformly-shaped ak.Array: returns np.ndarray.
-    For ragged ak.Array: returns a numpy object array whose elements are
-    1-D numpy arrays, one per outer entry (e.g. one per channel or time slice).
-    """
-    if _AWKWARD_AVAILABLE and isinstance(val, ak.Array):
-        try:
-            return np.asarray(val)
-        except (ValueError, TypeError):
-            return np.array([np.asarray(row) for row in val], dtype=object)
-    return np.asarray(val)
 
 
 def list_imas_fields(ids=None, composer=None):
@@ -200,7 +187,8 @@ class ImasSignal(Signal):
         dims=None,
         dim_scales=None,
         units=None,
-        as_awkward=False,
+        as_awkward=None,
+        layout=None,
     ):
         super().__init__()
         self.set_dims(['times'])
@@ -213,7 +201,26 @@ class ImasSignal(Signal):
             fast_ece=fast_ece,
         )
         self._max_iter = max_resolve_iterations
-        self._as_awkward = as_awkward
+
+        # `as_awkward` is the deprecated spelling of `layout='awkward'`.
+        if as_awkward is not None:
+            if layout is not None:
+                raise ValueError(
+                    "Pass either layout= or as_awkward=, not both. "
+                    "as_awkward=True is equivalent to layout='awkward'."
+                )
+            warnings.warn(
+                "as_awkward is deprecated; use layout='awkward' instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            # as_awkward=False asked for numpy output, which is what the
+            # default layouts already produce -- leave layout unset so the
+            # leaf/prefix default applies.
+            layout = 'awkward' if as_awkward else None
+        if layout is not None:
+            validate_layout(layout)
+        self._requested_layout = layout
         self._split_by = split_by
         self._dims = dims if dims is not None else {"times": "auto"}
         self._dim_scales = dim_scales if dim_scales is not None else {"times": 1000.0}
@@ -232,6 +239,24 @@ class ImasSignal(Signal):
             self._leaf_paths = leaf_paths  # prefix mode — multi-field batch
         else:
             raise ValueError(f"No supported fields found for '{ids_path}'")
+
+        # Layout default depends on the fetch kind: a leaf fetch returns one
+        # field on its own time base, while a prefix fetch is a *joint* fetch
+        # whose value comes from every leaf sharing one axis.
+        self._is_prefix = self._leaf_paths is not None
+        if self._requested_layout is None:
+            self.layout = 'filled' if self._is_prefix else 'compact'
+        else:
+            self.layout = self._requested_layout
+            if self._is_prefix and self.layout == 'compact':
+                raise ValueError(
+                    f"layout='compact' is not supported for prefix path "
+                    f"'{ids_path}': each leaf would compact onto its own "
+                    f"time base while the sibling '.time' leaf keeps the "
+                    f"full shared axis, leaving them mutually unaligned. "
+                    f"Use layout='filled' (the prefix default), or fetch "
+                    f"leaves individually."
+                )
 
     def _parse_location(self, location):
         """Store location and determine cleanup mode."""
@@ -312,6 +337,37 @@ class ImasSignal(Signal):
                     candidates.append(top)
                 return candidates
         return [f'{ids_name}.{ids_component}']
+
+    # Leaf names that enumerate entities rather than times.  If one of these
+    # exists as a sibling with exactly one entry per outer entry, the outer axis
+    # indexes entities (channels, measurements) and must never be compacted --
+    # entries are matched positionally against these very arrays, so dropping one
+    # silently misattributes every entry after it.
+    _ENTITY_NAME_LEAVES = ('name', 'identifier', 'method_name', 'label')
+
+    def _entity_hint(self, ids_path, shot, raw_data, outer_len):
+        """True when a sibling entity-name array has one entry per outer entry."""
+        if not outer_len:
+            return False
+        parts = ids_path.split('.')
+        # Walk from the most specific container up toward the IDS root.
+        for cut in range(len(parts) - 1, 0, -1):
+            prefix = '.'.join(parts[:cut])
+            for leaf in self._ENTITY_NAME_LEAVES:
+                candidate = f'{prefix}.{leaf}'
+                try:
+                    if not self._composer.get_supported_fields(candidate):
+                        continue
+                except ValueError:
+                    # Unknown IDS name -- nothing to look up under this prefix.
+                    continue
+                val = self._fetch_dim(candidate, shot, raw_data)
+                if val is None:
+                    continue
+                arr = _to_numpy(val)
+                if arr.ndim >= 1 and len(arr) == outer_len:
+                    return True
+        return False
 
     def _fetch_dim(self, dim_path, shot, raw_data):
         """Resolve and compose a single dim path; return composed value or None."""
