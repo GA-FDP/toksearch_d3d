@@ -468,3 +468,76 @@ class TestRaggedAndAwkward(unittest.TestCase):
     def test_unknown_layout_raises_before_any_work(self):
         with self.assertRaises(ValueError):
             apply_layout(holey(), {'times': np.arange(5.0)}, 'compacted')
+
+
+from toksearch_d3d.signal.imas_layout import apply_layout_prefix
+
+
+class TestApplyLayoutPrefix(unittest.TestCase):
+    def _composed(self):
+        return {
+            'core_profiles.profiles_1d.electrons.density':
+                holey(n_slots=5, n_rho=3, empty_at=(1, 3)),
+            'core_profiles.profiles_1d.ion.temperature':
+                holey(n_slots=5, n_rho=3, empty_at=(0, 1, 2)),
+            'core_profiles.profiles_1d.time':
+                np.arange(5, dtype=np.float64),
+            'core_profiles.profiles_1d.ion.label':
+                np.array('D'),
+        }
+
+    def test_filled_pads_every_time_indexed_leaf(self):
+        out = apply_layout_prefix(self._composed(), 'filled')
+        ne = out['core_profiles.profiles_1d.electrons.density']
+        ti = out['core_profiles.profiles_1d.ion.temperature']
+        self.assertEqual(ne.shape, (5, 3))
+        self.assertEqual(ti.shape, (5, 3))
+
+    def test_leaves_stay_index_aligned(self):
+        out = apply_layout_prefix(self._composed(), 'filled')
+        lengths = {
+            len(out['core_profiles.profiles_1d.electrons.density']),
+            len(out['core_profiles.profiles_1d.ion.temperature']),
+            len(out['core_profiles.profiles_1d.time']),
+        }
+        self.assertEqual(lengths, {5})
+
+    def test_scalar_leaf_passes_through(self):
+        out = apply_layout_prefix(self._composed(), 'filled')
+        self.assertEqual(
+            out['core_profiles.profiles_1d.ion.label'].ndim, 0)
+
+    def test_time_leaf_itself_is_unchanged(self):
+        out = apply_layout_prefix(self._composed(), 'filled')
+        np.testing.assert_array_equal(
+            out['core_profiles.profiles_1d.time'], np.arange(5.0))
+
+    def test_ragged_leaves_object_arrays(self):
+        out = apply_layout_prefix(self._composed(), 'ragged')
+        ne = out['core_profiles.profiles_1d.electrons.density']
+        self.assertEqual(ne.dtype, object)
+        self.assertEqual(len(ne), 5)
+
+    def test_unfillable_leaf_raises_naming_the_leaf(self):
+        composed = self._composed()
+        # truly_ragged() alone (2 non-empty rows, no holes) would hit the
+        # "no empty slots is a no-op" shortcut documented and required by
+        # TestFilled.test_multiple_real_lengths_raises in test_imas_layout.py
+        # -- a hole is required to actually exercise the shape-mismatch
+        # raise, so this fixture matches that established pattern rather
+        # than the plan's original truly_ragged() (which does not raise).
+        bad = np.empty(3, dtype=object)
+        bad[0] = np.arange(4, dtype=np.float64)
+        bad[1] = np.array([], dtype=np.float64)
+        bad[2] = np.arange(7, dtype=np.float64)
+        composed['core_profiles.profiles_1d.bad'] = bad
+        composed['core_profiles.profiles_1d.time'] = np.arange(
+            3, dtype=np.float64)
+        with self.assertRaises(ValueError) as cm:
+            apply_layout_prefix(composed, 'filled')
+        self.assertIn('core_profiles.profiles_1d.bad', str(cm.exception))
+
+    def test_no_time_leaf_passes_everything_through(self):
+        composed = {'some.ids.field': holey(n_slots=4)}
+        out = apply_layout_prefix(composed, 'filled')
+        self.assertEqual(len(out['some.ids.field']), 4)
