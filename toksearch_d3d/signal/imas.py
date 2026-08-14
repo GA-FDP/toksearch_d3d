@@ -168,11 +168,38 @@ class ImasSignal(Signal):
         units: Dict included verbatim as the `'units'` key in every per-channel
             entry when `split_by='channel'`.  Keys are dimension names, e.g.
             `{'data': 'm^-3', 'times': 'ms'}`.  Defaults to `{}`.
-        as_awkward: If `True`, return the raw composed value from imas_composer
-            without converting to numpy.  The result may be an `ak.Array`
-            (regular or ragged) or a plain `np.ndarray` depending on the field.
-            Useful for preserving ragged structure instead of receiving a numpy
-            object array.  Defaults to `False` (numpy output).
+        layout: How non-rectangular composed data is presented.  One of:
+
+            - `'compact'` — drop slots that have no data, filtering `times`
+              and any other parallel dim array in lockstep.  Promises only
+              "no empty slots", not rectangularity: a field becomes a
+              rectangular `ndarray` when one common inner length remains,
+              and stays an object array otherwise.  Default for **leaf**
+              paths.
+            - `'filled'` — keep every slot, padding empty ones with NaN so
+              all leaves stay index-aligned to one shared time axis.
+              Requires floating-point data and one common inner length;
+              raises otherwise rather than fabricating values.  Default for
+              **prefix** paths, where a joint fetch implies a shared axis.
+            - `'ragged'` — no transformation; the object array exactly as
+              imas_composer produced it, empty slots included.
+            - `'awkward'` — the raw `ak.Array`, with no numpy conversion.
+
+            Layout applies **only** when the outer axis is provably a time
+            axis: `times` must be a 1-D non-object array whose length matches
+            the value's outer length, and `split_by` must be None.  Channel
+            and measurement axes (`ece.channel.t_e.data`, `magnetics.ip.data`)
+            fail that test on the structure of their own time data and pass
+            through untouched in every mode — dropping or padding entries
+            there would shift each entity's identity relative to the sibling
+            `name` array matched to it positionally.
+
+            `layout='compact'` is rejected for prefix paths: leaves would
+            compact onto divergent time bases while the sibling `.time` leaf
+            keeps the full shared axis.
+
+        as_awkward: **Deprecated** — use `layout='awkward'`.  Passing both
+            `as_awkward` and `layout` raises `ValueError`.
 
     Example:
         ```python
