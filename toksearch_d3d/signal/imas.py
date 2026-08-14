@@ -577,7 +577,10 @@ class ImasSignal(Signal):
         if data.dtype == object:
             raise NotImplementedError(
                 f"fetch_as_xarray() does not support ragged (object-array) "
-                f"data from '{self.ids_path}'. Use fetch() instead."
+                f"data from '{self.ids_path}' (layout={self.layout!r}). "
+                f"If this field is holey rather than genuinely ragged, "
+                f"layout='filled' or layout='compact' produces a rectangular "
+                f"array that this method accepts. Otherwise use fetch()."
             )
 
         # Match each 1-D dim array to the first unused data axis of equal
