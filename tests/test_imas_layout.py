@@ -293,3 +293,30 @@ class TestFilled(unittest.TestCase):
         data, out_dims = apply_layout(value, dims, 'filled')
         self.assertEqual(data.shape, (3, 0))
         self.assertEqual(len(out_dims['times']), 3)
+
+
+class TestRaggedAndAwkward(unittest.TestCase):
+    def test_ragged_preserves_empty_slots(self):
+        value = holey(n_slots=5, n_rho=3, empty_at=(1, 3))
+        dims = {'times': np.arange(5, dtype=np.float64)}
+        data, out_dims = apply_layout(value, dims, 'ragged')
+        self.assertEqual(len(data), 5)
+        self.assertEqual(data[1].size, 0)
+        self.assertEqual(data[3].size, 0)
+        self.assertEqual(len(out_dims['times']), 5)
+
+    def test_awkward_returns_value_untouched(self):
+        value = holey(n_slots=5, n_rho=3, empty_at=(1, 3))
+        dims = {'times': np.arange(5, dtype=np.float64)}
+        data, _ = apply_layout(value, dims, 'awkward')
+        self.assertIs(data, value)
+
+    def test_awkward_skips_the_axis_rule(self):
+        # No times at all: awkward must still pass the value straight through.
+        value = holey(n_slots=5)
+        data, _ = apply_layout(value, {}, 'awkward')
+        self.assertIs(data, value)
+
+    def test_unknown_layout_raises_before_any_work(self):
+        with self.assertRaises(ValueError):
+            apply_layout(holey(), {'times': np.arange(5.0)}, 'compacted')
