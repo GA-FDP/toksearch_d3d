@@ -61,15 +61,25 @@ def to_numpy(val):
     """Convert a compose() value to a numpy array.
 
     For regular arrays or uniformly-shaped ak.Array: returns np.ndarray.
-    For ragged ak.Array: returns a numpy object array whose elements are
-    1-D numpy arrays, one per outer entry.
+    For ragged input (an ak.Array, or a plain sequence such as a list of
+    differently-shaped rows): returns a numpy object array whose elements
+    are 1-D numpy arrays, one per outer entry.
     """
     if _AWKWARD_AVAILABLE and isinstance(val, ak.Array):
         try:
             return np.asarray(val)
         except (ValueError, TypeError):
-            return _as_object_array([np.asarray(row) for row in val])
-    return np.asarray(val)
+            # Recurse: a row of a 3-level jagged array is itself jagged, and
+            # np.asarray would raise on it outside any handler.
+            return _as_object_array([to_numpy(row) for row in val])
+    try:
+        return np.asarray(val)
+    except (ValueError, TypeError):
+        # A plain ragged sequence (e.g. a list of differently-length arrays,
+        # as callers may pass for ``times``) hits the same inhomogeneous-
+        # shape error as a ragged ak.Array. Recurse the same way instead of
+        # letting it escape.
+        return _as_object_array([to_numpy(row) for row in val])
 
 
 def _as_object_array(rows):
@@ -95,28 +105,48 @@ def _outer_len(value):
         return None
 
 
-def is_time_axis(value, times, split_by):
+def outer_length(value):
+    """Length of ``value``'s outer axis, or None when it has none.
+
+    Public wrapper over ``_outer_len`` for callers outside this module.
+    """
+    return _outer_len(value)
+
+
+def is_time_axis(value, times, split_by, entity_hint=False):
     """Return True when ``value``'s outer axis is a time axis.
 
-    All three conditions must hold:
+    All four conditions must hold:
 
     1. ``times`` is a 1-D, non-object array,
     2. ``len(times)`` equals ``value``'s outer length,
-    3. ``split_by`` is None.
+    3. ``split_by`` is None,
+    4. ``entity_hint`` is False.
 
-    An entity axis (channel, measurement) fails condition 1 on the structure
-    of its own time data: ``magnetics.ip`` carries an *object* array of
-    per-measurement time arrays, and ECE carries a *2-D* array with one time
-    row per channel.  Dropping or padding entries on such an axis would shift
-    every entity's identity relative to the sibling ``name``/``identifier``
-    arrays that are matched to it positionally, so this check is what makes
-    that corruption unreachable rather than merely discouraged.
+    Conditions 1 and 2 are not sufficient on their own.  Entity axes usually
+    fail condition 1 -- ``magnetics.ip`` carries an *object* array of
+    per-measurement time arrays and ECE carries a *2-D* array with one time
+    row per channel -- but ``_resolve_dim_ids_path`` falls back to the flat
+    IDS-level ``<ids>.time`` whenever a sibling ``.time`` does not resolve, and
+    in that case only a length coincidence would separate a channel axis from
+    a time axis.  Condition 4 closes that gap structurally: the caller sets
+    ``entity_hint`` when a sibling ``name``/``identifier``/``method_name``
+    array has one entry per outer entry, which means the outer axis enumerates
+    entities.
+
+    This matters because entries on an entity axis are matched *positionally*
+    against those same name arrays.  Dropping or padding one would misattribute
+    every entry after it -- silent data corruption rather than a crash.
     """
     if split_by is not None:
         return False
+    if entity_hint:
+        return False
     if times is None:
         return False
-    times_arr = np.asarray(times)
+    # to_numpy, not np.asarray: a ragged times sequence would otherwise raise
+    # instead of simply failing the dtype check below.
+    times_arr = to_numpy(times)
     if times_arr.dtype == object or times_arr.ndim != 1:
         return False
     outer = _outer_len(value)

@@ -20,9 +20,11 @@ Pelican access, and no `fdp run` wrapper.
 
 import unittest
 import numpy as np
+import awkward as ak
 
 from toksearch_d3d.signal.imas_layout import (
     LAYOUTS,
+    _as_object_array,
     is_time_axis,
     to_numpy,
     validate_layout,
@@ -102,3 +104,58 @@ class TestIsTimeAxis(unittest.TestCase):
 
     def test_zero_dim_scalar_is_not_time_axis(self):
         self.assertFalse(is_time_axis(np.array(3.0), np.arange(5.0), None))
+
+
+class TestLayoutsContents(unittest.TestCase):
+    def test_layouts_is_exactly_the_four_documented_modes(self):
+        # Pinned explicitly: iterating LAYOUTS to test LAYOUTS asserts nothing
+        # about its contents, so a dropped or typo'd mode would go unnoticed.
+        self.assertEqual(set(LAYOUTS),
+                         {'compact', 'filled', 'ragged', 'awkward'})
+
+
+class TestToNumpyAwkward(unittest.TestCase):
+    def test_jagged_becomes_one_dimensional_object_array(self):
+        result = to_numpy(ak.Array([[1.0, 2.0, 3.0], [], [4.0, 5.0, 6.0]]))
+        self.assertEqual(result.dtype, object)
+        self.assertEqual(result.ndim, 1)
+        self.assertEqual([len(r) for r in result], [3, 0, 3])
+
+    def test_equal_length_rows_do_not_collapse_to_two_dimensions(self):
+        rows = [np.arange(3.0), np.arange(3.0) + 10]
+        result = _as_object_array(rows)
+        self.assertEqual(result.ndim, 1)
+        self.assertEqual(len(result), 2)
+
+    def test_rectangular_awkward_becomes_two_dimensional_numeric(self):
+        result = to_numpy(ak.Array([[1.0, 2.0], [3.0, 4.0]]))
+        self.assertEqual(result.shape, (2, 2))
+        self.assertNotEqual(result.dtype, object)
+
+    def test_three_level_jagged_does_not_raise(self):
+        # time x species x rho quantities are 3-level; the fallback's per-row
+        # conversion must recurse rather than escape with a ValueError.
+        value = ak.Array([[[1.0, 2.0], [3.0]], [[4.0]]])
+        result = to_numpy(value)
+        self.assertEqual(result.dtype, object)
+        self.assertEqual(len(result), 2)
+
+
+class TestIsTimeAxisEntityHint(unittest.TestCase):
+    def test_entity_hint_blocks_an_otherwise_time_like_axis(self):
+        # 48 per-channel rows whose times resolved to the flat IDS-level
+        # array and coincidentally match in length.
+        value = holey(n_slots=48, n_rho=3, empty_at=(7,))
+        times = np.arange(48, dtype=np.float64)
+        self.assertTrue(is_time_axis(value, times, None))
+        self.assertFalse(is_time_axis(value, times, None, entity_hint=True))
+
+    def test_entity_hint_defaults_to_false(self):
+        value = holey(n_slots=5, n_rho=3)
+        times = np.arange(5, dtype=np.float64)
+        self.assertTrue(is_time_axis(value, times, None))
+
+    def test_ragged_times_do_not_raise(self):
+        value = truly_ragged()
+        times = [np.zeros(4), np.zeros(7)]
+        self.assertFalse(is_time_axis(value, times, None))
