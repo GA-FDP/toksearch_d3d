@@ -835,3 +835,30 @@ class TestImasSignalLayoutIntegration(unittest.TestCase):
         compact = self._gather('magnetics.ip.data', layout='compact')
         ragged = self._gather('magnetics.ip.data', layout='ragged')
         self.assertEqual(len(compact['data']), len(ragged['data']))
+
+
+class TestImasSignalPrefixLayout(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        from toksearch_d3d import ImasSignal
+        from imas_composer import ImasComposer
+        cls.ImasSignal = ImasSignal
+        cls.composer = ImasComposer()
+
+    PREFIX = 'core_profiles.profiles_1d'
+
+    def test_prefix_leaves_share_one_outer_length(self):
+        result = self.ImasSignal(self.PREFIX,
+                                 composer=self.composer).gather(SHOT)
+        outer = {
+            np.asarray(v).shape[0]
+            for v in result.values()
+            if np.asarray(v).ndim >= 1
+        }
+        self.assertEqual(len(outer), 1)
+
+    def test_prefix_returns_bare_arrays(self):
+        result = self.ImasSignal(self.PREFIX,
+                                 composer=self.composer).gather(SHOT)
+        for value in result.values():
+            self.assertIsInstance(value, np.ndarray)

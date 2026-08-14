@@ -30,6 +30,7 @@ from imas_composer import ImasComposer
 
 from toksearch_d3d.signal.imas_layout import (
     apply_layout,
+    apply_layout_prefix,
     outer_length,
     to_numpy as _to_numpy,
     validate_layout,
@@ -463,8 +464,11 @@ class ImasSignal(Signal):
                 raw_data[req.as_key()] = self._fetch_requirement(req)
 
         composed = self._composer.compose(self._leaf_paths, shot, raw_data)
-        convert = (lambda v: v) if self._as_awkward else _to_numpy
-        return {path: convert(val) for path, val in composed.items()}
+        entity_hints = {
+            path: self._entity_hint(path, shot, raw_data, outer_length(value))
+            for path, value in composed.items()
+        }
+        return apply_layout_prefix(composed, self.layout, entity_hints)
 
     def gather(self, shot):
         """Fetch and compose the IDS field(s) for the given shot.

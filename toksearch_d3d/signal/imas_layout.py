@@ -271,3 +271,60 @@ def apply_layout(value, dims, layout, split_by=None, entity_hint=False):
         return _filled(value, dims)
 
     raise AssertionError(f"unreachable layout {layout!r}")  # pragma: no cover
+
+
+def _prefix_shared_time(composed):
+    """Return the batch's shared time axis, or None.
+
+    In prefix mode no dim arrays are fetched, but the shared axis is present
+    as a composed sibling leaf whose path ends in ``.time`` (for example
+    ``core_profiles.profiles_1d.time``).
+    """
+    for path, value in composed.items():
+        if not path.endswith('.time'):
+            continue
+        arr = to_numpy(value)
+        if arr.ndim == 1 and arr.dtype != object:
+            return arr
+    return None
+
+
+def apply_layout_prefix(composed, layout, entity_hints=None):
+    """Apply ``layout`` to every leaf of a prefix batch.
+
+    Leaves whose outer length matches the batch's shared time axis are
+    transformed; every other leaf (0-d scalars, entity-indexed values) passes
+    through untouched, so the batch stays index-aligned.
+
+    Args:
+        composed (dict): ``{leaf_path: composed_value}``.
+        layout (str): One of :data:`LAYOUTS`. ``'compact'`` is rejected by
+            ``ImasSignal.__init__`` before reaching here.
+        entity_hints (dict): Optional ``{leaf_path: bool}``; a leaf marked
+            True has an entity outer axis and is never transformed. A missing
+            key means False.
+
+    Returns:
+        dict: ``{leaf_path: value}``.
+    """
+    validate_layout(layout)
+
+    if layout == 'awkward':
+        return dict(composed)
+
+    shared_time = _prefix_shared_time(composed)
+    hints = entity_hints or {}
+
+    out = {}
+    for path, value in composed.items():
+        if layout == 'ragged' or not is_time_axis(
+            value, shared_time, None, entity_hint=hints.get(path, False)
+        ):
+            out[path] = to_numpy(value)
+            continue
+        try:
+            data, _ = apply_layout(value, {'times': shared_time}, layout)
+        except ValueError as exc:
+            raise ValueError(f"leaf '{path}': {exc}") from exc
+        out[path] = data
+    return out
