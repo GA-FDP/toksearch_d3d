@@ -193,7 +193,18 @@ def _compact(value, dims):
 
 
 def _filled(value, dims):
-    """Keep every slot; pad empty slots with NaN to the common inner shape."""
+    """Keep every slot; pad empty slots with NaN to the common inner shape.
+
+    Padding requires one common inner shape to pad to *and* a floating-point
+    dtype to hold NaN. When either requirement isn't met -- non-empty slots
+    have two or more distinct inner shapes (genuinely ragged, not holey), or
+    the data is non-floating (int, string, ...) -- 'filled' is a no-op: the
+    value is returned as `_stack_or_object` would render it (an object array
+    when the slots don't share one shape), untouched rather than fabricated.
+    This is the same treatment entity axes already get, and it keeps the
+    leaf's outer length intact so it stays index-aligned with siblings that
+    *could* be padded.
+    """
     rows = _rows(value)
     non_empty = [row for row in rows if row.size > 0]
 
@@ -211,22 +222,15 @@ def _filled(value, dims):
 
     shapes = {row.shape for row in non_empty}
     if len(shapes) > 1:
-        listed = ', '.join(str(s) for s in sorted(shapes))
-        raise ValueError(
-            f"layout='filled' needs one common inner length to pad to, but "
-            f"the non-empty slots have {len(shapes)} distinct lengths: "
-            f"{listed}. This data is genuinely ragged rather than holey, so "
-            f"padding would fabricate values. Use layout='ragged' or "
-            f"layout='compact'."
-        )
+        # Genuinely ragged rather than holey: no single inner shape to pad
+        # to. No-op rather than padding to the maximum and fabricating data.
+        return _stack_or_object(rows), dims
 
     dtype = np.result_type(*[row.dtype for row in non_empty])
     if not np.issubdtype(dtype, np.floating):
-        raise ValueError(
-            f"layout='filled' requires floating-point data, but this field "
-            f"has dtype {dtype}. NaN has no meaning in a {dtype} array, so "
-            f"gaps cannot be marked. Use layout='ragged' or layout='compact'."
-        )
+        # NaN has no meaning for a non-floating dtype, so there is no value
+        # to fill gaps with. No-op rather than inventing one.
+        return _stack_or_object(rows), dims
 
     inner_shape = shapes.pop()
     out = np.full((len(rows),) + inner_shape, np.nan, dtype=dtype)
@@ -306,6 +310,13 @@ def apply_layout_prefix(composed, layout, entity_hints=None):
 
     Returns:
         dict: ``{leaf_path: value}``.
+
+    Note:
+        No per-leaf exception handling is needed here: a leaf ``apply_layout``
+        cannot fill (a non-floating dtype, or several distinct non-empty
+        inner lengths) is a no-op rather than a raise -- see ``_filled`` --
+        so it keeps its own outer length and the batch stays index-aligned
+        without any leaf failing the whole gather.
     """
     validate_layout(layout)
 
@@ -322,9 +333,6 @@ def apply_layout_prefix(composed, layout, entity_hints=None):
         ):
             out[path] = to_numpy(value)
             continue
-        try:
-            data, _ = apply_layout(value, {'times': shared_time}, layout)
-        except ValueError as exc:
-            raise ValueError(f"leaf '{path}': {exc}") from exc
+        data, _ = apply_layout(value, {'times': shared_time}, layout)
         out[path] = data
     return out

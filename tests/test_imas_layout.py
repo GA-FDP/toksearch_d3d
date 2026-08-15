@@ -328,32 +328,45 @@ class TestFilled(unittest.TestCase):
         np.testing.assert_array_equal(filled_dims['times'],
                                       compact_dims['times'])
 
-    def test_multiple_real_lengths_raises(self):
+    def test_multiple_real_lengths_is_a_no_op(self):
         # A hole is required here: with no empty slots at all, 'filled' takes
-        # the no-op path (see test_no_empty_slots_agrees_with_compact) and
-        # this same shape mismatch would *not* raise.
+        # the same no-op path for a different reason (see
+        # test_no_empty_slots_agrees_with_compact).
+        #
+        # Genuinely ragged data (several distinct real lengths, not just
+        # holes) cannot be padded to one common inner shape, so 'filled' must
+        # leave it untouched rather than fabricating a length to pad to --
+        # the same treatment entity axes already get. The leaf keeps its
+        # outer length (3), so it stays index-aligned with padded siblings.
         value = np.empty(3, dtype=object)
         value[0] = np.arange(4, dtype=np.float64)
         value[1] = np.array([], dtype=np.float64)
         value[2] = np.arange(7, dtype=np.float64)
         dims = {'times': np.arange(3, dtype=np.float64)}
-        with self.assertRaises(ValueError) as cm:
-            apply_layout(value, dims, 'filled')
-        message = str(cm.exception)
-        self.assertIn('filled', message)
-        self.assertIn('4', message)
-        self.assertIn('7', message)
+        data, out_dims = apply_layout(value, dims, 'filled')
+        self.assertEqual(data.dtype, object)
+        self.assertEqual(len(data), 3)
+        np.testing.assert_array_equal(data[0], value[0])
+        np.testing.assert_array_equal(data[1], value[1])
+        np.testing.assert_array_equal(data[2], value[2])
+        np.testing.assert_array_equal(out_dims['times'], dims['times'])
 
-    def test_non_float_raises(self):
+    def test_non_float_is_a_no_op(self):
+        # NaN has no meaning for non-floating dtypes, so 'filled' cannot mark
+        # gaps without fabricating a value. No-op instead, same as the
+        # genuinely-ragged case above.
         value = np.empty(3, dtype=object)
         value[0] = np.array([1, 2], dtype=np.int64)
         value[1] = np.array([], dtype=np.int64)
         value[2] = np.array([3, 4], dtype=np.int64)
         dims = {'times': np.arange(3, dtype=np.float64)}
-        with self.assertRaises(ValueError) as cm:
-            apply_layout(value, dims, 'filled')
-        # Not just "int" -- numpy's own errors would also satisfy that.
-        self.assertIn("layout='filled'", str(cm.exception))
+        data, out_dims = apply_layout(value, dims, 'filled')
+        self.assertEqual(data.dtype, object)
+        self.assertEqual(len(data), 3)
+        np.testing.assert_array_equal(data[0], value[0])
+        np.testing.assert_array_equal(data[1], value[1])
+        np.testing.assert_array_equal(data[2], value[2])
+        np.testing.assert_array_equal(out_dims['times'], dims['times'])
 
     def test_all_slots_empty_yields_length_zero_rows(self):
         value = holey(n_slots=3, empty_at=(0, 1, 2))
@@ -400,42 +413,46 @@ class TestFilled(unittest.TestCase):
         data, _ = apply_layout(value, dims, 'filled')
         self.assertEqual(data.dtype, np.float32)
 
-    def test_shape_mismatch_message_shows_full_shapes(self):
-        # Shapes (3, 4) and (3, 5) share axis-0 length 3; printing only
-        # shape[0] (the pre-fix behavior) would misleadingly show "3, 3".
+    def test_multiple_2d_shapes_is_a_no_op(self):
+        # Shapes (3, 4) and (3, 5) share axis-0 length 3 but are not one
+        # common inner shape -- no-op rather than raising, same as the 1-D
+        # multiple-real-lengths case.
         value = np.empty(3, dtype=object)
         value[0] = np.zeros((3, 4))
         value[1] = np.array([], dtype=np.float64)
         value[2] = np.zeros((3, 5))
         dims = {'times': np.arange(3, dtype=np.float64)}
-        with self.assertRaises(ValueError) as cm:
-            apply_layout(value, dims, 'filled')
-        message = str(cm.exception)
-        self.assertIn('(3, 4)', message)
-        self.assertIn('(3, 5)', message)
+        data, _ = apply_layout(value, dims, 'filled')
+        self.assertEqual(data.dtype, object)
+        self.assertEqual(len(data), 3)
+        self.assertEqual(data[0].shape, (3, 4))
+        self.assertEqual(data[2].shape, (3, 5))
 
-    def test_zero_dim_row_does_not_raise_indexerror(self):
-        # A 0-d row has an empty shape tuple; indexing shape[0] (the pre-fix
-        # behavior) raised IndexError instead of the intended ValueError.
+    def test_zero_dim_row_is_a_no_op_not_indexerror(self):
+        # A 0-d row has an empty shape tuple; indexing shape[0] (a past
+        # regression) raised IndexError. The no-op path must not touch
+        # shape[0] either -- it just falls through to _stack_or_object.
         value = np.empty(3, dtype=object)
         value[0] = np.array(5.0)
         value[1] = np.array([], dtype=np.float64)
         value[2] = np.array([1.0, 2.0])
         dims = {'times': np.arange(3, dtype=np.float64)}
-        with self.assertRaises(ValueError) as cm:
-            apply_layout(value, dims, 'filled')
-        self.assertIn('()', str(cm.exception))
+        data, _ = apply_layout(value, dims, 'filled')
+        self.assertEqual(data.dtype, object)
+        self.assertEqual(len(data), 3)
+        self.assertEqual(data[0].shape, ())
 
-    def test_three_level_jagged_raises_informative_error(self):
+    def test_three_level_jagged_is_a_no_op(self):
         # time x species x rho with a hole: the non-empty slots have
         # different inner (species, rho) shapes, so there is no common shape
-        # to pad to. Must raise the intended ValueError, not an opaque
-        # awkward internals error (which is what a non-recursing _rows gives).
+        # to pad to -- no-op, not an opaque awkward internals error (which is
+        # what a non-recursing _rows would give).
         jag = ak.Array([[[1.0, 2.0], [3.0]], [], [[5.0, 6.0], [7.0, 8.0]]])
         dims = {'times': np.arange(3.0)}
-        with self.assertRaises(ValueError) as cm:
-            apply_layout(jag, dims, 'filled')
-        self.assertIn("layout='filled'", str(cm.exception))
+        data, out_dims = apply_layout(jag, dims, 'filled')
+        self.assertEqual(data.dtype, object)
+        self.assertEqual(len(data), 3)
+        np.testing.assert_array_equal(out_dims['times'], dims['times'])
 
 
 class TestRaggedAndAwkward(unittest.TestCase):
@@ -518,24 +535,32 @@ class TestApplyLayoutPrefix(unittest.TestCase):
         self.assertEqual(ne.dtype, object)
         self.assertEqual(len(ne), 5)
 
-    def test_unfillable_leaf_raises_naming_the_leaf(self):
+    def test_unfillable_leaf_is_a_no_op(self):
+        # A leaf that 'filled' cannot pad (genuinely ragged, not holey) is a
+        # no-op rather than failing the whole prefix gather: it keeps its
+        # original outer length, so the batch stays index-aligned, while
+        # every other fillable leaf still gets padded normally. Uses the
+        # fixture's own 5-slot shared time axis (rather than overriding it)
+        # so the fillable siblings actually reach _filled instead of being
+        # skipped for an outer-length mismatch against a shorter time axis.
         composed = self._composed()
-        # truly_ragged() alone (2 non-empty rows, no holes) would hit the
-        # "no empty slots is a no-op" shortcut documented and required by
-        # TestFilled.test_multiple_real_lengths_raises in test_imas_layout.py
-        # -- a hole is required to actually exercise the shape-mismatch
-        # raise, so this fixture matches that established pattern rather
-        # than the plan's original truly_ragged() (which does not raise).
-        bad = np.empty(3, dtype=object)
+        bad = np.empty(5, dtype=object)
         bad[0] = np.arange(4, dtype=np.float64)
         bad[1] = np.array([], dtype=np.float64)
         bad[2] = np.arange(7, dtype=np.float64)
+        bad[3] = np.array([], dtype=np.float64)
+        bad[4] = np.arange(4, dtype=np.float64)
         composed['core_profiles.profiles_1d.bad'] = bad
-        composed['core_profiles.profiles_1d.time'] = np.arange(
-            3, dtype=np.float64)
-        with self.assertRaises(ValueError) as cm:
-            apply_layout_prefix(composed, 'filled')
-        self.assertIn('core_profiles.profiles_1d.bad', str(cm.exception))
+        out = apply_layout_prefix(composed, 'filled')
+        no_op = out['core_profiles.profiles_1d.bad']
+        self.assertEqual(no_op.dtype, object)
+        self.assertEqual(len(no_op), 5)
+        np.testing.assert_array_equal(no_op[0], bad[0])
+        np.testing.assert_array_equal(no_op[2], bad[2])
+        # Siblings that *can* be filled are unaffected by the no-op leaf.
+        ne = out['core_profiles.profiles_1d.electrons.density']
+        self.assertNotEqual(ne.dtype, object)
+        self.assertEqual(ne.shape, (5, 3))
 
     def test_no_time_leaf_passes_everything_through(self):
         composed = {'some.ids.field': holey(n_slots=4)}
