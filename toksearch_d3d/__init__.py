@@ -106,7 +106,35 @@ Use ``split_by='channel'`` for a dict keyed by channel name::
 
     ImasSignal('thomson_scattering.channel.n_e.data', split_by='channel')
 
-**NBI power recipe** (object array of 8 per-unit time series)::
+**Controlling shape with** ``layout=``: imas_composer 0.2.4 puts every
+``core_profiles.profiles_1d`` quantity on one shared time axis, leaving an
+*empty* slot where that quantity has no data.  ``layout=`` chooses how that
+is presented:
+
+- ``'compact'`` — drop the empty slots, filtering ``times`` in lockstep.
+  Rectangular when one common inner length remains.  **Default for leaf
+  paths.**
+- ``'filled'`` — keep every slot, NaN-padding the gaps so all leaves stay
+  index-aligned to one time axis.  **Default for prefix paths.**
+- ``'ragged'`` — no transformation; the object array as composed.
+- ``'awkward'`` — the raw ``ak.Array``.
+
+::
+
+    # rectangular (n_time, n_rho), the default
+    ImasSignal('core_profiles.profiles_1d.electrons.density')
+
+    # every slot kept, gaps NaN
+    ImasSignal('core_profiles.profiles_1d.electrons.density', layout='filled')
+
+Layout applies **only** when the outer axis is provably a time axis, so
+channel- and measurement-indexed data (ECE channels, ``magnetics.ip``) is
+never reshaped — entries there are matched positionally against sibling
+name arrays.  ``as_awkward`` is deprecated in favour of ``layout='awkward'``.
+
+**NBI power recipe** — 8 per-unit time series.  Object array under
+imas_composer 0.2; rectangular ``(8, n_time)`` under 0.2.4.  ``np.stack``
+handles both::
 
     import numpy as np
     nbi_data = rec.get('nbi', None)
