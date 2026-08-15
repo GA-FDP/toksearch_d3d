@@ -231,34 +231,54 @@ print(result['times'][:3])   # seconds
 
 ---
 
-## Returning awkward arrays
+## Controlling shape with `layout=`
 
 Ragged fields (e.g. equilibrium boundary outlines where the number of points
-varies per time slice) are converted to a **numpy object array** by default —
-one 1-D array per outer entry.  Pass `as_awkward=True` to receive the native
-`ak.Array` instead:
+varies per time slice, or `core_profiles` quantities that imas_composer
+places on a single unified time axis with empty slots where a quantity has
+no data) can be shaped four ways via the `layout=` kwarg:
+
+- `'compact'` (default for **leaf** paths) — drop empty slots, filtering
+  `times` in lockstep.  Becomes a rectangular `ndarray` when one common inner
+  length remains; otherwise a numpy object array, same as the historical
+  default.
+- `'filled'` (default for **prefix** paths) — keep every slot, padding empty
+  ones with NaN so every leaf of a joint prefix fetch stays index-aligned to
+  one shared time axis.
+- `'ragged'` — no transformation; the object array exactly as imas_composer
+  produced it, empty slots included.
+- `'awkward'` — the raw `ak.Array`, with no numpy conversion:
+
+  ```python
+  import awkward as ak
+  from toksearch_d3d import ImasSignal
+
+  sig = ImasSignal(
+      'equilibrium.time_slice.boundary.outline.r',
+      layout='awkward',
+  )
+  result = sig.fetch(202161)
+
+  print(type(result['data']))   # <class 'awkward.highlevel.Array'>
+  print(result['data'].type)    # var * float64  (ragged)
+  ```
+
+`layout` applies **only** when the outer axis is provably a time axis (see
+the `ImasSignal` docstring for the exact rule); channel and measurement axes
+(`ece.channel.t_e.data`, `magnetics.ip.data`) pass through untouched in every
+mode.
+
+**`as_awkward` is deprecated** in favor of `layout='awkward'`.
+`as_awkward=True` still works and is exactly equivalent to
+`layout='awkward'`, but emits a `DeprecationWarning`; passing both
+`as_awkward` and `layout` raises `ValueError`. `as_awkward=False` is
+equivalent to leaving `layout` unset (the leaf/prefix default applies).
+
+`layout='awkward'` (and the deprecated `as_awkward=True`) also work with
+prefix paths:
 
 ```python
-import awkward as ak
-from toksearch_d3d import ImasSignal
-
-sig = ImasSignal(
-    'equilibrium.time_slice.boundary.outline.r',
-    as_awkward=True,
-)
-result = sig.fetch(202161)
-
-print(type(result['data']))   # <class 'awkward.highlevel.Array'>
-print(result['data'].type)    # var * float64  (ragged)
-```
-
-For fields that return a regular (non-ragged) array, `as_awkward=True` is a
-no-op — you receive a plain `np.ndarray`.
-
-`as_awkward=True` also works with prefix paths:
-
-```python
-sig = ImasSignal('equilibrium.time_slice.global_quantities', as_awkward=True)
+sig = ImasSignal('equilibrium.time_slice.global_quantities', layout='awkward')
 result = sig.fetch(202161)
 # Each value is an ak.Array or np.ndarray depending on the field.
 ```
@@ -330,7 +350,7 @@ da = ip_sig.fetch_as_xarray(202161)
 # Coordinates:
 #   * times  (times) float64 100.0 140.0 ... 6380.0
 
-ne_sig = ImasSignal('core_profiles.profiles_1d.electrons.density_thermal')
+ne_sig = ImasSignal('core_profiles.profiles_1d.electrons.density')
 da = ne_sig.fetch_as_xarray(200000)
 # <xarray.DataArray (times: 121, dim_1: 332)>
 ```
@@ -340,7 +360,7 @@ For the 2-D case, you can name the second axis by adding an explicit entry to
 
 ```python
 ne_sig = ImasSignal(
-    'core_profiles.profiles_1d.electrons.density_thermal',
+    'core_profiles.profiles_1d.electrons.density',
     dims={
         'times': 'auto',
         'rho':   'core_profiles.profiles_1d.grid.rho_tor_norm',
@@ -468,7 +488,7 @@ tf_sig = ImasSignal('tf.b_field_tor_vacuum_r')
 mag_ip = ImasSignal('magnetics.ip.data')
 
 # Core profiles — electron density radial profile
-ne_prof = ImasSignal('core_profiles.profiles_1d.electrons.density_thermal')
+ne_prof = ImasSignal('core_profiles.profiles_1d.electrons.density')
 ```
 
 All of these are fetched and composed the same way as the equilibrium examples
