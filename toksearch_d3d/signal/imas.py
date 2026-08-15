@@ -609,6 +609,19 @@ class ImasSignal(Signal):
 
         data = result['data']
 
+        # layout='awkward' leaves 'data' as the raw ak.Array (see
+        # apply_layout), which has no .dtype attribute -- check this first so
+        # that case raises the same documented NotImplementedError as the
+        # ragged (object-array) case below, instead of an AttributeError.
+        if not isinstance(data, np.ndarray):
+            raise NotImplementedError(
+                f"fetch_as_xarray() does not support layout={self.layout!r} "
+                f"data from '{self.ids_path}': it is not a numpy array. "
+                f"layout='filled' or layout='compact' produces a rectangular "
+                f"numpy array that this method accepts. Otherwise use "
+                f"fetch()."
+            )
+
         if data.dtype == object:
             raise NotImplementedError(
                 f"fetch_as_xarray() does not support ragged (object-array) "
