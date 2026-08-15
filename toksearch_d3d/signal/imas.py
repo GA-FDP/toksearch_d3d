@@ -409,7 +409,15 @@ class ImasSignal(Signal):
                 if val is None:
                     continue
                 arr = _to_numpy(val)
-                if arr.ndim >= 1 and len(arr) == outer_len:
+                # ndim == 1, not >= 1: a genuine entity-name array carries one
+                # name per outer entry (ece.channel.name (48,), nbi.unit.name
+                # (8,)). A 2-D array of the same outer length -- e.g.
+                # core_profiles...ion.label (n_time, 2), one row of species
+                # labels per *time slice* -- is not an entity-name array; it
+                # coincidentally shares the outer length with every
+                # time-indexed sibling, which would otherwise misclassify
+                # every ion.* leaf as an entity axis.
+                if arr.ndim == 1 and len(arr) == outer_len:
                     return True
         return False
 

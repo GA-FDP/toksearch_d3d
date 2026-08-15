@@ -857,6 +857,64 @@ class TestImasSignalLayoutIntegration(unittest.TestCase):
         self.assertEqual(len(compact['data']), len(ragged['data']))
 
 
+class TestImasSignalEntityHint(unittest.TestCase):
+    """Direct coverage of `_entity_hint`'s judgment on real composed data.
+
+    All other entity_hint tests (test_imas_layout.py) pass synthetic bools
+    into is_time_axis/apply_layout; nothing exercises the method that
+    actually computes the hint. `core_profiles...ion.label` composes to
+    (n_time, 2) -- one row of species labels per *time slice*, not one name
+    per entity -- and its length equals the outer length of every
+    time-indexed `ion.*` sibling, which used to produce a false positive.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        from toksearch_d3d import ImasSignal
+        from imas_composer import ImasComposer
+        cls.ImasSignal = ImasSignal
+        cls.composer = ImasComposer()
+
+    def _entity_hint(self, ids_path, shot):
+        """Reproduce gather()'s resolve/compose cycle, then call `_entity_hint`.
+
+        `_entity_hint` needs the same populated `raw_data` that `gather()`
+        builds internally as a local variable, so it cannot be called in
+        isolation without first running the same resolve/fetch loop.
+        """
+        from toksearch_d3d.signal.imas_layout import outer_length
+        sig = self.ImasSignal(ids_path, composer=self.composer)
+        raw_data = {}
+        for _ in range(sig._max_iter):
+            status, requirements = sig._composer.resolve(
+                [ids_path], shot, raw_data)
+            if status[ids_path]:
+                break
+            for req in requirements:
+                raw_data[req.as_key()] = sig._fetch_requirement(req)
+        composed = sig._composer.compose([ids_path], shot, raw_data)[ids_path]
+        return sig._entity_hint(ids_path, shot, raw_data, outer_length(composed))
+
+    def test_ion_temperature_is_a_time_axis(self):
+        # (n_time,) object array; the sibling ion.label array is (n_time, 2)
+        # -- 2-D, not one name per entity -- so it must NOT set the hint.
+        self.assertFalse(self._entity_hint(
+            'core_profiles.profiles_1d.ion.temperature', SHOT_MAGNETICS))
+
+    def test_ece_channel_te_is_an_entity_axis(self):
+        # ece.channel.name is (48,), matching the 48-channel outer length.
+        self.assertTrue(self._entity_hint('ece.channel.t_e.data', SHOT_MAGNETICS))
+
+    def test_magnetics_ip_is_an_entity_axis(self):
+        # magnetics.ip.method_name is (2,), matching the 2-measurement outer
+        # length.
+        self.assertTrue(self._entity_hint('magnetics.ip.data', SHOT_MAGNETICS))
+
+    def test_nbi_unit_power_launched_is_an_entity_axis(self):
+        # nbi.unit.name is (8,), matching the 8-unit outer length.
+        self.assertTrue(self._entity_hint('nbi.unit.power_launched.data', SHOT))
+
+
 class TestImasSignalPrefixLayout(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
