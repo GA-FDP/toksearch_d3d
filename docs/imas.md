@@ -129,6 +129,23 @@ object
 
 ---
 
+## Discovering which fields are available
+
+`list_imas_fields()` returns the IDS paths `imas_composer` can compose, so you
+can check a path before building a pipeline around it:
+
+```python
+from toksearch_d3d import list_imas_fields
+
+fields = list_imas_fields()          # every IDS
+fields = list_imas_fields('ece')     # one IDS
+```
+
+Pass an existing `ImasComposer` as `composer=` to reuse it rather than
+constructing a new one.
+
+---
+
 ## Fetching all fields under a prefix
 
 Instead of a full leaf path, you can pass a **dotted prefix** such as an IDS
