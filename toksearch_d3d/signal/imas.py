@@ -171,25 +171,35 @@ class ImasSignal(Signal):
         layout: How non-rectangular composed data is presented.  One of:
 
             - `'compact'` — drop slots that have no data, filtering `times`
-              and any other parallel dim array in lockstep.  Promises only
-              "no empty slots", not rectangularity: a field becomes a
-              rectangular `ndarray` when one common inner length remains,
-              and stays an object array otherwise.  Default for **leaf**
-              paths.
+              in lockstep.  `times` is the only dim array known to be
+              parallel to the outer axis; every other dim array (e.g. `rho`)
+              passes through unfiltered, even if its length happens to
+              coincide with the outer length.  Promises only "no empty
+              slots", not rectangularity: a field becomes a rectangular
+              `ndarray` when one common inner length remains, and stays an
+              object array otherwise.  Default for **leaf** paths.
             - `'filled'` — keep every slot, padding empty ones with NaN so
               all leaves stay index-aligned to one shared time axis.
-              Requires floating-point data and one common inner length;
-              raises otherwise rather than fabricating values.  Default for
-              **prefix** paths, where a joint fetch implies a shared axis.
+              Requires floating-point data and one common inner length; when
+              either doesn't hold (non-floating dtype, or several distinct
+              non-empty inner lengths) it is a no-op instead of fabricating
+              values — the same treatment entity axes already get, so the
+              leaf keeps its outer length and stays index-aligned with
+              siblings that padding does fill.  Default for **prefix**
+              paths, where a joint fetch implies a shared axis.
             - `'ragged'` — no transformation; the object array exactly as
               imas_composer produced it, empty slots included.
             - `'awkward'` — the raw `ak.Array`, with no numpy conversion.
 
             Layout applies **only** when the outer axis is provably a time
             axis: `times` must be a 1-D non-object array whose length matches
-            the value's outer length, and `split_by` must be None.  Channel
-            and measurement axes (`ece.channel.t_e.data`, `magnetics.ip.data`)
-            fail that test on the structure of their own time data and pass
+            the value's outer length, `split_by` must be None, and
+            `entity_hint` must be False.  Channel and measurement axes
+            (`ece.channel.t_e.data`, `magnetics.ip.data`) fail the `times`
+            condition on the structure of their own time data; a sibling
+            entity-name array (e.g. `ion.temperature`'s `.time` resolving to
+            the flat IDS-level axis, where only `entity_hint` catches it)
+            covers the remaining case.  Either way the axis fails and passes
             through untouched in every mode — dropping or padding entries
             there would shift each entity's identity relative to the sibling
             `name` array matched to it positionally.
