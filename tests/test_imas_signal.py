@@ -700,6 +700,20 @@ class TestImasSignalFetchAsXarrayChannelDims(unittest.TestCase):
         self.assertEqual(da.dims, ('times',))
         np.testing.assert_array_equal(da['times'].values, times)
 
+    def test_awkward_layout_raises_not_implemented(self):
+        """layout='awkward' data has no .dtype -- must raise NotImplementedError,
+        like the ragged (object-array) case, not AttributeError."""
+        import awkward as ak
+        from toksearch_d3d import ImasSignal
+        sig = ImasSignal('fake.path', composer=_FakeLeafComposer('fake.path'),
+                         layout='awkward')
+        sig.gather = lambda shot: {
+            'data': ak.Array([[1.0, 2.0], [3.0]]),
+            'times': np.array([0.0, 1.0]),
+        }
+        with self.assertRaises(NotImplementedError):
+            sig.fetch_as_xarray(0)
+
 
 class TestImasSignalLayoutKwarg(unittest.TestCase):
     """Constructor-level layout handling. No data access required."""
