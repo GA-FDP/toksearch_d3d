@@ -941,6 +941,22 @@ class TestImasSignalPrefixLayout(unittest.TestCase):
         for value in result.values():
             self.assertIsInstance(value, np.ndarray)
 
+    def test_fillable_leaves_are_rectangular_and_non_object(self):
+        # test_prefix_leaves_share_one_outer_length uses shape[0], which is
+        # 237 whether electrons.density arrives as a jagged (237,) object
+        # array or a properly filled (237, 101) float array -- it would not
+        # notice a mutant that skips the layout transform entirely. Pin the
+        # actual rectangularity and dtype 'filled' promises for a leaf that
+        # *can* be padded, so that mutant is caught.
+        result = self.ImasSignal(self.PREFIX,
+                                 composer=self.composer).gather(SHOT)
+        for leaf in ('core_profiles.profiles_1d.electrons.density',
+                     'core_profiles.profiles_1d.electrons.temperature'):
+            data = result[leaf]
+            self.assertEqual(data.ndim, 2, f'{leaf} should be rectangular')
+            self.assertNotEqual(data.dtype, object,
+                                f'{leaf} should not be an object array')
+
 
 class TestImasSignalXarrayRaggedMessage(unittest.TestCase):
     @classmethod
