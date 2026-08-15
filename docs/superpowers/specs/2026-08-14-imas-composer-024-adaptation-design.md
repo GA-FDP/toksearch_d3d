@@ -165,7 +165,7 @@ Applied only when the axis rule says "time":
 
 | mode | behavior |
 |---|---|
-| `compact` | drop slots whose inner array is empty; filter `data` and every time-indexed dim array in lockstep; convert naturally |
+| `compact` | drop slots whose inner array is empty; filter `data` and `times` in lockstep -- `times` is the only dim array known to be outer-parallel, so every other dim array (e.g. `rho`) passes through unfiltered even on a coincidental length match; convert naturally |
 | `filled` | keep all slots; pad empty slots to the common inner length with NaN |
 | `ragged` | no transformation — object array exactly as the composer produced it |
 | `awkward` | raw `ak.Array`, no numpy conversion |
@@ -222,7 +222,9 @@ that `layout='filled'` makes the call work.
 
 ## Error handling
 
-Five errors. All loud; none substitutes a default.
+Three errors, all loud, none substituting a default -- plus one deliberate
+no-op that resembles an error at first glance but isn't (superseded design;
+see below).
 
 1. **Renamed field.** `core_profiles.profiles_1d.electrons.density_thermal`
    reports the rename and notes that ion paths kept `density_thermal`, instead
@@ -241,33 +243,44 @@ Five errors. All loud; none substitutes a default.
    (the prefix default), or fetch leaves individually.
    ```
 
-3. **`filled` on a non-float time axis.** When the axis rule passes but the
-   inner arrays are integer or string typed, `filled` raises rather than
-   inventing a fill value. NaN has no meaning in those dtypes.
-
-   Note this applies only to values that *are* time-indexed. Fields that fail
-   the axis rule — 0-d scalars such as `element.a`, and label fields — are
-   no-ops in every mode and never reach this check.
-
-4. **`filled` where no single common inner length exists.** When the axis rule
-   passes but non-empty slots have two or more distinct lengths, there is
-   nothing to pad to, so `filled` raises instead of padding everything up to
-   the maximum and fabricating data.
-
-   `magnetics.ip` is **not** an instance of this: its `times` is an object
-   array, so it fails the axis rule and is a no-op in every mode. Padding
-   44204 up to 480256 is therefore not reachable — the axis rule excludes it
-   before layout is applied.
-
-   In **prefix** mode, where `filled` is the default, a single leaf that
-   cannot be filled fails the whole gather with a message naming that leaf and
-   suggesting `layout='ragged'`. It does not silently fall back for that leaf,
-   which would make one leaf's layout differ from its siblings' without saying
-   so.
-
-5. **Unrecognized `layout=` value.** Raises. A typo'd mode must not fall back
+3. **Unrecognized `layout=` value.** Raises. A typo'd mode must not fall back
    to a working default and silently return a different shape than requested —
    this is the `_ICAL_MAP.get(ical, Full)` failure mode.
+
+### `filled` cannot fabricate: no-op, not a raise (superseded)
+
+The original design had `filled` raise in the two cases where it cannot pad
+— reproduced below, then corrected by review:
+
+1. *Non-float time axis.* The axis rule passes but the inner arrays are
+   integer or string typed, so NaN has no value to fill gaps with.
+2. *No single common inner length.* The axis rule passes but non-empty slots
+   have two or more distinct lengths, so there is nothing to pad to.
+
+In practice this left the flagship `core_profiles.profiles_1d` prefix fetch
+with no working default: once `entity_hint` correctly stops excusing every
+`ion.*` leaf (a related review fix), `ion.rotation_frequency_tor`'s non-empty
+rows are themselves ragged, landing on case 2, and the prefix `filled`
+default raised for the field the whole feature was built to serve.
+
+**Corrected rule:** in both cases, `filled` is a no-op instead of raising —
+the value is returned as `_stack_or_object` would render it (an object array
+when the slots don't share one shape), untouched rather than fabricated. This
+is deliberately the *same* treatment entity axes already get: no-op does not
+invent data, and the leaf keeps its outer length, so it stays index-aligned
+with siblings that padding *does* fill, and the prefix contract holds.
+
+`magnetics.ip` was never an instance of either case: its `times` is an object
+array, so it fails the axis rule and is a no-op in every mode regardless of
+this rule. Padding 44204 up to 480256 was never reachable — the axis rule
+excludes it before layout is applied.
+
+In **prefix** mode, where `filled` is the default, this means a leaf that
+cannot be filled no-ops on its own rather than failing the whole gather:
+every other fillable leaf in the batch still gets padded normally, and the
+no-op leaf's untouched outer length keeps it aligned with them. The original
+design's per-leaf `ValueError` naming that leaf (and `apply_layout_prefix`'s
+try/except wrapper that produced it) no longer applies.
 
 ## Edge cases
 
@@ -277,6 +290,8 @@ Five errors. All loud; none substitutes a default.
   exactly.
 - **0-d scalars** (`ion.label`, `element.a`): fail the axis rule, pass through
   untouched in every mode.
+- **Genuinely ragged or non-floating holey data**, `filled`: a no-op, same
+  treatment as entity axes (see Error handling's `filled` no-op rule).
 
 ## File structure
 
@@ -308,7 +323,8 @@ what makes the interesting cases testable without shot data.
 - no empty slots → `compact` and `filled` agree exactly
 - object `times` (entity axis) → untouched in every mode
 - 2-D `times` (channel axis) → untouched in every mode
-- each of the five errors
+- genuinely ragged / non-floating holey data → `filled` is a no-op
+- each of the three errors
 
 The existing `test_imas_signal.py` is entirely shot-data dependent. Adding
 this offline layer avoids widening the same coverage gap already open on
