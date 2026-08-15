@@ -17,7 +17,7 @@ fails with `PtDataError: Shot.extension not found`. Use this table.
 | Normalized beta (beta_N) | `ImasSignal('equilibrium.time_slice.global_quantities.beta_normal')` | EFIT01-backed |
 | q95 | `ImasSignal('equilibrium.time_slice.global_quantities.q_95')` | |
 | Total NBI power | `ImasSignal('nbi.unit.power_launched.data')` | object array of per-unit W series (see recipe) |
-| Core electron density | `ImasSignal('core_profiles.profiles_1d.electrons.density_thermal')` | 2-D (time, rho) |
+| Core electron density | `ImasSignal('core_profiles.profiles_1d.electrons.density')` | 2-D (time, rho) |
 | Thomson Te (per channel) | `ImasSignal('thomson_scattering.channel.t_e.data', split_by='channel')` | dict keyed by channel |
 | Plasma boundary outline | `ImasSignal('equilibrium.time_slice.boundary.outline.r')` | ragged object array |
 
