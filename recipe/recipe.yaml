@@ -35,7 +35,7 @@ requirements:
   run:
     - python
     - toksearch >=2.8.1
-    - ptdata >=2.0.13,<3
+    - ptdata >=2.1.0,<3
     - filelock >=3
     # CakeSignal fetches the CAKE DB by shelling out to the `pelican` CLI
     # (toksearch_d3d/signal/_cake_cache.py). Declare it so a standalone

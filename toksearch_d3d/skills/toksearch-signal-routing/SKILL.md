@@ -16,8 +16,8 @@ fails with `PtDataError: Shot.extension not found`. Use this table.
 | Stored energy Wmhd | `MdsSignal(r'\wmhd', 'efit01')` | **not** a PTDATA pointname; Joules -> /1e6 for MJ |
 | Normalized beta (beta_N) | `ImasSignal('equilibrium.time_slice.global_quantities.beta_normal')` | EFIT01-backed |
 | q95 | `ImasSignal('equilibrium.time_slice.global_quantities.q_95')` | |
-| Total NBI power | `ImasSignal('nbi.unit.power_launched.data')` | object array of per-unit W series (see recipe) |
-| Core electron density | `ImasSignal('core_profiles.profiles_1d.electrons.density_thermal')` | 2-D (time, rho) |
+| Total NBI power | `ImasSignal('nbi.unit.power_launched.data')` | 8 per-unit W series; `np.stack` then sum (see recipe) |
+| Core electron density | `ImasSignal('core_profiles.profiles_1d.electrons.density')` | 2-D (time, rho); jagged under imas_composer 0.2.4, made rectangular by the default `layout='compact'` |
 | Thomson Te (per channel) | `ImasSignal('thomson_scattering.channel.t_e.data', split_by='channel')` | dict keyed by channel |
 | Plasma boundary outline | `ImasSignal('equilibrium.time_slice.boundary.outline.r')` | ragged object array |
 
