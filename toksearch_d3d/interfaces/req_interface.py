@@ -17,7 +17,6 @@ import os
 import socket
 
 from toksearch.signal.mds import MdsConnectionRegistry
-from toksearch_d3d.signal.ptdata import PtDataSignal
 
 _log = logging.getLogger(__name__)
 
@@ -34,17 +33,6 @@ _NO_ATLAS_ENV_VAR = "TOKSEARCH_D3D_NO_ATLAS"
 # Tri-state cache (None = unchecked) for whether atlas is directly reachable
 # from this process. Populated on first use by _atlas_reachable().
 _atlas_reachable_cache = None
-
-
-def _fetch_remote(req, server):
-    if server == _FALLBACK_MDS_SERVER and os.environ.get(_NO_ATLAS_ENV_VAR):
-        raise RuntimeError(
-            f"Refusing to contact {_FALLBACK_MDS_SERVER}: {_NO_ATLAS_ENV_VAR} is "
-            f"set, and this environment cannot reach atlas."
-        )
-    conn = MdsConnectionRegistry().connect(server)
-    conn.openTree(req.treename, req.shot)
-    return conn.get(req.mds_path).value
 
 
 def _atlas_reachable(timeout=2.0):
@@ -67,6 +55,11 @@ def _atlas_reachable(timeout=2.0):
     return _atlas_reachable_cache
 
 
+def _req_key(req):
+    """Identity of a req: (mds_path, shot, treename). Matches Requirement.as_key()."""
+    return (req.mds_path, req.shot, req.treename)
+
+
 def _fetch_tree_group_via_server(server, treename, shot, reqs):
     """Fetch all reqs sharing (treename, shot) in one getMany() round trip against server."""
     conn = MdsConnectionRegistry().connect(server)
@@ -78,115 +71,96 @@ def _fetch_tree_group_via_server(server, treename, shot, reqs):
     results = {}
     for req in reqs:
         try:
-            results[req.as_key()] = many.get(req.mds_path).data()
+            results[_req_key(req)] = many.get(req.mds_path).data()
         except Exception as e:
-            results[req.as_key()] = e
+            results[_req_key(req)] = e
     return results
 
 
-def fetch_many_from_req(reqs, server, is_remote):
-    """Fetch many reqs at once, preferring a single batched round trip per
-    (treename, shot) group -- first against the FDP thin client, then atlas
-    -- over toksearch's per-requirement path.
+def _fetch_ptdata_group_via_server(server, reqs):
+    """Fetch all ptdata reqs in one getMany() round trip against server.
 
-    req objects must additionally implement as_key() (see fetch_from_req's
-    docstring for the rest of the req contract).
-
-    ptdata reqs, and everything when an explicit remote server was requested,
-    fall through to fetch_from_req unchanged -- batching only applies to
-    plain MDSplus tree reqs read via the default fallback chain.
-
-    :return: dict mapping each req.as_key() to its fetched value, or to the
-        Exception if fetching failed.
+    ptdata2() needs no open tree, so every ptdata req -- regardless of shot --
+    batches into a single getMany. Each req expands to the three TDI forms the
+    omas machine mappings emit (data, times, rarray) and is reassembled into the
+    {data, times, rarray} dict the compose functions expect.
     """
-    if is_remote:
-        results = {}
-        for req in reqs:
-            try:
-                results[req.as_key()] = fetch_from_req(req, server, is_remote)
-            except Exception as e:
-                results[req.as_key()] = e
-        return results
-
+    conn = MdsConnectionRegistry().connect(server)
+    many = conn.getMany()
+    for i, req in enumerate(reqs):
+        many.append(f"d{i}", f'ptdata2("{req.mds_path}", {req.shot})')
+        many.append(f"t{i}", f'dim_of(ptdata2("{req.mds_path}", {req.shot}), 0)')
+        many.append(f"r{i}", f'pthead2("{req.mds_path}", {req.shot}), __rarray')
+    many.execute()
     results = {}
+    for i, req in enumerate(reqs):
+        try:
+            results[_req_key(req)] = {
+                "data": many.get(f"d{i}").data(),
+                "times": many.get(f"t{i}").data(),
+                "rarray": many.get(f"r{i}").data(),
+            }
+        except Exception as e:
+            results[_req_key(req)] = e
+    return results
+
+
+def _fetch_group_with_fallback(fetch, group):
+    """Run fetch(server, group) against the FDP thin client, then atlas.
+
+    fetch performs one batched round trip against the given server, storing any
+    per-node failure in-band. Only a whole-group failure (connect, openTree or
+    execute raising) trips the fallback: FDP first, atlas next when reachable,
+    and if both raise the group's exception is stored in-band per req.
+    """
+    servers = [_FDP_THINCLIENT_SERVER]
+    if _atlas_reachable():
+        servers.append(_FALLBACK_MDS_SERVER)
+
+    last_exc = None
+    for server in servers:
+        try:
+            return fetch(server, group)
+        except Exception as e:
+            _log.warning("Batched fetch via %s failed (%s); trying next server", server, e)
+            last_exc = e
+    return {_req_key(req): last_exc for req in group}
+
+
+def fetch_many_from_req(reqs):
+    """Fetch many reqs at once as batched getMany() round trips.
+
+    ptdata reqs (treename == "__ptdata__") batch together into a single
+    tree-less getMany; the rest batch per (treename, shot). Each group is tried
+    against the FDP thin client first, then atlas.
+
+    A req only needs mds_path, shot and treename attributes. Despite its name
+    mds_path can also be a PTDATA point name.
+
+    :return: dict mapping each (mds_path, shot, treename) to its fetched value,
+        or to the Exception if fetching failed.
+    """
+    ptdata_reqs = []
     tree_groups = {}
     for req in reqs:
         if req.treename == _PTDATA_TREENAME:
-            try:
-                results[req.as_key()] = fetch_from_req(req, server, is_remote)
-            except Exception as e:
-                results[req.as_key()] = e
+            ptdata_reqs.append(req)
         else:
             tree_groups.setdefault((req.treename, req.shot), []).append(req)
 
+    results = {}
+    if ptdata_reqs:
+        results.update(
+            _fetch_group_with_fallback(_fetch_ptdata_group_via_server, ptdata_reqs)
+        )
     for (treename, shot), group in tree_groups.items():
-        try:
-            results.update(
-                _fetch_tree_group_via_server(_FDP_THINCLIENT_SERVER, treename, shot, group)
+        results.update(
+            _fetch_group_with_fallback(
+                lambda server, g, tn=treename, sh=shot: _fetch_tree_group_via_server(
+                    server, tn, sh, g
+                ),
+                group,
             )
-            continue
-        except Exception as e:
-            _log.warning(
-                "Batched FDP thin-client fetch failed for tree=%s shot=%s (%s); "
-                "trying atlas",
-                treename, shot, e,
-            )
-
-        if _atlas_reachable():
-            try:
-                results.update(
-                    _fetch_tree_group_via_server(_FALLBACK_MDS_SERVER, treename, shot, group)
-                )
-                continue
-            except Exception as e:
-                _log.warning(
-                    "Batched atlas fetch failed for tree=%s shot=%s (%s); "
-                    "falling back to per-requirement fetch",
-                    treename, shot, e,
-                )
-
-        for req in group:
-            try:
-                results[req.as_key()] = fetch_from_req(req, server, is_remote)
-            except Exception as e:
-                results[req.as_key()] = e
+        )
 
     return results
-
-
-def fetch_from_req(req, server, is_remote):
-    """Fetch a signal for a given req using MdsSignal or PtDataSignal.
-    req is an instance of the Requirement class below. Despite its name
-    mds_path can also be a PTDATA path.
-
-    class Requirement:
-        mds_path: str
-        shot: int
-        treename: str = "ELECTRONS"
-
-    """
-    if req.treename == _PTDATA_TREENAME:
-        sig = PtDataSignal(req.mds_path, keep_header=True, fetch_units=False)
-        result = sig.gather(req.shot)
-        return {
-            'data': result['data'],
-            'times': result['times'],
-            'rarray': result['header'].rarray.copy(),
-        }
-    elif is_remote:
-        # Explicit remote: use cached connection; connection.get() is a full
-        # TDI evaluator so dim_of() and other expressions work fine.
-        return _fetch_remote(req, server)
-    else:
-        # Default: try the FDP thin client, then atlas.
-        last_exc = None
-        for thin_server in (_FDP_THINCLIENT_SERVER, _FALLBACK_MDS_SERVER):
-            try:
-                return _fetch_remote(req, thin_server)
-            except Exception as e:
-                _log.warning(
-                    "Thin-client fetch of %s (tree=%s, shot=%s) via %s failed (%s)",
-                    req.mds_path, req.treename, req.shot, thin_server, e,
-                )
-                last_exc = e
-        raise last_exc
