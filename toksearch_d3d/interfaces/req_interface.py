@@ -123,6 +123,7 @@ def _fetch_group_with_fallback(fetch, group):
             return fetch(server, group)
         except Exception as e:
             _log.warning("Batched fetch via %s failed (%s); trying next server", server, e)
+            _log.warning(f"Attempted to fetch {group}")
             last_exc = e
     return {_req_key(req): last_exc for req in group}
 
