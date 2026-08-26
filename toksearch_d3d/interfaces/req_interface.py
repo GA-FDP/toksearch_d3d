@@ -15,6 +15,8 @@
 import logging
 import os
 import socket
+import MDSplus
+from MDSplus.connection import MdsIpException
 
 from toksearch.signal.mds import MdsConnectionRegistry
 
@@ -67,13 +69,14 @@ def _fetch_tree_group_via_server(server, treename, shot, reqs):
     many = conn.getMany()
     for req in reqs:
         many.append(req.mds_path, req.mds_path)
-    many.execute()
+    fetched_data = many.execute()
     results = {}
     for req in reqs:
         try:
             results[_req_key(req)] = many.get(req.mds_path).data()
-        except Exception as e:
-            results[_req_key(req)] = e
+        except MdsIpException as e:
+            # This is needed to propagate the %TREE-E-NODATA exception which is not properly raised if many.get fails
+            results[_req_key(req)] = MDSplus.mdsExceptions.MdsException(MDSplus.Data.data(fetched_data[req.mds_path][str('error')]))
     return results
 
 
