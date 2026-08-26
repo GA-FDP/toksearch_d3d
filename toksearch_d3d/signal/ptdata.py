@@ -19,13 +19,19 @@ import numpy as np
 
 from toksearch import Signal
 from toksearch.utilities.utilities import set_env
+try:
+    import ptdata
+    # calibration_mode_for_ical is ptdata's single source of truth for the legacy
+    # `ical` flag -> CalibrationMode translation. It needs a newer ptdata than the
+    # >=2.0.13 floor pinned in pixi.toml / recipe/recipe.yaml -- unreleased as of
+    # this commit; bump both floors to the release that ships it.
 
-import ptdata
-# calibration_mode_for_ical is ptdata's single source of truth for the legacy
-# `ical` flag -> CalibrationMode translation. It needs a newer ptdata than the
-# >=2.0.13 floor pinned in pixi.toml / recipe/recipe.yaml -- unreleased as of
-# this commit; bump both floors to the release that ships it.
-from ptdata import _core, calibration_mode_for_ical
+    from ptdata import _core, calibration_mode_for_ical
+except ImportError:
+    ptdata = None
+    _core = None
+    calibration_mode_for_ical = None
+
 
 
 class PtDataReaderRegistry:
