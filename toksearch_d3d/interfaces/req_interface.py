@@ -36,6 +36,25 @@ _NO_ATLAS_ENV_VAR = "TOKSEARCH_D3D_NO_ATLAS"
 # from this process. Populated on first use by _atlas_reachable().
 _atlas_reachable_cache = None
 
+# Attempts per server, with the cached connection dropped between them.
+#
+# A batch that fails can leave the process's MDSplus.Connection unusable rather
+# than merely unlucky. Over fdp:// the relay retires its session whenever a call
+# fails -- a call that overran the relay's timeout, most of all -- and answers
+# every later call on that token with 502 "unknown or expired session".
+# MdsConnectionRegistry hands the same Connection object to every caller in the
+# process for its whole life, so nothing ever notices. That is how one slow
+# getMany became 26 failures in GA-FDP/imas_composer CI run 33033220932: the
+# worker that lost its session failed every remaining fetch, while the other
+# worker's session carried on fine.
+#
+# Redialling costs one round trip on a path that has already failed, and is the
+# difference between losing one group and losing the rest of the run. The
+# transport itself also recovers from this now (mdsip-fdp), but only where it
+# has been updated -- and the atlas path, where a dropped TCP connection has
+# the same shape, is not served by that at all.
+_ATTEMPTS_PER_SERVER = 2
+
 
 def _atlas_reachable(timeout=2.0):
     """Whether atlas is directly reachable from this process, cached process-wide.
@@ -108,6 +127,20 @@ def _fetch_ptdata_group_via_server(server, reqs):
     return results
 
 
+def _drop_connection(server):
+    """Evict the process-wide cached connection to `server`.
+
+    Best effort on purpose: disconnect() talks to the network too, and a
+    failure to close a connection that is already suspect says nothing the
+    caller needs. Letting it propagate would replace the real fetch error --
+    the one that says why the data is missing -- with a cleanup error.
+    """
+    try:
+        MdsConnectionRegistry().disconnect(server)
+    except Exception as e:
+        _log.debug("Could not cleanly drop the connection to %s (%s)", server, e)
+
+
 def _fetch_group_with_fallback(fetch, group):
     """Run fetch(server, group) against the FDP thin client, then atlas.
 
@@ -115,6 +148,10 @@ def _fetch_group_with_fallback(fetch, group):
     per-node failure in-band. Only a whole-group failure (connect, openTree or
     execute raising) trips the fallback: FDP first, atlas next when reachable,
     and if both raise the group's exception is stored in-band per req.
+
+    Each server gets _ATTEMPTS_PER_SERVER goes, with the cached connection
+    dropped in between and after -- see that constant for why a failed batch
+    means the connection is suspect and not just the call.
     """
     servers = [_FDP_THINCLIENT_SERVER]
     if _atlas_reachable():
@@ -122,12 +159,27 @@ def _fetch_group_with_fallback(fetch, group):
 
     last_exc = None
     for server in servers:
-        try:
-            return fetch(server, group)
-        except Exception as e:
-            _log.warning("Batched fetch via %s failed (%s); trying next server", server, e)
-            _log.warning(f"Attempted to fetch {group}")
-            last_exc = e
+        for attempt in range(_ATTEMPTS_PER_SERVER):
+            try:
+                return fetch(server, group)
+            except Exception as e:
+                last_exc = e
+                # Unconditionally, including on the last attempt: leaving a
+                # connection that may be dead in the registry carries the
+                # failure into every later group, which is the whole point.
+                _drop_connection(server)
+                if attempt + 1 < _ATTEMPTS_PER_SERVER:
+                    _log.warning(
+                        "Batched fetch via %s failed (%s); dropping the cached "
+                        "connection and retrying once",
+                        server, e,
+                    )
+                else:
+                    _log.warning(
+                        "Batched fetch via %s failed again (%s); trying next server",
+                        server, e,
+                    )
+                    _log.warning("Attempted to fetch %s", group)
     return {_req_key(req): last_exc for req in group}
 
 
