@@ -1,0 +1,338 @@
+# Copyright 2024 General Atomics
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""Layout transformations for imas_composer composed values.
+
+imas_composer 0.2.4 places every ``core_profiles.profiles_1d`` quantity on a
+single unified GTIME axis, leaving an *empty* array in slots where a given
+quantity has no data.  Composed values therefore arrive jagged.  This module
+turns a jagged value into whichever shape the caller asked for.
+
+Two kinds of raggedness exist and must not be conflated:
+
+* **Holes** -- one common inner length plus empty slots.  Recoverable to a
+  rectangular array (``core_profiles``).
+* **Genuinely ragged** -- several distinct real lengths.  Not recoverable
+  (``magnetics.ip``'s two measurements, ECE channels).
+
+Everything here is a pure function of its arguments so the interesting cases
+can be tested with synthetic inputs, without shot data.
+"""
+
+import numpy as np
+
+try:
+    import awkward as ak
+    _AWKWARD_AVAILABLE = True
+except ImportError:
+    _AWKWARD_AVAILABLE = False
+    ak = None
+
+
+#: Layout modes accepted by ``ImasSignal(layout=...)``.
+LAYOUTS = ('compact', 'filled', 'ragged', 'awkward')
+
+
+def validate_layout(layout):
+    """Raise ``ValueError`` unless ``layout`` is a recognized mode.
+
+    A typo must not silently fall back to a working default and return a
+    different shape than the caller asked for.
+    """
+    if layout not in LAYOUTS:
+        raise ValueError(
+            f"Unknown layout {layout!r}. Valid layouts are: "
+            f"{', '.join(LAYOUTS)}."
+        )
+
+
+def to_numpy(val):
+    """Convert a compose() value to a numpy array.
+
+    For regular arrays or uniformly-shaped ak.Array: returns np.ndarray.
+    For ragged input (an ak.Array, or a plain sequence such as a list of
+    differently-shaped rows): returns a numpy object array whose elements
+    are 1-D numpy arrays, one per outer entry.
+    """
+    if _AWKWARD_AVAILABLE and isinstance(val, ak.Array):
+        try:
+            return np.asarray(val)
+        except (ValueError, TypeError):
+            # Recurse: a row of a 3-level jagged array is itself jagged, and
+            # np.asarray would raise on it outside any handler.
+            return _as_object_array([to_numpy(row) for row in val])
+    try:
+        return np.asarray(val)
+    except (ValueError, TypeError):
+        # A plain ragged sequence (e.g. a list of differently-length arrays,
+        # as callers may pass for ``times``) hits the same inhomogeneous-
+        # shape error as a ragged ak.Array. Recurse the same way instead of
+        # letting it escape.
+        return _as_object_array([to_numpy(row) for row in val])
+
+
+def _as_object_array(rows):
+    """Build a 1-D object array from a list of arrays.
+
+    Built element-by-element rather than via ``np.array(rows, dtype=object)``,
+    which collapses equal-length rows into a 2-D object array instead of
+    keeping them as separate elements.
+    """
+    out = np.empty(len(rows), dtype=object)
+    for i, row in enumerate(rows):
+        out[i] = row
+    return out
+
+
+def _outer_len(value):
+    """Length of ``value``'s outer axis, or None if it has no outer axis."""
+    try:
+        if isinstance(value, np.ndarray) and value.ndim == 0:
+            return None
+        return len(value)
+    except TypeError:
+        return None
+
+
+def outer_length(value):
+    """Length of ``value``'s outer axis, or None when it has none.
+
+    Public wrapper over ``_outer_len`` for callers outside this module.
+    """
+    return _outer_len(value)
+
+
+def is_time_axis(value, times, split_by, entity_hint=False):
+    """Return True when ``value``'s outer axis is a time axis.
+
+    All four conditions must hold:
+
+    1. ``times`` is a 1-D, non-object array,
+    2. ``len(times)`` equals ``value``'s outer length,
+    3. ``split_by`` is None,
+    4. ``entity_hint`` is False.
+
+    Conditions 1 and 2 are not sufficient on their own.  Entity axes usually
+    fail condition 1 -- ``magnetics.ip`` carries an *object* array of
+    per-measurement time arrays and ECE carries a *2-D* array with one time
+    row per channel -- but ``_resolve_dim_ids_path`` falls back to the flat
+    IDS-level ``<ids>.time`` whenever a sibling ``.time`` does not resolve, and
+    in that case only a length coincidence would separate a channel axis from
+    a time axis.  Condition 4 closes that gap structurally: the caller sets
+    ``entity_hint`` when a sibling ``name``/``identifier``/``method_name``/
+    ``label`` array has one entry per outer entry, which means the outer axis
+    enumerates entities.
+
+    This matters because entries on an entity axis are matched *positionally*
+    against those same name arrays.  Dropping or padding one would misattribute
+    every entry after it -- silent data corruption rather than a crash.
+    """
+    if split_by is not None:
+        return False
+    if entity_hint:
+        return False
+    if times is None:
+        return False
+    # to_numpy, not np.asarray: a ragged times sequence would otherwise raise
+    # instead of simply failing the dtype check below.
+    times_arr = to_numpy(times)
+    if times_arr.ndim != 1 or not np.issubdtype(times_arr.dtype, np.number):
+        return False
+    outer = _outer_len(value)
+    return outer is not None and outer == len(times_arr)
+
+
+def _rows(value):
+    """Return ``value``'s outer entries as a list of numpy arrays."""
+    return [to_numpy(row) for row in value]
+
+
+def _stack_or_object(rows):
+    """Stack rows into a rectangular array, falling back to an object array."""
+    if not rows:
+        return np.array([], dtype=np.float64)
+    try:
+        return np.stack(rows)
+    except ValueError:
+        # Rows have differing shapes -- genuinely ragged, keep them separate.
+        return _as_object_array(rows)
+
+
+def _compact(value, dims):
+    """Drop empty slots; filter parallel dim arrays in lockstep."""
+    rows = _rows(value)
+    keep = np.array([row.size > 0 for row in rows], dtype=bool)
+
+    data = _stack_or_object([row for row, k in zip(rows, keep) if k])
+
+    out_dims = {}
+    for name, arr in dims.items():
+        # 'times' is the only dim known to be parallel to the outer axis --
+        # is_time_axis has already guaranteed len(times) == outer before we
+        # were called. No other dim can be inferred as outer-parallel from a
+        # length match: an inner-axis dim (e.g. 'rho') may coincidentally
+        # share that length without indexing the outer axis at all, and
+        # guessing from length coincidence is exactly the bug this avoids.
+        # Every other dim therefore passes through unchanged.
+        if name == 'times':
+            out_dims[name] = np.asarray(arr)[keep]
+        else:
+            out_dims[name] = arr
+    return data, out_dims
+
+
+def _filled(value, dims):
+    """Keep every slot; pad empty slots with NaN to the common inner shape.
+
+    Padding requires one common inner shape to pad to *and* a floating-point
+    dtype to hold NaN. When either requirement isn't met -- non-empty slots
+    have two or more distinct inner shapes (genuinely ragged, not holey), or
+    the data is non-floating (int, string, ...) -- 'filled' is a no-op: the
+    value is returned as `_stack_or_object` would render it (an object array
+    when the slots don't share one shape), untouched rather than fabricated.
+    This is the same treatment entity axes already get, and it keeps the
+    leaf's outer length intact so it stays index-aligned with siblings that
+    *could* be padded.
+    """
+    rows = _rows(value)
+    non_empty = [row for row in rows if row.size > 0]
+
+    if not non_empty:
+        # Every slot empty: the common inner shape is (0,), so the result is
+        # an (n_slots, 0) array.  Nothing to fill, and no dtype to infer.
+        return np.zeros((len(rows), 0), dtype=np.float64), dims
+
+    if len(non_empty) == len(rows):
+        # No empty slots: there is nothing to fill, so 'filled' must be a
+        # no-op and agree exactly with 'compact' -- including for dtypes
+        # (int, string, ...) that the guards below would otherwise reject,
+        # even though no fill value would ever actually be fabricated.
+        return _stack_or_object(rows), dims
+
+    shapes = {row.shape for row in non_empty}
+    if len(shapes) > 1:
+        # Genuinely ragged rather than holey: no single inner shape to pad
+        # to. No-op rather than padding to the maximum and fabricating data.
+        return _stack_or_object(rows), dims
+
+    dtype = np.result_type(*[row.dtype for row in non_empty])
+    if not np.issubdtype(dtype, np.floating):
+        # NaN has no meaning for a non-floating dtype, so there is no value
+        # to fill gaps with. No-op rather than inventing one.
+        return _stack_or_object(rows), dims
+
+    inner_shape = shapes.pop()
+    out = np.full((len(rows),) + inner_shape, np.nan, dtype=dtype)
+    for i, row in enumerate(rows):
+        if row.size > 0:
+            out[i] = row
+    return out, dims
+
+
+def apply_layout(value, dims, layout, split_by=None, entity_hint=False):
+    """Apply ``layout`` to a composed value and its dimension arrays.
+
+    Args:
+        value: Composed value from imas_composer (``ak.Array`` or ndarray).
+        dims (dict): ``{dim_name: ndarray}``, already converted and scaled.
+        layout (str): One of :data:`LAYOUTS`.
+        split_by: ``ImasSignal``'s ``split_by`` setting; when not None the
+            outer axis is a channel axis and layout is never applied.
+        entity_hint (bool): True when a sibling entity-name array has one
+            entry per outer entry, meaning the outer axis enumerates entities
+            rather than times.  See :func:`is_time_axis`.
+
+    Returns:
+        tuple: ``(data, dims)`` after transformation.
+    """
+    validate_layout(layout)
+
+    if layout == 'awkward':
+        return value, dims
+
+    if not is_time_axis(value, dims.get('times'), split_by,
+                        entity_hint=entity_hint):
+        return to_numpy(value), dims
+
+    if layout == 'ragged':
+        return to_numpy(value), dims
+
+    if layout == 'compact':
+        return _compact(value, dims)
+
+    if layout == 'filled':
+        return _filled(value, dims)
+
+    raise AssertionError(f"unreachable layout {layout!r}")  # pragma: no cover
+
+
+def _prefix_shared_time(composed):
+    """Return the batch's shared time axis, or None.
+
+    In prefix mode no dim arrays are fetched, but the shared axis is present
+    as a composed sibling leaf whose path ends in ``.time`` (for example
+    ``core_profiles.profiles_1d.time``).
+    """
+    for path, value in composed.items():
+        if not path.endswith('.time'):
+            continue
+        arr = to_numpy(value)
+        if arr.ndim == 1 and arr.dtype != object:
+            return arr
+    return None
+
+
+def apply_layout_prefix(composed, layout, entity_hints=None):
+    """Apply ``layout`` to every leaf of a prefix batch.
+
+    Leaves whose outer length matches the batch's shared time axis are
+    transformed; every other leaf (0-d scalars, entity-indexed values) passes
+    through untouched, so the batch stays index-aligned.
+
+    Args:
+        composed (dict): ``{leaf_path: composed_value}``.
+        layout (str): One of :data:`LAYOUTS`. ``'compact'`` is rejected by
+            ``ImasSignal.__init__`` before reaching here.
+        entity_hints (dict): Optional ``{leaf_path: bool}``; a leaf marked
+            True has an entity outer axis and is never transformed. A missing
+            key means False.
+
+    Returns:
+        dict: ``{leaf_path: value}``.
+
+    Note:
+        No per-leaf exception handling is needed here: a leaf ``apply_layout``
+        cannot fill (a non-floating dtype, or several distinct non-empty
+        inner lengths) is a no-op rather than a raise -- see ``_filled`` --
+        so it keeps its own outer length and the batch stays index-aligned
+        without any leaf failing the whole gather.
+    """
+    validate_layout(layout)
+
+    if layout == 'awkward':
+        return dict(composed)
+
+    shared_time = _prefix_shared_time(composed)
+    hints = entity_hints or {}
+
+    out = {}
+    for path, value in composed.items():
+        if layout == 'ragged' or not is_time_axis(
+            value, shared_time, None, entity_hint=hints.get(path, False)
+        ):
+            out[path] = to_numpy(value)
+            continue
+        data, _ = apply_layout(value, {'times': shared_time}, layout)
+        out[path] = data
+    return out

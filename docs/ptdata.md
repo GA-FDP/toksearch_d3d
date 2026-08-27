@@ -72,13 +72,28 @@ for rec in records:
 
 ## Calibration (`ical`)
 
-By default data are returned calibrated (`ical=1`).  Pass `ical=0` to retrieve raw
-counts:
+By default data are returned in physics units (`ical=1`).  Pass `ical=0` to
+retrieve raw digitizer counts:
 
 ```python
 raw_sig = PtDataSignal('ip', ical=0)
 result  = raw_sig.fetch(202161)
 ```
+
+The full set of legacy PTDATA calibration flags:
+
+| `ical` | Data returned                        |
+| ------ | ------------------------------------ |
+| `0`    | Raw digitizer counts                 |
+| `1`    | Physics units (default)              |
+| `2`    | Volts into the digitizer             |
+| `4`    | Integrated signal (v-sec)            |
+
+Any other value raises `ptdata.PtDataError` (code 110,
+`InvalidConfiguration`) when the signal is constructed.  The flag is
+translated by `ptdata.calibration_mode_for_ical`, which refuses to guess:
+returning differently-calibrated data than you asked for is a units error
+that looks like valid data.
 
 ---
 
