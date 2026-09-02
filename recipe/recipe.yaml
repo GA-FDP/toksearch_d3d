@@ -32,8 +32,23 @@ requirements:
     - setuptools
     - pip
     - versioneer
+  # rattler-build 0.39.0 synthesises a python run-export of
+  # `python 3.12.* *_debug_cpython` from a host python whose build string is
+  # plainly `h5f976f7_2_cpython`. conda-forge declares no python run-export on
+  # any 3.12.14 build, and the python_abi export beside it is correct, so the
+  # `debug_` prefix is invented by the tool -- and the resulting package is
+  # uninstallable because no such python exists.
+  #
+  # 0.75.0 does not do this (it emits `python *` plus a correct python_abi),
+  # and CI installs rattler-build unpinned while the dev env here is pinned at
+  # 0.39.0 -- so this guard is about not depending on which one runs, not
+  # about a live breakage. Ignore the synthesised export and state the
+  # constraint from the variant; python_abi pins the ABI either way.
+  ignore_run_exports:
+    by_name:
+      - python
   run:
-    - python
+    - python ${{ python }}
     - toksearch >=2.8.1
     - ptdata >=2.1.0,<3
     - imas_composer >=0.2.4,<0.3

@@ -1,3 +1,9 @@
 python:
-  - "3.11"
-  - "3.12"
+  # `3.11.*` says what this file means: any 3.11 patch release. A bare "3.11"
+  # resolved the same thing under both rattler-build 0.39.0 and 0.75.0 (host
+  # python 3.11.16), despite a bare 3.11 meaning ==3.11.0 as a *dependency*
+  # spec -- variant values are not read that way. Spelled out so the recipe
+  # doesn't depend on that, since the workflow installs rattler-build
+  # unpinned.
+  - "3.11.*"
+  - "3.12.*"
