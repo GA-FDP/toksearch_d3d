@@ -133,6 +133,19 @@ class PtDataSignal(Signal):
             dims = None
         self.set_dims(dims)
 
+    def _spec_fields(self):
+        # `fetch_units` is deliberately absent: __init__ stores it as the base
+        # class's `with_units`, which Signal.spec() already records at the top
+        # level. The resolved CalibrationMode is absent too -- `ical` is the
+        # value the caller set and gather() re-resolves it per fetch.
+        return {
+            "pointname": self.pointname,
+            "remote": self.remote,
+            "ical": self.ical,
+            "keep_header": self.keep_header,
+            "fetch_times": self.fetch_times,
+        }
+
 
     def gather(self, shot):
         dims = self.dims

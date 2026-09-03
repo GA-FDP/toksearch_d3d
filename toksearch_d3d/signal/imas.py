@@ -312,6 +312,46 @@ class ImasSignal(Signal):
                     f"leaves individually."
                 )
 
+    # The ImasComposer knobs that change which data an IDS path resolves to.
+    # Mirrors ImasComposer.__init__; extend it when imas_composer adds one, or
+    # two signals differing only in the new knob will share a provenance
+    # identity. Read with getattr so an older/newer imas_composer that lacks a
+    # knob degrades to None instead of raising.
+    _COMPOSER_SPEC_ATTRS = (
+        "efit_tree",
+        "efit_run_id",
+        "profiles_tree",
+        "profiles_run_id",
+        "fast_ece",
+        "include_rip",
+        "crop_core_profiles",
+    )
+
+    def _spec_fields(self):
+        # Almost all of this state is underscore-prefixed, so the reflective
+        # fallback saw only ids_path and layout -- two signals reading the same
+        # path from different EFIT trees produced identical specs.
+        location = self._location
+        if hasattr(location, "_spec_value"):
+            location = location._spec_value()
+        return {
+            "ids_path": self.ids_path,
+            # The resolved layout, not the requested one: an unset request
+            # resolves to 'compact' for a leaf and 'filled' for a prefix, and
+            # the resolved value is what shapes the returned array.
+            "layout": self.layout,
+            "split_by": self._split_by,
+            "dims": self._dims,
+            "dim_scales": self._dim_scales,
+            "units": self._units,
+            "max_resolve_iterations": self._max_iter,
+            "location": location,
+            "composer": {
+                attr: getattr(self._composer, attr, None)
+                for attr in self._COMPOSER_SPEC_ATTRS
+            },
+        }
+
     def _parse_location(self, location):
         """Store location and determine cleanup mode."""
         self._location = location

@@ -12,7 +12,7 @@ environments:
       linux-64:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/_openmp_mutex-4.5-20_gnu.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/_python_abi3_support-1.0-hd8ed1ab_2.conda
-      - conda: https://conda.anaconda.org/conda-forge/noarch/_x86_64-microarch-level-1-3_x86_64.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/_x86_64-microarch-level-1-5_level1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/aiofiles-24.1.0-pyhd8ed1ab_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/aiohappyeyeballs-2.6.2-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/aiohttp-3.13.5-py312h5d8c7f2_0.conda
@@ -30,8 +30,8 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/async-lru-2.3.0-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/attrs-26.1.0-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/audioop-lts-0.2.2-py312h5253ce2_2.conda
-      - conda: https://conda.anaconda.org/conda-forge/noarch/awkward-2.9.0-pyhcf101f3_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/awkward-cpp-52-py312h1e80e48_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/awkward-2.13.0-pyhcf101f3_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/awkward-cpp-56-py312h9b2b4d3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/aws-c-auth-0.10.1-ha62d5e7_3.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/aws-c-cal-0.9.13-h2c9d079_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/aws-c-common-0.12.6-hb03c661_0.conda
@@ -439,7 +439,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/tinycss2-1.4.0-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/tk-8.6.13-noxft_h366c992_103.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/tokenizers-0.22.2-py312hf875000_0.conda
-      - conda: https://conda.anaconda.org/ga-fdp/linux-64/toksearch-2.9.0-py312h2e77849_0.conda
+      - conda: https://conda.anaconda.org/ga-fdp/linux-64/toksearch-2.11.1-py312hccd2c79_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/tomli-2.4.1-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/tomlkit-0.13.3-pyha770c72_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/tornado-6.5.5-py312h4c3975b_0.conda
@@ -651,17 +651,17 @@ packages:
   purls: []
   size: 8191
   timestamp: 1744137672556
-- conda: https://conda.anaconda.org/conda-forge/noarch/_x86_64-microarch-level-1-3_x86_64.conda
-  build_number: 3
-  sha256: 5f9029eaa78eb13a5499b7a2b012a47a18136b2d41bad99bb7b1796d1fc2b179
-  md5: 225cb2e9b9512730a92f83696b8fbab8
+- conda: https://conda.anaconda.org/conda-forge/noarch/_x86_64-microarch-level-1-5_level1.conda
+  build_number: 5
+  sha256: 6d0b13c7ebf525332a54ff6d44bfd496e5b37182ac736efa8ade4af52ec14313
+  md5: 9140f450bfb424deda6cc5a1515919f3
   depends:
-  - __archspec 1.* x86_64
+  - __archspec 1.* ^(core2|k10|nocona|x86_64|bulldozer|ivybridge|nehalem|piledriver|sandybridge|steamroller|westmere|x86_64_v2|broadwell|cannonlake|excavator|haswell|mic_knl|skylake|x86_64_v3|zen|zen2|zen3|cascadelake|icelake|sapphirerapids|skylake_avx512|x86_64_v4|zen4|zen5)$
   license: BSD-3-Clause
   license_family: BSD
   purls: []
-  size: 9818
-  timestamp: 1764034326319
+  size: 9415
+  timestamp: 1787670508828
 - conda: https://conda.anaconda.org/conda-forge/noarch/aiofiles-24.1.0-pyhd8ed1ab_1.conda
   sha256: 8e18809f00b0bfe504bc6180b80d844016690925ddf0e61272111eec079774c3
   md5: 7e8045a75e921648c082ba7cd7edd114
@@ -907,14 +907,14 @@ packages:
   purls: []
   size: 12916
   timestamp: 1773566454135
-- conda: https://conda.anaconda.org/conda-forge/noarch/awkward-2.9.0-pyhcf101f3_0.conda
-  sha256: e92d541cc405fec08b46cb35c36eedf9dc04df7bec5e6aaf0e1ea8f11b503d83
-  md5: 93fcf05b2824e06745272380bc7a7dfc
+- conda: https://conda.anaconda.org/conda-forge/noarch/awkward-2.13.0-pyhcf101f3_0.conda
+  sha256: f857c1744bbc516fec339b49518fb8e23ad90628c0921dcdf14341a8c3aa3ed5
+  md5: 0a9057f58c455e6863746f4fa53c25c0
   depends:
   - python >=3.10
-  - awkward-cpp ==52
+  - awkward-cpp ==56
   - importlib-metadata >=4.13.0
-  - numpy >=1.18.0
+  - numpy >=1.21.3
   - packaging
   - typing_extensions >=4.1.0
   - fsspec >=2022.11.0
@@ -923,25 +923,25 @@ packages:
   license_family: BSD
   purls:
   - pkg:pypi/awkward?source=hash-mapping
-  size: 471272
-  timestamp: 1770661007420
-- conda: https://conda.anaconda.org/conda-forge/linux-64/awkward-cpp-52-py312h1e80e48_0.conda
-  sha256: ae5856eb42669b5e713ee8e160252123d22765f72e3034f0044dc409cdcc5f4e
-  md5: b1068d186f02133e0ae343c38dbb67d2
+  size: 542200
+  timestamp: 1786834315930
+- conda: https://conda.anaconda.org/conda-forge/linux-64/awkward-cpp-56-py312h9b2b4d3_0.conda
+  sha256: bc4f76ce8d6d8ee76e663b91f25603803237b8006d18c22137d06386b8bf78ca
+  md5: d1a96e6eb25a85ccaa6e186556289767
   depends:
   - python
   - numpy >=1.21.3
-  - libstdcxx >=14
-  - libgcc >=14
   - _x86_64-microarch-level >=1
   - __glibc >=2.17,<3.0.a0
+  - libstdcxx >=15
+  - libgcc >=15
   - python_abi 3.12.* *_cp312
   license: BSD-3-Clause
   license_family: BSD
   purls:
   - pkg:pypi/awkward-cpp?source=hash-mapping
-  size: 617842
-  timestamp: 1770652057610
+  size: 675504
+  timestamp: 1786811065993
 - conda: https://conda.anaconda.org/conda-forge/linux-64/aws-c-auth-0.10.1-ha62d5e7_3.conda
   sha256: ccbf2cc4bea4aab6e071d67ecc2743197759f6df855787e7a5f57f7973f913a2
   md5: 55eaf7066da1299d217ab32baedc7fa8
@@ -7353,11 +7353,11 @@ packages:
   - pkg:pypi/tokenizers?source=hash-mapping
   size: 2465644
   timestamp: 1764695075374
-- conda: https://conda.anaconda.org/ga-fdp/linux-64/toksearch-2.9.0-py312h2e77849_0.conda
-  sha256: 416f042a0dbc0a37678e35b10cb2fd80985e0f6db7480b9880dc05a3f7dbe635
-  md5: daba2800f3b1f08debd917af21b1f05e
+- conda: https://conda.anaconda.org/ga-fdp/linux-64/toksearch-2.11.1-py312hccd2c79_0.conda
+  sha256: 8ca169650a65ed35fd46ca57ce14748b2e5d50a1d749798d64c62dfa573c582f
+  md5: 253826615a4980f2026518f751dda303
   depends:
-  - python
+  - python 3.12.*
   - mdsplus-xrdcl >=1,<2
   - mdsip-fdp >=0.1.0
   - fdp-schema >=0.1.1
@@ -7387,11 +7387,11 @@ packages:
   - python_abi 3.12.* *_cp312
   - numpy >=1.26.4,<2.0a0
   license: Apache-2.0
-  size: 5372883
-  timestamp: 1786721959634
+  size: 5427273
+  timestamp: 1788443469807
 - pypi: ./
   name: toksearch-d3d
-  version: 0.10.1+27.g7db3d11.dirty
+  version: 0.11.2+2.g4cad10b.dirty
   sha256: e4d729b20ca23137c18fde910a61b4e02fefb6120f6c3f0ddd8af32b723b8dc2
   requires_dist:
   - imas-composer ; extra == 'imas'
