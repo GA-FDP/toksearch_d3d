@@ -18,10 +18,14 @@ Signal classes that expose imas_composer output through the toksearch Pipeline A
 Requires imas_composer to be installed (optional dependency).
 """
 
+import logging
 import warnings
 
 import numpy as np
 from urllib.parse import urlparse
+
+from MDSplus.connection import MdsIpException
+from MDSplus.mdsExceptions import MDSplusERROR
 
 from toksearch import Signal
 from toksearch.signal.mds import MdsSignal, MdsTreeRegistry, MdsConnectionRegistry, MdsTreePath
@@ -37,6 +41,36 @@ from toksearch_d3d.signal.imas_layout import (
 )
 
 _PTDATA_TREENAME = "__ptdata__"
+
+_log = logging.getLogger(__name__)
+
+# Attempts per remote requirement, with the cached connection dropped between
+# them.
+#
+# A failed call can leave the process's MDSplus.Connection unusable rather than
+# merely unlucky. Over fdp:// the relay retires its session whenever a call
+# fails -- a call that overran the relay's timeout, most of all -- and answers
+# every later call on that token with 502 "unknown or expired session".
+# MdsConnectionRegistry hands the same Connection object to every caller in the
+# process for its whole life, so nothing ever notices. That is how one slow
+# fetch became 26 failures in GA-FDP/imas_composer CI run 33033220932: the
+# worker that lost its session failed every remaining fetch, while the other
+# worker's session carried on fine.
+#
+# Redialling costs one round trip on a path that has already failed, and is the
+# difference between losing one requirement and losing the rest of the run.
+# toksearch's MdsRemoteSignal.gather recovers the same way, but
+# _fetch_requirement calls conn.get() directly -- it needs a full TDI evaluator
+# -- so it does not inherit that.
+_ATTEMPTS_PER_REQUIREMENT = 2
+
+# The errors that mean the link may be dead, as opposed to the data being
+# absent. Tree-class errors (TreeNODATA, TreeFOPENR, ...) follow a different
+# server-side path and do not corrupt connection state, so they propagate
+# untouched: a node with no data is routine, and redialling on it would churn
+# the session for a benign condition. Neither class below is an ancestor of
+# TreeException, so this stays a clean split.
+_CONNECTION_SUSPECT_ERRORS = (MDSplusERROR, MdsIpException)
 
 # Paths renamed by imas_composer 0.2.4.  Reported as a targeted error rather
 # than silently aliased: upstream dropped the `_thermal` suffix as a
@@ -374,11 +408,7 @@ class ImasSignal(Signal):
                 'rarray': result['header'].rarray.copy(),
             }
         elif self._is_remote:
-            # Remote: use cached connection; connection.get() is a full TDI
-            # evaluator so dim_of() and other expressions work fine.
-            conn = MdsConnectionRegistry().connect(self._server)
-            conn.openTree(req.treename, req.shot)
-            return conn.get(req.mds_path).value
+            return self._fetch_remote_requirement(req)
         else:
             # Local/Pelican: use cached tree from MdsTreeRegistry then evaluate
             # via tdiExecute(), which handles arbitrary TDI expressions
@@ -387,6 +417,56 @@ class ImasSignal(Signal):
                 req.treename, req.shot, treepath=self._location
             )
             return tree.tdiExecute(req.mds_path).data()
+
+    def _fetch_remote_requirement(self, req):
+        """Fetch one requirement from a remote server, redialling if need be.
+
+        Uses the cached connection; connection.get() is a full TDI evaluator so
+        dim_of() and other expressions work fine. See
+        ``_ATTEMPTS_PER_REQUIREMENT`` for why a failure means the connection is
+        suspect and not just the call.
+        """
+        last_exc = None
+        for attempt in range(_ATTEMPTS_PER_REQUIREMENT):
+            try:
+                conn = MdsConnectionRegistry().connect(self._server)
+                conn.openTree(req.treename, req.shot)
+                return conn.get(req.mds_path).value
+            except _CONNECTION_SUSPECT_ERRORS as e:
+                last_exc = e
+                # Unconditionally, including on the last attempt: leaving a
+                # connection that may be dead in the registry carries the
+                # failure into every later requirement, which is the whole
+                # point.
+                self._drop_connection()
+                if attempt + 1 < _ATTEMPTS_PER_REQUIREMENT:
+                    _log.warning(
+                        "Fetch of %r from %s for shot=%s failed (%s); dropping "
+                        "the cached connection and retrying once",
+                        req.mds_path, self._server, req.shot, e,
+                    )
+                else:
+                    _log.warning(
+                        "Fetch of %r from %s for shot=%s failed again (%s)",
+                        req.mds_path, self._server, req.shot, e,
+                    )
+        raise last_exc
+
+    def _drop_connection(self):
+        """Evict the process-wide cached connection to this signal's server.
+
+        Best effort on purpose: disconnect() talks to the network too, and a
+        failure to close a connection that is already suspect says nothing the
+        caller needs. Letting it propagate would replace the real fetch error --
+        the one that says why the data is missing -- with a cleanup error.
+        """
+        try:
+            MdsConnectionRegistry().disconnect(self._server)
+        except Exception as e:
+            _log.debug(
+                "Could not cleanly drop the connection to %s (%s)",
+                self._server, e,
+            )
 
     # Toksearch uses "times" as the conventional dim name, but the IMAS schema
     # names the field "time" (singular).  This map translates dim names to the
