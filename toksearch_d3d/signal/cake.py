@@ -74,10 +74,24 @@ class CakeSignal(MdsSignal):
             msg = f"cake_db_location not set"
             raise Exception(msg)
 
+        # Keep the db location as the caller asked for it, before the cache
+        # rewrite below. `cake_db_location` becomes a per-machine cache path
+        # for remote URLs, which would make spec() -- and therefore provenance
+        # identity -- differ between hosts running the same pipeline.
+        self._requested_cake_db_location = self.cake_db_location
+
         # If the location is a remote (e.g. pelican://) URL, download it to a
         # process-shared local cache and use that path. Local paths pass
         # through unchanged.
         self.cake_db_location = ensure_local_cake_db(self.cake_db_location)
+
+    def _spec_fields(self):
+        # MdsSignal contributes expression, treename and location. The cake db
+        # maps (shot -> CAKE run), so it selects which data a given expression
+        # resolves to and belongs in the spec alongside them.
+        fields = super()._spec_fields()
+        fields["cake_db_location"] = self._requested_cake_db_location
+        return fields
 
     def get_db_conn(self) -> sqlite3.Connection:
         # Use self.cake_db_location to get connection.
