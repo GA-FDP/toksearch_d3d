@@ -85,8 +85,8 @@ prad        Radiated power
 wmhd        MHD stored energy
 ==========  ============================
 
-ImasSignal (Experimental)
-=========================
+ImasSignal
+==========
 
 Fetches DIII-D data via the IMAS IDS schema using ``imas_composer``.
 Only available when ``imas_composer`` is installed. Also exported as
