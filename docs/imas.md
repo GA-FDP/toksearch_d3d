@@ -4,11 +4,6 @@
 [IMAS](https://imas.iter.org/) IDS schema via the `imas_composer` backend,
 while fitting naturally into the standard TokSearch `Pipeline` workflow.
 
-> **Experimental**: `ImasSignal` and the `imas_composer` backend are under
-> active development.  The API (constructor arguments, return formats, and
-> supported IDS paths) is likely to change in future releases.
-
-
 ```python
 from toksearch_d3d import ImasSignal
 ```
