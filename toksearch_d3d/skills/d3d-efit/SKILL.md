@@ -44,9 +44,18 @@ apply yourself.
             .RESULTS.CONFINEMENT
 ```
 
-**MTIME, ATIME and GTIME differ in length** (315 / 303 / 303 on efit01/165920;
-234 / 138 on efit02). Never index across subtrees positionally; match on time
-value or use `Pipeline.align`.
+**MTIME differs in length from ATIME**; `ATIME` and `GTIME` are `ms` and are
+equal on both ops trees, so AEQDSK scalars and GEQDSK profiles share one clock.
+`MTIME` is longer and carries no `:UNITS`.
+
+| tree | MTIME | ATIME | GTIME |
+|------|-------|-------|-------|
+| efit01/165920 | 315 | 303 | 303 (== ATIME) |
+| efit02/165920 | 234 | 138 | 138 (== ATIME) |
+
+Never index MEASUREMENTS against RESULTS positionally; match on time value or
+use `Pipeline.align`. Verify `GTIME == ATIME` rather than assuming it on user
+reruns.
 
 **Profiles live in GEQDSK**, shaped `(ntime, 65)` on a uniform flux grid:
 
@@ -60,6 +69,10 @@ value or use `Pipeline.align`.
 | `FFPRIM` | `(T m)^2 / (V s / rad)` | FF'(psi) |
 | `FPOL` | `T m` | poloidal current function F = R*Bt |
 | `PSIRZ` | `V s / rad` | poloidal flux on the R,Z grid |
+
+GEQDSK nodes carry the same `:LABEL`/`:UNITS`/`:MULTIPLIER` members as AEQDSK
+(§3) — the units above were read from the tree, not assumed. `PSIN` has no
+`:MULTIPLIER`; treat a missing multiplier as 1.0.
 
 **Which channels were used or excluded** — the `FWT*` arrays in `MEASUREMENTS`,
 shaped `(ntime, nchannel)`: `FWTMP2` (76 magnetic probes), `FWTSI` (44 flux
@@ -152,8 +165,13 @@ the tolerance from `:NAMELIST`; never hardcode one:
 
 ```python
 import re
-nl = str(t.getNode(r'\EFIT01::TOP:NAMELIST').getData().data())
-tol = dict(re.findall(r'(?i)\b(errmin|error)\s*=\s*([0-9.eE+-]+)', nl))
+def tolerances(tree, shot):
+    t = MDSplus.Tree(tree, shot)
+    nl = str(t.getNode(rf'\{tree.upper()}::TOP:NAMELIST').getData().data())
+    # namelists differ in case between snaps -- efit01 writes ERROR=,
+    # efit02 writes error=. Fold the keys or this KeyErrors.
+    return {k.lower(): float(v)
+            for k, v in re.findall(r'(?i)\b(errmin|error)\s*=\s*([0-9.eE+-]+)', nl)}
 ```
 
 efit01/efits1 declare `error=1.E-4, errmin=1.0E-4`; **efit02 declares `1.0e-3`**.
@@ -179,8 +197,14 @@ to the tree's own kept-slice median**, which is the portable rule:
 | efit01 / efits1 | 303 | 12 | 2.5e-2 | 4.2e-5 |
 | efit02 / efits2 | 138 | 96 | 1.8e-2 | 1.5e-3 |
 
-If the `efits*` twin is missing for a shot, fall back to `ERROR` above ~10x the
-tree's own median.
+If the `efits*` twin is missing, fall back to `ERROR` above ~10x the tree's own
+median — but know its limits. On efit01 the two populations separate by ~600x,
+so the cut is safe. **On efit02 they separate by only ~12x**, so a 10x cut sits
+just under the rejected median and will misclassify both tails. Treat a
+twin-less efit02-class tree as having no reliable automatic gate, and say so,
+rather than shipping a filter that only looks like one. The median is also of
+whatever population the tree holds — on an already-filtered tree it is a median
+of survivors, which is not the same quantity.
 
 **`ERROR` (or the set difference) is the gate; everything below is diagnostic —
 use it to explain a bad slice, not to reject a good one.**
@@ -195,6 +219,14 @@ use it to explain a bad slice, not to reject a good one.**
    `RBBBS`/`ZBBBS` closed and inside `LIM`.
 7. `efit01` vs `efit02` divergence in `q0`/`li` — the honest signal that
    magnetics-only is under-determined at that time.
+
+**Not covered here — do not invent values for these.** `CONDNO` has no reference
+scale; `CHIMSE` has an observed range (0.72-13.3 on efit02/165920) but no
+acceptance cut; there is no rule for how few active MSE channels make `QPSI`
+untrustworthy, and no mapping from active channel indices to a trustworthy
+radius — so outside MSE coverage `efit02`'s `QPSI` is effectively magnetics-only
+even though the tree is MSE-constrained. There is no per-slice uncertainty on
+`q`, so a trust verdict is binary. Measure these per study; do not guess.
 
 ## 5. Access
 
