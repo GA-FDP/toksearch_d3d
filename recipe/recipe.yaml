@@ -49,7 +49,12 @@ requirements:
       - python
   run:
     - python ${{ python }}
-    - toksearch >=2.12.0
+    # >=2.14.0, not >=2.12.0: this package's signals declare
+    # gather(self, shot, version=None, snapshot=None). An older toksearch
+    # calls gather(shot, record=record) and raises TypeError on the first
+    # fetch. Unlike the pinning floors in fdp-core, the solver CAN enforce
+    # this one, so it does.
+    - toksearch >=2.14.0
     - ptdata >=2.6.0,<3
     - imas_composer >=0.2.4,<0.3
     - filelock >=3

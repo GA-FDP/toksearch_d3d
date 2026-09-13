@@ -635,7 +635,7 @@ class ImasSignal(Signal):
         }
         return apply_layout_prefix(composed, self.layout, entity_hints)
 
-    def gather(self, shot, record=None):
+    def gather(self, shot, version=None, snapshot=None):
         """Fetch and compose the IDS field(s) for the given shot.
 
         Returns:
@@ -689,7 +689,7 @@ class ImasSignal(Signal):
         out.update(dims)
         return out
 
-    def fetch_as_xarray(self, shot, record=None):
+    def fetch_as_xarray(self, shot, version=None, snapshot=None):
         """Fetch and compose the IDS field, returning an xarray object.
 
         Returns:
@@ -732,7 +732,7 @@ class ImasSignal(Signal):
                 f"('{self.ids_path}'). Use fetch() instead."
             )
 
-        result = self.gather(shot, record=record)
+        result = self.gather(shot, version=version, snapshot=snapshot)
 
         if self._split_by == 'channel':
             return self._channel_result_to_dataset(result)

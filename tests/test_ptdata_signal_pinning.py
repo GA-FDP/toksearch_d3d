@@ -47,48 +47,42 @@ class TestPtDataSignalPinning(unittest.TestCase):
         registry._reader = self.reader
         self.addCleanup(setattr, registry, "_reader", None)
 
-    def test_a_pinned_record_reaches_the_reader(self):
+    def test_a_pin_reaches_the_reader(self):
         sig = PtDataSignal("ip")
-        rec = Record.from_dict({"shot": 165920, "version": 2,
-                                "snapshot": "catalog_x"})
-        sig.gather(165920, record=rec)
+        sig.gather(165920, version=2, snapshot="catalog_x")
 
         self.assertEqual(self.reader.calls[-1]["version"], 2)
         self.assertEqual(self.reader.calls[-1]["snapshot"], "catalog_x")
 
-    def test_an_unpinned_record_sends_no_pin(self):
+    def test_an_unpinned_gather_sends_no_pin(self):
         sig = PtDataSignal("ip")
-        sig.gather(165920, record=Record.from_dict({"shot": 165920}))
+        sig.gather(165920)
 
         self.assertIsNone(self.reader.calls[-1]["version"])
         self.assertIsNone(self.reader.calls[-1]["snapshot"])
 
-    def test_no_record_at_all_still_works(self):
-        """gather() is public; a caller may invoke it without a record."""
+    def test_a_bare_gather_still_works(self):
+        """gather() is public; a caller may invoke it with no pin at all."""
         PtDataSignal("ip").gather(165920)
         self.assertIsNone(self.reader.calls[-1]["version"])
 
     def test_version_without_snapshot(self):
         """The two pins are independent; either may travel alone."""
         sig = PtDataSignal("ip")
-        sig.gather(165920, record=Record.from_dict({"shot": 165920,
-                                                    "version": 7}))
+        sig.gather(165920, version=7)
         self.assertEqual(self.reader.calls[-1]["version"], 7)
         self.assertIsNone(self.reader.calls[-1]["snapshot"])
 
     def test_snapshot_without_version(self):
         sig = PtDataSignal("ip")
-        sig.gather(165920, record=Record.from_dict({"shot": 165920,
-                                                    "snapshot": "catalog_y"}))
+        sig.gather(165920, snapshot="catalog_y")
         self.assertIsNone(self.reader.calls[-1]["version"])
         self.assertEqual(self.reader.calls[-1]["snapshot"], "catalog_y")
 
     def test_an_explicit_none_is_not_a_pin(self):
         """A field present but None must read the same as absent."""
         sig = PtDataSignal("ip")
-        sig.gather(165920, record=Record.from_dict({"shot": 165920,
-                                                    "version": None,
-                                                    "snapshot": None}))
+        sig.gather(165920, version=None, snapshot=None)
         self.assertIsNone(self.reader.calls[-1]["version"])
         self.assertIsNone(self.reader.calls[-1]["snapshot"])
 
@@ -96,7 +90,7 @@ class TestPtDataSignalPinning(unittest.TestCase):
 class TestPinSurvivesTheFramework(unittest.TestCase):
     """The pin is only useful if the FRAMEWORK carries it to gather().
 
-    Every test above calls gather(record=...) by hand, which proves the
+    Every test above calls gather(version=...) by hand, which proves the
     signal reads the record but not that anything ever hands it one. That
     gap is not academic: against a toksearch whose Signal.fetch is
     `fetch(self, shot)`, a pinned pipeline silently returns UNVERSIONED

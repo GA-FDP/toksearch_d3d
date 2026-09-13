@@ -116,7 +116,7 @@ class CakeSignal(MdsSignal):
 
         return efit_upload_id, omfit_profs_upload_id
 
-    def gather(self, shot, record=None):
+    def gather(self, shot, version=None, snapshot=None):
 
         efit_upload_id, omfit_profs_upload_id = self.get_upload_ids(shot)
 

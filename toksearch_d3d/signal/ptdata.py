@@ -147,7 +147,7 @@ class PtDataSignal(Signal):
         }
 
 
-    def gather(self, shot, record=None):
+    def gather(self, shot, version=None, snapshot=None):
         dims = self.dims
         fetch_units = self.with_units
 
@@ -164,13 +164,9 @@ class PtDataSignal(Signal):
             # The version travels with the SHOT, not the signal: one
             # PtDataSignal serves every shot in a pipeline, so a constructor
             # kwarg would mean "v2 of everything". The shot list carries it --
-            # Pipeline([{"shot": N, "version": V}]) -- and the framework hands
-            # the record here without interpreting it.
-            #
-            # Record.get REQUIRES a default; it is not dict.get.
-            version = record.get("version", None) if record is not None else None
-            snapshot = record.get("snapshot", None) if record is not None else None
-
+            # Pipeline([{"shot": N, "version": V}]) -- and the pipeline hands
+            # the pin down as two values, so a signal never has to destructure
+            # a Record to find them.
             result = reader.fetch(self.pointname, int(shot), params,
                                   version=version, snapshot=snapshot)
 
