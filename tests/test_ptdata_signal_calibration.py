@@ -53,7 +53,7 @@ class _RecordingReader:
     def __init__(self):
         self.calibrations = []
 
-    def fetch(self, pointname, shot, params, source=None,
+    def fetch(self, pointname, shot, params, source='',
               version=None, snapshot=None):
         self.calibrations.append(params.calibration)
         return _StubResult()

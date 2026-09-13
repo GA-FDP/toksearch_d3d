@@ -689,7 +689,7 @@ class ImasSignal(Signal):
         out.update(dims)
         return out
 
-    def fetch_as_xarray(self, shot):
+    def fetch_as_xarray(self, shot, record=None):
         """Fetch and compose the IDS field, returning an xarray object.
 
         Returns:
@@ -732,7 +732,7 @@ class ImasSignal(Signal):
                 f"('{self.ids_path}'). Use fetch() instead."
             )
 
-        result = self.gather(shot)
+        result = self.gather(shot, record=record)
 
         if self._split_by == 'channel':
             return self._channel_result_to_dataset(result)

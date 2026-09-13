@@ -50,7 +50,7 @@ requirements:
   run:
     - python ${{ python }}
     - toksearch >=2.11.0
-    - ptdata >=2.1.0,<3
+    - ptdata >=2.6.0,<3
     - imas_composer >=0.2.4,<0.3
     - filelock >=3
     # CakeSignal fetches the CAKE DB by shelling out to the `pelican` CLI
