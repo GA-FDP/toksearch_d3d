@@ -450,7 +450,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/tinycss2-1.4.0-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/tk-8.6.13-noxft_h366c992_103.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/tokenizers-0.22.2-py312hf875000_0.conda
-      - conda: https://conda.anaconda.org/ga-fdp/linux-64/toksearch-2.11.3-py312hccd2c79_0.conda
+      - conda: https://conda.anaconda.org/ga-fdp/linux-64/toksearch-2.12.0-py312hccd2c79_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/tomli-2.4.1-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/tomlkit-0.13.3-pyha770c72_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/tornado-6.5.5-py312h4c3975b_0.conda
@@ -7567,9 +7567,9 @@ packages:
   - pkg:pypi/tokenizers?source=hash-mapping
   size: 2465644
   timestamp: 1764695075374
-- conda: https://conda.anaconda.org/ga-fdp/linux-64/toksearch-2.11.3-py312hccd2c79_0.conda
-  sha256: f306bfe9d6b59e2dcee5b49d722088b80ef10e75cdc8c0c101b1832c6041f069
-  md5: 8198d9b10fe43fc399f650c6257749d8
+- conda: https://conda.anaconda.org/ga-fdp/linux-64/toksearch-2.12.0-py312hccd2c79_0.conda
+  sha256: d48b98fcd45a4cf8c70ef5560279d7fb03f48d7eac62788f8d2cde50f5507054
+  md5: 8028283a46c44b7bfdeafe1abe3ded1d
   depends:
   - python 3.12.*
   - mdsplus-xrdcl >=1,<2
@@ -7596,16 +7596,16 @@ packages:
   - matplotlib
   - plotly
   - python-kaleido
-  - __glibc >=2.28,<3.0.a0
   - libgcc >=16
+  - __glibc >=2.28,<3.0.a0
   - python_abi 3.12.* *_cp312
   - numpy >=1.26.4,<2.0a0
   license: Apache-2.0
-  size: 5427272
-  timestamp: 1788753181448
+  size: 5430805
+  timestamp: 1789269578476
 - pypi: ./
   name: toksearch-d3d
-  version: 0.12.2
+  version: 0.12.2+2.gba22810.dirty
   sha256: e4d729b20ca23137c18fde910a61b4e02fefb6120f6c3f0ddd8af32b723b8dc2
   requires_dist:
   - imas-composer ; extra == 'imas'

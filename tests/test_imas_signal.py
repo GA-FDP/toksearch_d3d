@@ -657,7 +657,7 @@ class TestImasSignalFetchAsXarrayChannelDims(unittest.TestCase):
     def _signal_with_gather(self, result):
         from toksearch_d3d import ImasSignal
         sig = ImasSignal('fake.path', composer=_FakeLeafComposer('fake.path'))
-        sig.gather = lambda shot: result
+        sig.gather = lambda shot, record=None: result
         return sig
 
     def test_single_channel_2d_squeezed_with_times_coord(self):
@@ -707,7 +707,7 @@ class TestImasSignalFetchAsXarrayChannelDims(unittest.TestCase):
         from toksearch_d3d import ImasSignal
         sig = ImasSignal('fake.path', composer=_FakeLeafComposer('fake.path'),
                          layout='awkward')
-        sig.gather = lambda shot: {
+        sig.gather = lambda shot, record=None: {
             'data': ak.Array([[1.0, 2.0], [3.0]]),
             'times': np.array([0.0, 1.0]),
         }

@@ -19,7 +19,7 @@ platforms = ["linux-64"]
 
 [dependencies]
 python = ">=3.11"
-toksearch = ">=2.11.0"
+toksearch = ">=2.12.0"
 ptdata = ">=2.6.0,<3"
 matplotlib = "*"
 imas_composer = ">=0.2.4,<0.3"
