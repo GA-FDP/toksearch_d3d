@@ -147,7 +147,7 @@ class PtDataSignal(Signal):
         }
 
 
-    def gather(self, shot):
+    def gather(self, shot, record=None):
         dims = self.dims
         fetch_units = self.with_units
 
@@ -161,7 +161,18 @@ class PtDataSignal(Signal):
             params.fetch_times = fetch_times
             params.calibration = calibration_mode_for_ical(self.ical)
 
-            result = reader.fetch(self.pointname, int(shot), params)
+            # The version travels with the SHOT, not the signal: one
+            # PtDataSignal serves every shot in a pipeline, so a constructor
+            # kwarg would mean "v2 of everything". The shot list carries it --
+            # Pipeline([{"shot": N, "version": V}]) -- and the framework hands
+            # the record here without interpreting it.
+            #
+            # Record.get REQUIRES a default; it is not dict.get.
+            version = record.get("version", None) if record is not None else None
+            snapshot = record.get("snapshot", None) if record is not None else None
+
+            result = reader.fetch(self.pointname, int(shot), params,
+                                  version=version, snapshot=snapshot)
 
             # Raw calibration populates raw_integer rather than data; fall
             # through so 'data' is non-empty regardless of mode (matches the
