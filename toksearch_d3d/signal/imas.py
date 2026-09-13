@@ -635,7 +635,7 @@ class ImasSignal(Signal):
         }
         return apply_layout_prefix(composed, self.layout, entity_hints)
 
-    def gather(self, shot):
+    def gather(self, shot, record=None):
         """Fetch and compose the IDS field(s) for the given shot.
 
         Returns:
