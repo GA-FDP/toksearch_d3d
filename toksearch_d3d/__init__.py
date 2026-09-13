@@ -85,6 +85,35 @@ prad        Radiated power
 wmhd        MHD stored energy
 ==========  ============================
 
+Pinning a shot to a stored version
+----------------------------------
+
+The version travels with the SHOT, not the signal -- one PtDataSignal serves
+every shot in a pipeline, so a constructor kwarg would mean "v2 of
+everything".  Put it in the shot list::
+
+    Pipeline([
+        {'shot': 202159, 'version': 2},
+        {'shot': 202160, 'snapshot': 'catalog_20260901T000000'},
+        {'shot': 202161},                  # unpinned
+    ])
+
+A pin is a GUARANTEE, not a preference: if the requested version cannot be
+served you get an error in ``record['errors']``, never data from a different
+version.  Silent fallback would make a reproduction run look successful while
+reading different bytes than the run it reproduces.
+
+``version`` and ``snapshot`` are reserved Record fields alongside ``shot`` and
+``errors`` -- they survive ``keep()`` and cannot be deleted, so a routine
+``keep(['max_ip'])`` cannot strip the provenance saying which bytes produced
+``max_ip``.  Read them back with an explicit default, since ``Record.get``
+requires one::
+
+    version = rec.get('version', None)     # not rec.get('version')
+
+Requires toksearch >= 2.12.0 and ptdata >= 2.6.0 (both floored by
+toksearch_d3d 0.13.0, so a correct environment cannot silently drop a pin).
+
 ImasSignal
 ==========
 
