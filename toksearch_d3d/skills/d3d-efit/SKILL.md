@@ -22,12 +22,20 @@ person's rerun on every shot.
 | tree | what it is | use for |
 |------|-----------|---------|
 | `efit01` | ops automatic, **magnetics only** (`RUN_TYPE` `JT`, later `jta_f`) | geometry, boundary, shape, `WMHD`, `BETAN` |
-| `efit02` | ops automatic, **MSE-constrained** (`RUN_TYPE` `MSE`, later `mse15`/`mse23`) | anything current-profile: `QPSI`, `Q0`, `QMIN`, `LI`, shear |
+| `efit02` | ops automatic, **MSE-constrained** (`RUN_TYPE` is the snap name — `MSE`, `mse15`, `mse23`, ...) | anything current-profile: `QPSI`, `Q0`, `QMIN`, `LI`, shear |
 | `efit02er` | MSE-constrained with the MSE **corrected for the radial electric field** using CER | current profile where Er matters; compare against `efit02` |
 | `efits1`/`efits2`/`efits2er` | **unfiltered** efit01/efit02/efit02er | quality labels — see §4 |
 | `efitrt1`/`efitrt2` | real-time, computed by the PCS during the shot | what the controller saw; never physics |
 | `efit03`+ | user reruns; owner in `:USERID` | only after reading `:COMMENTS` |
 | `efit` | scratch tree: many runs per shot, each its own shot number | see §5 |
+
+**`RUN_TYPE` is the snap name, so match on its prefix, not its exact value.**
+Many MSE snaps have been used over the years — @torrinba lists `mse06`,
+`mse07a/b`, `mse08`, `mse09`, `mse10`, `mse11`, `mse15`, `mse20`, `mse23` and
+`mse23_no41`, with Er counterparts such as `mse09Er`, `mse10er`, `mse12Er`,
+`mse16er`, `mse20er`, `mse23er` and `mse23er_no41`. Casing is inconsistent
+(`Er` and `er` both occur). Confirmed here: `MSE` (165920), `mse15` (170589),
+`mse23` (200000), `mse16er` (170589), `mse23er_no41` (200000).
 
 `efit01` is under-determined for the current profile. Using its `q0`, `qmin` or
 `li` without cross-checking `efit02` is the most common misuse.
@@ -38,14 +46,20 @@ person's rerun on every shot.
 apply yourself.
 
 **`efit02er` exists only for some shots** — absent on 165920 and 198873,
-present on 200000. The d3drdb run log (§2) lists runs for shots
+present on 170589 and 200000. The d3drdb run log (§2) lists runs for shots
 133103-208191. The Er correction is visible in `:NAMELIST` (`mse_usecer=1`,
-`mse_use_cer330=1`). It is not a one-line change from `efit02`: on 200000
-(`RUN_TYPE='mse23er_no41'`) it also fits F- and E-coil currents
-(`fwtfc`, `fwtec`), zeroes MSE channel 41 (`fwtgam(41)=0.0`) and uses
-different spline knots. The snap varies run to run (`mse16er`,
-`mse15_add_er`, `mse23er_no41`), and it is run by `USERID='efit'` on request,
-so read `:COMMENTS` and `:NAMELIST` for each shot.
+`mse_use_cer330=1`, `mse_certree`). It is run by `USERID='efit'` on request.
+
+**Do not read the `efit02er`-vs-`efit02` namelist diff as the Er correction.**
+On 200000 the pair is `mse23er_no41` against `mse23`, so the diff also carries
+the channel-41 exclusion (`fwtgam(41)=0.0`) and a different spline basis
+(`kppknt` 3 vs 2, `pptens`/`fftens` 0.01 vs 5, plus `kcalpa`/`kcgama`
+constraints). Isolating Er would need the matching non-Er snap
+(`mse23_no41`), which is not present on that shot — no tree on 200000 carries
+it. Two details worth knowing before you diff: `fwtfc` is `18*1.` in **both**
+trees, so it is not a difference at all; and `iecurr=2 fwtec=6*1.` appears only
+in the Er namelist, though @torrinba notes E-coil currents are not fit, which
+would make those weights inert.
 
 ## 2. Tree layout
 
@@ -98,7 +112,7 @@ GEQDSK nodes carry the same `:LABEL`/`:UNITS`/`:MULTIPLIER` members as AEQDSK
 
 **Which channels were used or excluded** — the `FWT*` arrays in `MEASUREMENTS`,
 shaped `(ntime, nchannel)`: `FWTMP2` (76 magnetic probes), `FWTSI` (44 flux
-loops), `FWTGAM` (MSE; 101 channels on 165920, 69 on 2024 shots), `FWTFC`,
+loops), `FWTGAM` (MSE; 101 channels on 165920, 69 on later shots), `FWTFC`,
 `FWTEC`, `FWTPRE`, `FWTDIA`. These are **1/sigma weights, not 0/1 flags**.
 **Zero means excluded from that slice's fit.** On efit01/165920, 10 of 76
 probes and 5 of 44 loops are zeroed. `RRGAM`/`ZZGAM` give each MSE channel's
@@ -110,16 +124,17 @@ position in metres, same shape (1.53-2.33 m on efit02/200000; zero on `efit01`).
 |------|----------|-----------|
 | `SAIMPI`, `SAISIL`, `SAIPRE` | probes, loops, pressure | all runs |
 | `CHIGAM` | MSE (label `chisq vs. polarimetries`) | MSE-constrained trees |
-| `CHIFCC`, `CHIPASMA` | F-coils, Rogowski | 2024 runs; empty on 2016 and 2019 |
+| `CHIFCC`, `CHIPASMA` | F-coils, Rogowski | empty on 165920 but filled for later shots |
 | `CHIECC`, `CHIDFLUX` | E-coils, diamagnetic loop | exist, but zero on every run sampled |
 
 Use them to attribute a bad `CHISQ` to a specific channel. Compare measured
 against computed directly: `EXPMPI`/`CMPR2`, `SILOPT`/`CSILOP`,
 `PLASMA`/`CPASMA`, `FCCURT`/`CCBRSP`, `TANGAM`/`CMGAM`, `ECCURT`/`CECURR`,
-`DIAMAG`/`CDFLUX`. Take `DIAMAG` and `CDFLUX` from `MEASUREMENTS`, not
-`AEQDSK`: the AEQDSK nodes of the same names are different quantities (a scaled
-loop signal, and an unlabeled value near 1.7). `PRESSR`/`CPRESS` exist but are
-zero outside kinetic EFITs (per its label).
+`DIAMAG`/`CDFLUX`. **Always take these from `MEASUREMENTS`, not `AEQDSK`** —
+`AEQDSK` carries nodes of the same name that are sometimes different
+quantities. `DIAMAG`/`CDFLUX` are the confirmed case: in `AEQDSK` they hold a
+scaled loop signal and an unlabeled value near 1.7. `PRESSR`/`CPRESS` exist but
+are zero outside kinetic EFITs (per its label).
 
 **Uncertainty depends on when the run was made.** Per-channel sigmas live in
 `MEASUREMENTS`:
@@ -127,7 +142,7 @@ zero outside kinetic EFITs (per its label).
 | node | measures | 165920 (2016), 180000 (2019) | 198873, 200000 (2024) |
 |------|----------|------------------------------|-----------------------|
 | `SIGMPI`, `SIGSIL`, `SIGPASMA`, `SIGFCC` | probes, loops, Ip, F-coils | empty | populated |
-| `SIGGAM` | MSE `TANGAM` | populated on efit02/165920; zero on `efit01` | populated on MSE trees |
+| `SIGGAM` | MSE `TANGAM` | populated on MSE trees | populated on MSE trees |
 | `SIGDIA` | diamagnetic flux | populated | populated |
 | `SIGECC`, `SIGPRE` | E-coils, pressure | empty or zero | zero |
 
@@ -228,9 +243,14 @@ The thresholds are fixed and do not depend on the snap file.
   iterating*. A slice that hits the iteration limit first is still written out,
   so never gate on the namelist value. The namelist tolerance differs by snap
   (`1e-4` on efit01, `1e-3` on efit02), which is irrelevant to the gate.
-- `CHISQ` (`magnetic chi^2`) is goodness of fit, not convergence. On its own it
-  inverts the answer: on 165920 the 12 slices ops discarded had *lower*
-  `CHISQ` (10.9-22.0) than the median kept slice (22.7).
+- `CHISQ` (`magnetic chi^2`) is goodness of fit, not convergence. It is the
+  rarer half of the gate: a slice filtered on `CHISQ` usually means a
+  diagnostic failure, not a bad reconstruction. Across the six filtered pairs
+  sampled, the highest `CHISQ` in any *kept* set was 47.4 — well under the 80
+  cut — so in practice `ERROR` does nearly all the rejecting. Do not gate on
+  `CHISQ` alone: on 165920/efit01 the discarded slices had *lower* `CHISQ`
+  (median 11.9) than the kept ones (22.7), but that inversion is a coincidence
+  of that shot, not a rule — the other five pairs run the expected way.
 
 ```python
 import numpy as np, MDSplus
