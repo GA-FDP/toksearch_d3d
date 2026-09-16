@@ -94,7 +94,7 @@ everything".  Put it in the shot list::
 
     Pipeline([
         {'shot': 202159, 'version': 2},
-        {'shot': 202160, 'snapshot': 'catalog_20260901T000000'},
+        {'shot': 202160, 'catalog': 'catalog_20260901T000000'},
         {'shot': 202161},                  # unpinned
     ])
 

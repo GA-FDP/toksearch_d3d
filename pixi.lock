@@ -366,7 +366,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/propcache-0.3.1-py312h178313f_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/protobuf-6.33.5-py312ha7b3241_2.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/psutil-7.2.2-py312h5253ce2_0.conda
-      - conda: https://conda.anaconda.org/ga-fdp/linux-64/ptdata-2.6.0-py312h3eebbd5_0.conda
+      - conda: https://conda.anaconda.org/ga-fdp/linux-64/ptdata-2.11.0-py312h3eebbd5_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pthread-stubs-0.4-hb9d3cd8_1002.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/ptyprocess-0.7.0-pyhd8ed1ab_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pugixml-1.15-h3f63f65_0.conda
@@ -450,7 +450,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/tinycss2-1.4.0-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/tk-8.6.13-noxft_h366c992_103.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/tokenizers-0.22.2-py312hf875000_0.conda
-      - conda: https://conda.anaconda.org/ga-fdp/linux-64/toksearch-2.12.0-py312hccd2c79_0.conda
+      - conda: https://conda.anaconda.org/ga-fdp/linux-64/toksearch-2.17.1-py312hccd2c79_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/tomli-2.4.1-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/tomlkit-0.13.3-pyha770c72_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/tornado-6.5.5-py312h4c3975b_0.conda
@@ -6178,9 +6178,9 @@ packages:
   - pkg:pypi/psutil?source=hash-mapping
   size: 225545
   timestamp: 1769678155334
-- conda: https://conda.anaconda.org/ga-fdp/linux-64/ptdata-2.6.0-py312h3eebbd5_0.conda
-  sha256: 3d93e4019da5857e4b396f0d39e4346b0e0c8569ba4a07c0ed7bdf2888bc50e7
-  md5: 4cc9d85a4a59b64e528166a7639a51b9
+- conda: https://conda.anaconda.org/ga-fdp/linux-64/ptdata-2.11.0-py312h3eebbd5_0.conda
+  sha256: 4eb8492fdcda968c78b1892d676d7de5bfbd608324fe596587aca188eac837ed
+  md5: f39fe3b96b4c7763d2f12f423c384833
   depends:
   - python 3.12.*
   - numpy >=1.20,<3
@@ -6188,13 +6188,13 @@ packages:
   - libcurl
   - libgfortran
   - __glibc >=2.17,<3.0.a0
+  - libcurl >=8.22.0,<9.0a0
+  - python_abi 3.12.* *_cp312
   - libfdpio2 >=2.0.0,<3.0.0a0
   - numpy >=1.25,<3
-  - python_abi 3.12.* *_cp312
-  - libcurl >=8.22.0,<9.0a0
   license: Apache-2.0
-  size: 2984933
-  timestamp: 1789140159039
+  size: 3029211
+  timestamp: 1789510735568
 - conda: https://conda.anaconda.org/conda-forge/linux-64/pthread-stubs-0.4-hb9d3cd8_1002.conda
   sha256: 9c88f8c64590e9567c6c80823f0328e58d3b1efb0e1c539c0315ceca764e0973
   md5: b3c17d95b5a10c6e64a21fa17573e70e
@@ -7567,9 +7567,9 @@ packages:
   - pkg:pypi/tokenizers?source=hash-mapping
   size: 2465644
   timestamp: 1764695075374
-- conda: https://conda.anaconda.org/ga-fdp/linux-64/toksearch-2.12.0-py312hccd2c79_0.conda
-  sha256: d48b98fcd45a4cf8c70ef5560279d7fb03f48d7eac62788f8d2cde50f5507054
-  md5: 8028283a46c44b7bfdeafe1abe3ded1d
+- conda: https://conda.anaconda.org/ga-fdp/linux-64/toksearch-2.17.1-py312hccd2c79_0.conda
+  sha256: a4f7955b8fb9e882938f9fc22a015fda55bd4df3fc263e0b445698d57e19af78
+  md5: 687a67f7327c7798826b9ee36cf97625
   depends:
   - python 3.12.*
   - mdsplus-xrdcl >=1,<2
@@ -7598,15 +7598,17 @@ packages:
   - python-kaleido
   - libgcc >=16
   - __glibc >=2.28,<3.0.a0
-  - python_abi 3.12.* *_cp312
   - numpy >=1.26.4,<2.0a0
+  - python_abi 3.12.* *_cp312
+  constrains:
+  - ptdata >=2.9.0
   license: Apache-2.0
-  size: 5430805
-  timestamp: 1789269578476
+  size: 5465408
+  timestamp: 1789575114963
 - pypi: ./
   name: toksearch-d3d
-  version: 0.12.2+2.gba22810.dirty
-  sha256: e4d729b20ca23137c18fde910a61b4e02fefb6120f6c3f0ddd8af32b723b8dc2
+  version: 0+untagged.189.gd35745f.dirty
+  sha256: 40ab1861e6267a8a2a0ee25a3abe9b4ab946864c5ee8ab468db982455c02b771
   requires_dist:
   - imas-composer ; extra == 'imas'
   - awkward>=2.0 ; extra == 'imas'
