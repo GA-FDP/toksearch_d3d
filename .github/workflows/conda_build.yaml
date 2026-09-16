@@ -19,6 +19,10 @@ on:
     branches:
       - main
 
+# deploy_docs pushes to gh-pages.
+permissions:
+  contents: write
+
 jobs:
   build_and_test:
     # Not on a release tag: that promotes an artifact that already exists.
@@ -38,6 +42,12 @@ jobs:
 
       - name: Build Conda package
         env:
+          # This repo's tests fetch from the live origin. Without the token
+          # they fall through to the ptserver tier and fail with
+          # "getservbyname failed for task 'PTSERVER'", which reads as a
+          # missing /etc/services entry rather than a missing credential --
+          # 74 errors, all of them this.
+          BEARER_TOKEN: ${{ secrets.BEARER_TOKEN }}
           # Unconditional, not just for pre-releases. rattler-build's TEST
           # phase installs the package it just built and resolves run deps
           # from this channel list; siblings live in staging until a bless
