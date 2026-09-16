@@ -19,7 +19,11 @@ platforms = ["linux-64"]
 
 [dependencies]
 python = ">=3.11"
-toksearch = ">=2.12.0"
+# Matches the package floor. They drifted apart and the lockfile resolved
+# the lowest, so the dev env ran toksearch 2.12.0 -- which still forwarded
+# `record=` to gather, a signature removed in 2.14.0. Tests then failed here
+# for a reason that had nothing to do with the code under test.
+toksearch = ">=2.16.0"
 ptdata = ">=2.6.0,<3"
 matplotlib = "*"
 imas_composer = ">=0.2.4,<0.3"

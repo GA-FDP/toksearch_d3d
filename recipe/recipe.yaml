@@ -54,7 +54,12 @@ requirements:
     # calls gather(shot, record=record) and raises TypeError on the first
     # fetch. Unlike the pinning floors in fdp-core, the solver CAN enforce
     # this one, so it does.
-    - toksearch >=2.14.0
+    # 2.16.0 renamed the per-record pin field from `snapshot` to `catalog`
+    # and REFUSES the old spelling rather than ignoring it. This package's
+    # module docstring documents that field, and CLAUDE.md tells users to
+    # read it before writing a pipeline -- so below this floor the
+    # documentation teaches a spelling toksearch rejects.
+    - toksearch >=2.16.0
     - ptdata >=2.6.0,<3
     - imas_composer >=0.2.4,<0.3
     - filelock >=3

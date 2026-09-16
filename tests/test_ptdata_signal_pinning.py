@@ -107,8 +107,12 @@ class TestPinSurvivesTheFramework(unittest.TestCase):
     def test_a_pinned_pipeline_reaches_the_reader(self):
         from toksearch import Pipeline
 
+        # `catalog`, not `snapshot`: B7b renamed the RECORD field and
+        # toksearch refuses the old spelling rather than ignoring it. The
+        # ptdata-facing kwarg below is still `snapshot=` -- that seam is
+        # deliberate, see the B7b spec section 2.1.
         pipe = Pipeline([{"shot": 165920, "version": 3,
-                          "snapshot": "catalog_z"}])
+                          "catalog": "catalog_z"}])
         pipe.fetch("ip", PtDataSignal("ip"))
         records = pipe.compute_serial()
 
