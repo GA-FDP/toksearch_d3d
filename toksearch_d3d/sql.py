@@ -33,6 +33,11 @@ def connect_d3drdb(*, live=False, snapshot=None, **overrides):
     Returns a DB-API-shaped connection either way: `cursor()`, `with`,
     and `pd.read_sql(sql, conn)` all work.
 
+    A snapshot stops at a shot ceiling, so the newest shots are absent:
+    `conn.manifest["source"]["shot_ceiling"]` tells you where, and
+    `live=True` reaches them on-site. Off-site a snapshot needs
+    `BEARER_TOKEN`, so run under `fdp run`.
+
     Raises:
         toksearch.sql.snapshot.SnapshotError: the snapshot could not be
             located or read. Never silently replaced by the live database.
