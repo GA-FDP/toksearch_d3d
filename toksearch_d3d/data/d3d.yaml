@@ -36,6 +36,16 @@ locators:
     tdsver: "7.0"
     auth: { kind: password_file, path: ~/D3DRDB.sybase_login }
 
+  # Published, immutable snapshots of d3drdb: Parquet per table under
+  # metadata/d3drdb/d3drdb_<stamp>/, read remotely. Same name as the live
+  # locator above on purpose -- connect_d3drdb(live=True) finds it by that.
+  # Nothing under _spike or any other name matches id_pattern.
+  - kind: sql_snapshot
+    name: d3drdb
+    base_url: pelican://osg-htc.org:443/fdp-d3d/metadata/d3drdb
+    id_pattern: "d3drdb_*"
+    auth: { kind: bearer_token, env: BEARER_TOKEN }
+
 extra_env:
   D3DATA: "yes"
   SYS_D3_DELIM: ";"

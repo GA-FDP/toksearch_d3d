@@ -14,7 +14,9 @@
 
 [workspace]
 name = "toksearch_d3d"
-channels = ["ga-fdp", "conda-forge"]
+# Siblings (toksearch, fdp-schema, ...) sit in staging until an fdp-core bless
+# promotes them; the recipe's CI already resolves from staging the same way.
+channels = ["ga-fdp/label/staging", "ga-fdp", "conda-forge"]
 platforms = ["linux-64"]
 
 [dependencies]
@@ -23,7 +25,7 @@ python = ">=3.11"
 # the lowest, so the dev env ran toksearch 2.12.0 -- which still forwarded
 # `record=` to gather, a signature removed in 2.14.0. Tests then failed here
 # for a reason that had nothing to do with the code under test.
-toksearch = ">=2.16.0"
+toksearch = ">=2.18.0"
 ptdata = ">=2.6.0,<3"
 matplotlib = "*"
 imas_composer = ">=0.2.4,<0.3"
@@ -31,7 +33,11 @@ filelock = ">=3"
 # Phase 1 catalog migration. `fdp` is needed for the recipe test step
 # (which runs `fdp run testit.py`); `fdp-schema` is needed by fdp.catalog.
 fdp = ">=0.2.4"
-fdp-schema = ">=0.1.2"
+fdp-schema = ">=0.3.0"
+# connect_d3drdb() reads a published snapshot through DuckDB (D2).
+python-duckdb = ">=1.5,<2"
+duckdb-extension-httpfs = ">=1.5,<2"
+sqlglot = ">=30"
 socat = ">=1.8.1.1,<2"
 seaborn = ">=0.13.2,<0.14"
 pelicanplatform = ">=7.24.3,<8"
