@@ -59,7 +59,17 @@ requirements:
     # module docstring documents that field, and CLAUDE.md tells users to
     # read it before writing a pipeline -- so below this floor the
     # documentation teaches a spelling toksearch rejects.
-    - toksearch >=2.16.0
+    # connect_d3drdb() reads a published snapshot by default (D2). toksearch
+    # imports these lazily and does not declare them; the device package
+    # that ships the sql_snapshot locator does.
+    - toksearch >=2.18.0
+    - python-duckdb >=1.5,<2
+    - duckdb-extension-httpfs >=1.5,<2
+    - sqlglot >=30
+    # d3d.yaml declares a sql_snapshot locator. An older fdp-schema rejects
+    # the WHOLE file (the locator union is discriminated on kind), not just
+    # that entry -- so this floor is what keeps the catalog loadable.
+    - fdp-schema >=0.3.0
     - ptdata >=2.6.0,<3
     - imas_composer >=0.2.4,<0.3
     - filelock >=3
