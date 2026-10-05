@@ -36,6 +36,15 @@ def _published():
     return bool(snapshot.list_ids(base, loc.id_pattern, os.environ["BEARER_TOKEN"]))
 
 
+def _quiet_notice(cls):
+    """Silence SnapshotNotice for this class only; restored at class cleanup."""
+    from toksearch.sql.snapshot import SnapshotNotice
+    ctx = warnings.catch_warnings()
+    ctx.__enter__()
+    cls.addClassCleanup(ctx.__exit__, None, None, None)
+    warnings.simplefilter("ignore", SnapshotNotice)
+
+
 @unittest.skipUnless(HAVE_TOKEN, "needs BEARER_TOKEN (run under `fdp run`)")
 class TestAgainstTheOrigin(unittest.TestCase):
     @classmethod
@@ -44,7 +53,7 @@ class TestAgainstTheOrigin(unittest.TestCase):
             raise unittest.SkipTest(
                 "no d3drdb snapshot is published yet (D1); the client cannot be "
                 "exercised end to end until one is")
-        warnings.simplefilter("ignore")
+        _quiet_notice(cls)
 
     def test_cohort_query_runs_unchanged(self):
         import pandas as pd
@@ -69,10 +78,14 @@ class TestAgainstTheOrigin(unittest.TestCase):
     def test_the_notice_names_the_snapshot(self):
         from toksearch.sql import snapshot
         from toksearch_d3d.sql import connect_d3drdb
+        saved = set(snapshot._noticed)
         snapshot._noticed.clear()
-        with warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter("always")
-            connect_d3drdb().close()
+        try:
+            with warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter("always")
+                connect_d3drdb().close()
+        finally:
+            snapshot._noticed.update(saved)
         notices = [w for w in caught if issubclass(w.category, snapshot.SnapshotNotice)]
         self.assertEqual(len(notices), 1)
         self.assertIn("d3drdb_", str(notices[0].message))
@@ -83,18 +96,18 @@ class TestDifferential(unittest.TestCase):
     """Snapshot vs live, bounded by the snapshot's shot ceiling."""
 
     QUERIES = [
-        "SELECT shot, shot_type FROM shots_type WHERE shot <= {c} AND shot > {c} - 5000 ORDER BY shot",
+        "SELECT shot, shot_type FROM shots_type WHERE shot <= {c} AND shot > {c} - 5000 ORDER BY shot, shot_type",
         "SELECT shot, run, brief FROM shots WHERE shot <= {c} AND shot > {c} - 5000 ORDER BY shot",
         "SELECT run, brief FROM runs WHERE run IN (SELECT run FROM shots WHERE shot <= {c} AND shot > {c} - 2000) ORDER BY run",
-        "SELECT count(*) FROM shots_type WHERE shot_type = 'PLASMA' AND shot <= {c}",
-        "SELECT count(*) FROM shots WHERE brief LIKE '%elm%' AND shot <= {c}",
+        "SELECT count(*) AS n FROM shots_type WHERE shot_type = 'PLASMA' AND shot <= {c}",
+        "SELECT count(*) AS n FROM shots WHERE brief LIKE '%elm%' AND shot <= {c}",
     ]
 
     @classmethod
     def setUpClass(cls):
         if not _published():
             raise unittest.SkipTest("no d3drdb snapshot is published yet (D1)")
-        warnings.simplefilter("ignore")
+        _quiet_notice(cls)
 
     def test_snapshot_and_live_agree_below_the_ceiling(self):
         import pandas as pd
