@@ -22,16 +22,18 @@ HAVE_LIVE = (Path("~/D3DRDB.sybase_login").expanduser().exists()
 
 
 def _published():
-    """True if at least one snapshot is published; the reason otherwise."""
+    """True if at least one snapshot is published, False if the listing is empty.
+
+    An unreachable origin is a failure to report, not a reason to skip: any
+    SnapshotError raised while resolving the base or listing propagates, so
+    setUpClass errors with the real message.
+    """
     if not HAVE_TOKEN:
         return False
     from toksearch.sql import snapshot
     loc = snapshot.locator_for("d3d", "d3drdb")
-    try:
-        base = snapshot.resolve_base(loc.base_url)
-        return bool(snapshot.list_ids(base, loc.id_pattern, os.environ["BEARER_TOKEN"]))
-    except snapshot.SnapshotError:
-        return False
+    base = snapshot.resolve_base(loc.base_url)
+    return bool(snapshot.list_ids(base, loc.id_pattern, os.environ["BEARER_TOKEN"]))
 
 
 @unittest.skipUnless(HAVE_TOKEN, "needs BEARER_TOKEN (run under `fdp run`)")
