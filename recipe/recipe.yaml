@@ -62,7 +62,8 @@ requirements:
     # connect_d3drdb() reads a published snapshot by default (D2). toksearch
     # imports these lazily and does not declare them; the device package
     # that ships the sql_snapshot locator does.
-    - toksearch >=2.18.0
+    # 2.18.0 could not resolve a pelican:// snapshot base (User-Agent 403), so the floor is 2.18.1.
+    - toksearch >=2.18.1
     - python-duckdb >=1.5,<2
     - duckdb-extension-httpfs >=1.5,<2
     - sqlglot >=30
