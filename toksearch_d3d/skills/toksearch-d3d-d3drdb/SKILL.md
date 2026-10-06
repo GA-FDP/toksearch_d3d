@@ -136,9 +136,14 @@ pd.read_sql("SELECT shot, entered FROM shots WHERE shot = %s", conn, params=(194
 ```
 
 **Refused, with an error rather than wrong rows:** a `LIKE` pattern containing
-`[`, which is a T-SQL character class. `LIKE '[0-9]%'` raises a `ValueError`
-that names `regexp_matches()`, the DuckDB equivalent:
-`WHERE regexp_matches(brief, '^[0-9]')`.
+`[`, which is a T-SQL character class. `WHERE name LIKE 'ECE[0-9]%'` raises a
+`ValueError` that names `regexp_matches()`, the DuckDB equivalent:
+
+```sql
+SELECT Name FROM signal_names WHERE regexp_matches(Name, '^ECE[0-9]')
+```
+
+A query written this way runs only on the snapshot, not on `live=True`.
 
 **Passed through:** anything sqlglot cannot parse goes to DuckDB unchanged. If
 DuckDB rejects it too, the error carries sqlglot's message as a second line.
@@ -264,8 +269,9 @@ One row per run day: `RUN`, `BRIEF`, `MINIPROPOSAL` (for example
 
 Free-text logbook entries keyed on `SHOT` and `RUN`, with a `TOPIC`, a `TEXT`
 body, a `VOIDED` marker and attached `image*_id`. Useful for human context on a
-shot. **Run-level entries have `SHOT IS NULL`** and only a `RUN`; select them
-with `WHERE run = ... AND shot IS NULL`.
+shot. **Run-level entries have `SHOT IS NULL`**: 22,778 of them, most carrying
+a `RUN` (2,869 have neither). Select a run day's with
+`WHERE run = ... AND shot IS NULL`.
 
 ### Views
 
