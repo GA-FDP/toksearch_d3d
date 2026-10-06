@@ -18,8 +18,8 @@ pulse has an integer **shot** number, and almost every table is keyed on
 live in PTDATA, MDSplus and IMAS, and you fetch them with TokSearch afterwards.
 
 Three things catch people out: the default connection is a **published
-snapshot**, not the live server; a snapshot stops at a **shot ceiling**; and a
-snapshot hands back column names in the **table's** case, not your query's.
+snapshot**, not the live server; a snapshot stops at a **shot ceiling**; and
+some `SUMMARIES` scalars hold unphysical sentinel values.
 
 ## 1. What you get
 
@@ -148,13 +148,11 @@ A query written this way runs only on the snapshot, not on `live=True`.
 **Passed through:** anything sqlglot cannot parse goes to DuckDB unchanged. If
 DuckDB rejects it too, the error carries sqlglot's message as a second line.
 
-**Column names come back in the table's case.** On a snapshot,
-`SELECT shot, entered FROM shots` returns columns `SHOT` and `ENTERED`, as the
-table stores them; the live server returns `shot` and `entered`, as you typed
-them. Code that does `df["shot"]` works live and raises `KeyError` on the
-snapshot. Alias the columns (`SELECT s.shot AS shot, ...`) or normalize with
-`df.columns = df.columns.str.lower()`. Which case each table uses is shown in
-§6.
+**Column names.** Result column names follow the query's spelling
+(`SELECT shot` → `shot`), as on SQL Server; `SELECT *` returns the stored names
+(`SHOT`), also as on SQL Server. Requires toksearch >= 2.18.2; earlier versions
+return the stored names for every column, so `df["shot"]` raises `KeyError`
+there. Which case each table stores is shown in §6.
 
 ## 5. What is not in a snapshot, and why
 
@@ -175,8 +173,8 @@ and `BIGNODE_STATS` (`Invalid object name` on the live server too).
 `EXPERIMENTS` is in neither list: the database login cannot see it, so it
 cannot be dumped. It is not readable on `live=True` with the same login either.
 
-Querying an excluded table says so. The error is a `SnapshotError` whose last
-line reads, for example, `PERSONNEL is excluded from snapshots of this database
+Querying an excluded table says so. The error is a `SnapshotError` with a line
+reading, for example, `PERSONNEL is excluded from snapshots of this database
 (reason recorded in the manifest: 'people')`. The lists are also in
 `conn.manifest["excluded"]` and `conn.manifest["skipped"]`.
 
@@ -209,16 +207,7 @@ are lower case: `shot`, `shot_type`, `source`. The values you want are
 `'plasma'`, `'power supply test'`, `'calibration'`, `'data acquisition'`,
 `'unknown test'` and `'undefined'`. The column also holds about 500 stray
 values (times of day, NULL), so filter with `= 'plasma'` and never with
-`<> 'undefined'`.
-
-Plasma shots in a date window:
-
-```sql
-SELECT s.shot, s.entered
-FROM shots s JOIN shots_type t ON s.shot = t.shot
-WHERE t.shot_type = 'plasma'
-  AND s.entered BETWEEN '2024-06-01' AND '2024-08-01'
-```
+`<> 'undefined'`. Example 1 below is the standard plasma-shot query.
 
 ### `SUMMARIES` — per-shot physics scalars
 
@@ -230,6 +219,9 @@ major radius (`a`, `r`), elongation `kappa`, triangularity (`delta_u`,
 power `prad`, stored energy `wtotmax`, line density `nemax_co2` and
 `nemax_thomson`, `temax_ece`, and the times at which peaks occur (`t_*`).
 **Powers are in watts** (`pbeam > 5e6` is 5 MW). Columns are lower case.
+Some scalar columns hold unphysical sentinel values (`betanmax` reaches
+2,204,480 on shot 104268), so range-filter any column you sort or scatter on;
+`betanmax < 10` is the usual cut.
 
 ### `DISRUPTIONS` — one row per disrupted shot
 
@@ -257,7 +249,7 @@ find out what a pointname *is* without asking a DIII-D expert.
 - `SIGNAL_INFO`: per `Group_Id`, `Diagnostic`, `Description`, `Units`,
   `Contact`, `Example_Shot`
 
-The view `signals` is the two joined (§ Views below).
+The view `signals` is the two joined (see Views, below).
 
 ### `RUNS` — run-day and experiment metadata
 
@@ -278,14 +270,21 @@ a `RUN` (2,869 have neither). Select a run day's with
 Three of d3drdb's views are materialized as tables in a snapshot:
 
 - `signals` — `SIGNAL_NAMES` joined to `SIGNAL_INFO` on `Group_Id`: one row
-  per signal with its tree, path, diagnostic, units and description.
+  per signal with its tree, path, diagnostic, units and description. The
+  quickest way to look up a pointname:
+
+  ```sql
+  SELECT Name, Tree, Diagnostic, Units, Description
+  FROM signals
+  WHERE Name = 'IP'
+  ```
 - `shotvalvegas` — `SHOT`, `valve`, `gas`: which gas each valve held on each
   shot.
 - `preshot_summaries` — per shot, the pre-shot comment (`precomment`), `RUN`,
   `SHOT_TYPE` and miniproposal step (`mp_step`), beside a few scalars (`ip`,
-  `pbeam`, `pech`, `btor`) and `a_*` columns. The `a_*` units are not
-  consistent across years (`a_ip` is 1200000 on one shot and 1.2 on the next),
-  so check them before use.
+  `pbeam`, `pech`, `btor`) and `a_*` columns. `a_ip` is mostly amps, but a few
+  2013-era shots (152,775–153,042) store MA (values 0.8–1.25); check units
+  before use.
 
 ### How they fit together
 
@@ -295,8 +294,8 @@ RUNS ──< SHOTS ──< ENTRIES            (run day → its shots → logbook
           │  └──── SHOTS_TYPE         (1:1 classification)
           │  └──── SUMMARIES          (1:1 physics scalars)
           │  └──< shotvalvegas        (one row per valve per shot)
+          │  └──── DISRUPTIONS        (0..1 row per shot: disrupted shots)
           └──< disruption_warning     (many time slices per shot)
-               DISRUPTIONS            (1 row per disrupted shot)
 
 SIGNAL_INFO ──< SIGNAL_NAMES          (data dictionary, not shot-keyed;
                                        the view signals is the join)
@@ -340,6 +339,7 @@ SELECT su.shot, su.betanmax, su.pbeam, su.kappa, su.topology, su.pulse_length
 FROM summaries su JOIN shots_type t ON su.shot = t.shot
 WHERE t.shot_type = 'plasma'
   AND su.betanmax > 2.5
+  AND su.betanmax < 10          -- drop sentinel values
   AND su.pbeam   > 5e6          -- watts: 5 MW
   AND su.pulse_length > 2.0     -- seconds
 ORDER BY su.betanmax DESC
@@ -383,13 +383,14 @@ WHERE s.entered BETWEEN '2022-01-01' AND '2023-01-01'
 ```
 
 **7. Time-resolved disruption-warning ML features for a shot** (many rows per
-shot, one per time slice; shots 156,199–177,061):
+shot, one per time slice; shots 156,199–177,061; not every feature is
+filled on every shot):
 
 ```sql
 SELECT time, time_until_disrupt, beta_n, li, q95, n_equal_1_mode_IRLM,
        radiated_fraction, ip_error, v_loop
 FROM disruption_warning
-WHERE shot = 175552
+WHERE shot = 165454
 ORDER BY time
 ```
 
@@ -401,14 +402,8 @@ FROM signal_names n JOIN signal_info i ON n.Group_Id = i.Group_Id
 WHERE n.Name LIKE '%ip%'
 ```
 
-Or browse everything from one diagnostic or contact through
-`signal_info.Diagnostic`, or query the `signals` view directly:
-
-```sql
-SELECT Name, Tree, Diagnostic, Units, Description
-FROM signals
-WHERE Name = 'IP'
-```
+Or browse everything from one diagnostic through `signal_info.Diagnostic`, or
+use the `signals` view (Views, above).
 
 **9. Shots belonging to a particular experiment or miniproposal.**
 
@@ -456,11 +451,6 @@ FROM shotvalvegas
 WHERE shot = 194528 AND gas IS NOT NULL
 ORDER BY valve
 ```
-
-**Dialect notes.** Write T-SQL: `SELECT TOP N` (not `LIMIT N`), single-quoted
-string literals. Identifiers are case-insensitive on both paths. Pass Python
-values with `%s`/`%(name)s` parameters, or an f-string `IN (...)` list built
-from `int()` values as in example 4; never format untrusted strings into SQL.
 
 ### Practical tips
 
