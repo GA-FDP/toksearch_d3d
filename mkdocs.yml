@@ -50,6 +50,7 @@ nav:
   - Tutorials:
     - "PTData Diagnostics": ptdata.md
     - "IMAS Data Access": imas.md
+    - "Shot metadata (d3drdb)": d3drdb.md
   - API:
     - "ImasSignal": imas_api.md
     - "PtDataSignal / RDataSignal": ptdata_api.md
