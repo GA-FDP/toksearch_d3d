@@ -102,7 +102,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/fastapi-cli-0.0.32-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/fastapi-core-0.142.2-pyh5ded981_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/fastar-0.12.0-py312h15b83fc_0.conda
-      - conda: https://conda.anaconda.org/ga-fdp/noarch/fdp-0.11.0-pyh4616a5c_0.conda
+      - conda: https://conda.anaconda.org/ga-fdp/label/staging/noarch/fdp-0.12.0-pyh4616a5c_0.conda
       - conda: https://conda.anaconda.org/ga-fdp/noarch/fdp-schema-0.3.0-pyh4616a5c_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/ffmpeg-9.0.2-gpl_h2f7cf13_903.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/ffmpy-1.0.0-pyh017c687_0.conda
@@ -383,7 +383,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/propcache-0.5.4-py312hfd18d64_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/protobuf-7.35.1-py312h742aa7d_3.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/psutil-7.2.2-py312h1b36aeb_3.conda
-      - conda: https://conda.anaconda.org/ga-fdp/linux-64/ptdata-2.11.2-py312h3eebbd5_0.conda
+      - conda: https://conda.anaconda.org/ga-fdp/label/staging/linux-64/ptdata-2.11.3-py312h3eebbd5_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pthread-stubs-0.4-h7cc23a3_1004.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/ptyprocess-0.7.0-pyhd8ed1ab_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pugixml-1.15-h3f63f65_0.conda
@@ -467,7 +467,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/tinycss2-1.4.0-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/tk-8.6.13-noxft_h1df4ec4_4.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/tokenizers-0.23.1-py312hf875000_0.conda
-      - conda: https://conda.anaconda.org/ga-fdp/label/staging/linux-64/toksearch-2.18.2-py312hccd2c79_0.conda
+      - conda: https://conda.anaconda.org/ga-fdp/label/staging/linux-64/toksearch-2.19.0-py312hccd2c79_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/tomli-2.4.1-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/tomlkit-0.14.0-pyha770c72_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/tornado-6.5.10-py312h5cc1888_0.conda
@@ -2000,19 +2000,21 @@ packages:
   - pkg:pypi/fastar?source=hash-mapping
   size: 352348
   timestamp: 1787239224146
-- conda: https://conda.anaconda.org/ga-fdp/noarch/fdp-0.11.0-pyh4616a5c_0.conda
-  sha256: f074d50a6eee5a34a1822ee962f8a9a68b094cbe97fded5902b34adbadd7e100
-  md5: 9bede3a82a9675d656edcac1fde430ef
+- conda: https://conda.anaconda.org/ga-fdp/label/staging/noarch/fdp-0.12.0-pyh4616a5c_0.conda
+  sha256: cbb2a1b75569d8a56c31cab139761eaadf77e7a165f6288d5b7e7c77e66e9f92
+  md5: 8892cd4406b7d6d3a8c61c9d801f3f65
   depends:
   - python
   - xrdcl-pelican-fdp
   - pelicanplatform >=7.24.3,<8
   - fdp-schema >=0.2.1
-  - toksearch
+  - toksearch >=2.19.0
   - graphviz
+  constrains:
+  - ptdata >=2.11.3
   license: Apache-2.0
-  size: 185555
-  timestamp: 1790973920546
+  size: 189356
+  timestamp: 1791318074708
 - conda: https://conda.anaconda.org/ga-fdp/noarch/fdp-schema-0.3.0-pyh4616a5c_0.conda
   sha256: b5232cebe5d42f6ec5e657d467b9a9ea07db3b012feceb4bae7845941a05f332
   md5: 8d2c9eb6f4211ae8c183cb8fe47c475e
@@ -6484,9 +6486,9 @@ packages:
   - pkg:pypi/psutil?source=compressed-mapping
   size: 225549
   timestamp: 1789682039049
-- conda: https://conda.anaconda.org/ga-fdp/linux-64/ptdata-2.11.2-py312h3eebbd5_0.conda
-  sha256: a860bd1af1ae0713ebdd2f9ff87fbd04c3984c146c6cf4cb1552d72b9a8a505a
-  md5: f4828acfa6eef984f9591a96bfbc5111
+- conda: https://conda.anaconda.org/ga-fdp/label/staging/linux-64/ptdata-2.11.3-py312h3eebbd5_0.conda
+  sha256: f70ec84df6606968d10c0bd51e30a5c12cad45739aaeddfc2436953c51177ebc
+  md5: 73c3fbbb4e923deac3027df7d1468075
   depends:
   - python 3.12.*
   - numpy >=1.20,<3
@@ -6494,13 +6496,13 @@ packages:
   - libcurl
   - libgfortran
   - __glibc >=2.17,<3.0.a0
-  - libcurl >=8.22.0,<9.0a0
   - numpy >=1.25,<3
-  - python_abi 3.12.* *_cp312
   - libfdpio2 >=2.0.0,<3.0.0a0
+  - libcurl >=8.22.0,<9.0a0
+  - python_abi 3.12.* *_cp312
   license: Apache-2.0
-  size: 3030440
-  timestamp: 1790622697263
+  size: 3032569
+  timestamp: 1791318199777
 - conda: https://conda.anaconda.org/conda-forge/linux-64/pthread-stubs-0.4-h7cc23a3_1004.conda
   sha256: 4a44fd00ea73b79ca2c89b0727b9ccf61c506ead71e67a9abfa4c590042b5a4a
   md5: bb66b610707b811e3c65181a6431e7a8
@@ -7895,9 +7897,9 @@ packages:
   - pkg:pypi/tokenizers?source=hash-mapping
   size: 2506096
   timestamp: 1782755479709
-- conda: https://conda.anaconda.org/ga-fdp/label/staging/linux-64/toksearch-2.18.2-py312hccd2c79_0.conda
-  sha256: 72cef8559411f2c87bb8604c57f6cdc4f52f094680ccce63553171ead3963e6c
-  md5: 86c23100a76b7cefba382a3917410053
+- conda: https://conda.anaconda.org/ga-fdp/label/staging/linux-64/toksearch-2.19.0-py312hccd2c79_0.conda
+  sha256: 45982e296729ed622fb6bd0c1eda506169f5d1156707e8ee04e2e1fb85b46ca6
+  md5: 9f91f42d4b85340790bd44cafb2a3f2b
   depends:
   - python 3.12.*
   - mdsplus-xrdcl >=1,<2
@@ -7924,15 +7926,15 @@ packages:
   - matplotlib
   - plotly
   - python-kaleido
-  - __glibc >=2.28,<3.0.a0
   - libgcc >=16
-  - python_abi 3.12.* *_cp312
+  - __glibc >=2.28,<3.0.a0
   - numpy >=1.26.4,<2.0a0
+  - python_abi 3.12.* *_cp312
   constrains:
   - ptdata >=2.9.0
   license: Apache-2.0
-  size: 5512767
-  timestamp: 1791308954842
+  size: 5522658
+  timestamp: 1791317523940
 - pypi: ./
   name: toksearch-d3d
   version: 0.14.1+0.gf382ded.dirty

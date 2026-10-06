@@ -66,7 +66,9 @@ requirements:
     # 2.18.2: snapshot result columns take the query's spelling, as SQL Server's
     # do. The d3drdb skill and the docstring describe that behaviour, so the
     # pairing with 2.18.1 would document something false (df["shot"] raises).
-    - toksearch >=2.18.2
+    # 2.19.0 settles and replays the d3drdb snapshot at compute(): a pipeline
+    # pins it for its workers, and Pipeline.from_snapshot replays a saved one.
+    - toksearch >=2.19.0
     - python-duckdb >=1.5,<2
     - duckdb-extension-httpfs >=1.5,<2
     - sqlglot >=30

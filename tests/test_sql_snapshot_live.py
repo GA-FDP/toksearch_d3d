@@ -126,5 +126,122 @@ class TestDifferential(unittest.TestCase):
                 pd.testing.assert_frame_equal(a, b, check_dtype=False, obj=sql)
 
 
+SNAPSHOT_VAR = "FDP_SQL_SNAPSHOT_D3DRDB"
+SNAPSHOT_ID = r"d3drdb_\d{8}T\d{6}Z"
+# What a compute() over a saved snapshot exports or flags for the run.
+# Each test starts and ends with none of it, so no test inherits a pin.
+_RUN_VARS = (SNAPSHOT_VAR, "FDP_STORE_CATALOG", "FDP_STORE_SHARDS")
+
+
+def _which_snapshot(rec):
+    """Map function: the snapshot a worker's connect_d3drdb() reads."""
+    import os
+    from toksearch_d3d.sql import connect_d3drdb
+    with connect_d3drdb() as conn:
+        rec["sid"] = conn.snapshot
+    rec["pid"] = os.getpid()
+    return rec
+
+
+def _fdp(*args):
+    import subprocess
+    return subprocess.run(["fdp", *args], capture_output=True, text=True)
+
+
+@unittest.skipUnless(HAVE_TOKEN, "needs BEARER_TOKEN (run under `fdp run`)")
+class TestPinning(unittest.TestCase):
+    """D3: a saved snapshot records the d3drdb snapshot a run read, verifies
+    its Parquet, and pins it for every worker of a replay."""
+
+    @classmethod
+    def setUpClass(cls):
+        import tempfile
+        if not _published():
+            raise unittest.SkipTest("no d3drdb snapshot is published yet (D1)")
+        _quiet_notice(cls)
+        tmp = tempfile.TemporaryDirectory()
+        cls.addClassCleanup(tmp.cleanup)
+        cls.path = os.path.join(tmp.name, "s.json")
+        cls.save = _fdp("snapshot", "save", "--shot", "165920", "-o", cls.path)
+        if cls.save.returncode != 0:
+            raise AssertionError("fdp snapshot save exited {}:\n{}{}".format(
+                cls.save.returncode, cls.save.stdout, cls.save.stderr))
+        import json
+        with open(cls.path) as fh:
+            cls.doc = json.load(fh)
+
+    def setUp(self):
+        from toksearch.signal import store_catalog
+        from toksearch.sql import snapshot
+        self._env_before = {k: os.environ.get(k) for k in _RUN_VARS}
+        self._pinned_before = set(snapshot._pinned)
+        self._catalog_pinned_before = store_catalog._PINNED_THIS_PROCESS
+        self._clear()
+
+    def tearDown(self):
+        from toksearch.signal import store_catalog
+        from toksearch.sql import snapshot
+        self._clear()
+        for k, v in self._env_before.items():
+            if v is not None:
+                os.environ[k] = v
+        snapshot._pinned.update(self._pinned_before)
+        store_catalog._PINNED_THIS_PROCESS = self._catalog_pinned_before
+
+    @staticmethod
+    def _clear():
+        from toksearch.signal import store_catalog
+        from toksearch.sql import snapshot
+        for k in _RUN_VARS:
+            os.environ.pop(k, None)
+        snapshot._pinned.clear()
+        store_catalog._PINNED_THIS_PROCESS = False
+
+    def test_save_show_verify(self):
+        from toksearch_d3d.sql import connect_d3drdb
+        self.assertEqual(self.doc["schema"], "fdp-snapshot/2")
+        sid = self.doc["sql_snapshots"]["d3drdb"]
+        self.assertRegex(sid, "^" + SNAPSHOT_ID + "$")
+
+        show = _fdp("snapshot", "show", self.path)
+        self.assertEqual(show.returncode, 0, show.stderr)
+        self.assertIn(sid, show.stdout)
+
+        verify = _fdp("snapshot", "verify", "--sample", "2", self.path)
+        self.assertEqual(verify.returncode, 0, verify.stdout + verify.stderr)
+        self.assertIn("d3drdb", verify.stdout + verify.stderr)
+
+        # Saved moments ago, so the newest then is the newest now.
+        with connect_d3drdb() as conn:
+            self.assertEqual(conn.snapshot, sid)
+
+    def test_replay_pins_the_worker(self):
+        from toksearch import Pipeline
+        sid = self.doc["sql_snapshots"]["d3drdb"]
+        pipe = Pipeline.from_snapshot(self.path)
+        pipe.map(_which_snapshot)
+        recs = list(pipe.compute_multiprocessing(num_workers=2))
+        self.assertEqual([r["shot"] for r in recs], [165920])
+        for rec in recs:
+            self.assertEqual(rec["sid"], sid)
+            self.assertNotEqual(rec["pid"], os.getpid())
+        self.assertEqual(os.environ.get(SNAPSHOT_VAR), sid)
+
+    def test_env_pin_conflicts_with_the_file(self):
+        from toksearch import Pipeline
+        from toksearch.sql.snapshot import SnapshotConflict
+        os.environ[SNAPSHOT_VAR] = "d3drdb_19700101T000000Z"
+        with self.assertRaises(SnapshotConflict) as cm:
+            Pipeline.from_snapshot(self.path).compute_serial()
+        msg = str(cm.exception)
+        self.assertIn("d3drdb_19700101T000000Z", msg)
+        self.assertIn(self.doc["sql_snapshots"]["d3drdb"], msg)
+        self.assertIn(SNAPSHOT_VAR, msg)
+        # A user's export, not this process's settle: the message names the
+        # file as the other pin and says which variable to unset. (The text
+        # naming Pipeline.from_snapshot is for a pin this process settled.)
+        self.assertIn("saved snapshot", msg)
+
+
 if __name__ == "__main__":
     unittest.main()
