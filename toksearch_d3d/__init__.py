@@ -256,7 +256,7 @@ Run under ``fdp run``, which supplies the token. Your T-SQL runs unchanged::
 
     with connect_d3drdb() as conn:
         df = pd.read_sql(
-            \"\"\"SELECT s.shot AS shot, s.entered AS entered
+            \"\"\"SELECT s.shot, s.entered
             FROM shots s JOIN shots_type st ON s.shot = st.shot
             WHERE st.shot_type = 'plasma'
               AND s.entered >= '2024-06-01'\"\"\",
@@ -272,8 +272,9 @@ Run under ``fdp run``, which supplies the token. Your T-SQL runs unchanged::
   only, needs ``~/D3DRDB.sybase_login``. Neither falls back to the other.
   ``connect_d3drdb(live=True)`` sets ``TDSVER`` for you; only the deprecated
   ``toksearch.sql.mssql.connect_d3drdb`` needs ``TDSVER="7.0"`` exported.
-- A snapshot returns column names in the table's stored case (``SHOT``),
-  the live server in your query's case; alias them (``AS shot``) as above.
+- Result column names follow the query's spelling (``SELECT shot`` ->
+  ``shot``), as on SQL Server; ``SELECT *`` returns the stored names
+  (``SHOT``), also as on SQL Server. Requires toksearch >= 2.18.2.
 - Pin a run with ``connect_d3drdb(snapshot="d3drdb_<stamp>")`` or
   ``FDP_SQL_SNAPSHOT_D3DRDB``.
 
@@ -304,9 +305,8 @@ DIII-D Gotchas
   shots above its ceiling are missing; ``live=True`` reaches them on-site
 - ``PtDataSignal('pinj')`` returns "Invalid shot number" for recent shots —
   use ``ImasSignal('nbi.unit.power_launched.data')`` instead
-- ``PTDATA2`` TDI expressions hang inside ``fdp run`` due to XRootD
-  fork-after-threading — fetch via ``PtDataSignal`` directly
-- Only the ``efit01`` MDSplus tree is available via FDP Pelican
+- ``PTDATA2`` TDI expressions work under ``fdp run``; the fork-after-XrdCl hang is fixed in ``xrdcl-pelican-fdp`` 0.3.0
+- All DIII-D MDSplus trees (not just ``efit01``) are on the FDP Pelican origin
 - PTData JSON index has a coverage cap (~shot 201,299) — use ImasSignal
   for newer shots
 - ``pathlib.Path()`` mangles ``pelican://`` URLs — use f-strings
