@@ -14,9 +14,12 @@
 
 [workspace]
 name = "toksearch_d3d"
-# Siblings (toksearch, fdp-schema, ...) sit in staging until an fdp-core bless
-# promotes them; the recipe's CI already resolves from staging the same way.
-channels = ["ga-fdp/label/staging", "ga-fdp", "conda-forge"]
+# Siblings sit in staging until an fdp-core bless promotes them. Staging is
+# listed LAST and only toksearch is pinned to it below: pixi channel priority
+# is strict, so staging listed first would hand this env any staged candidate
+# (an rc, an unblessed build) for every ga-fdp package, not just the one we
+# need. Found 2026-10-05 when a sibling env took xrdcl-pelican-fdp 0.3.0rc2.
+channels = ["conda-forge", "ga-fdp", "ga-fdp/label/staging"]
 platforms = ["linux-64"]
 
 [dependencies]
@@ -25,7 +28,7 @@ python = ">=3.11"
 # the lowest, so the dev env ran toksearch 2.12.0 -- which still forwarded
 # `record=` to gather, a signature removed in 2.14.0. Tests then failed here
 # for a reason that had nothing to do with the code under test.
-toksearch = ">=2.18.1"
+toksearch = { version = ">=2.18.1", channel = "ga-fdp/label/staging" }
 ptdata = ">=2.6.0,<3"
 matplotlib = "*"
 imas_composer = ">=0.2.4,<0.3"
