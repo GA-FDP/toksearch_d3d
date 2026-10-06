@@ -102,7 +102,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/fastapi-cli-0.0.32-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/fastapi-core-0.142.2-pyh5ded981_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/fastar-0.12.0-py312h15b83fc_0.conda
-      - conda: https://conda.anaconda.org/ga-fdp/label/staging/noarch/fdp-0.12.0-pyh4616a5c_0.conda
+      - conda: https://conda.anaconda.org/ga-fdp/label/staging/noarch/fdp-0.12.1-pyh4616a5c_0.conda
       - conda: https://conda.anaconda.org/ga-fdp/noarch/fdp-schema-0.3.0-pyh4616a5c_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/ffmpeg-9.0.2-gpl_h2f7cf13_903.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/ffmpy-1.0.0-pyh017c687_0.conda
@@ -2000,9 +2000,9 @@ packages:
   - pkg:pypi/fastar?source=hash-mapping
   size: 352348
   timestamp: 1787239224146
-- conda: https://conda.anaconda.org/ga-fdp/label/staging/noarch/fdp-0.12.0-pyh4616a5c_0.conda
-  sha256: cbb2a1b75569d8a56c31cab139761eaadf77e7a165f6288d5b7e7c77e66e9f92
-  md5: 8892cd4406b7d6d3a8c61c9d801f3f65
+- conda: https://conda.anaconda.org/ga-fdp/label/staging/noarch/fdp-0.12.1-pyh4616a5c_0.conda
+  sha256: d250526e9f55ea7e16059e14cdb782f5647c4e376aac0ba15ca25f29d7843665
+  md5: 479958d5da1577c55d8c86f4a5ce2711
   depends:
   - python
   - xrdcl-pelican-fdp
@@ -2013,8 +2013,8 @@ packages:
   constrains:
   - ptdata >=2.11.3
   license: Apache-2.0
-  size: 189356
-  timestamp: 1791318074708
+  size: 189553
+  timestamp: 1791320599775
 - conda: https://conda.anaconda.org/ga-fdp/noarch/fdp-schema-0.3.0-pyh4616a5c_0.conda
   sha256: b5232cebe5d42f6ec5e657d467b9a9ea07db3b012feceb4bae7845941a05f332
   md5: 8d2c9eb6f4211ae8c183cb8fe47c475e

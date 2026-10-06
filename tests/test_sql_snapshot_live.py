@@ -223,6 +223,8 @@ class TestPinning(unittest.TestCase):
         recs = list(pipe.compute_multiprocessing(num_workers=2))
         self.assertEqual([r["shot"] for r in recs], [165920])
         for rec in recs:
+            # A map that raises is recorded, not propagated: show why.
+            self.assertEqual(rec.errors, {}, "the worker's map failed")
             self.assertEqual(rec["sid"], sid)
             self.assertNotEqual(rec["pid"], os.getpid())
         self.assertEqual(os.environ.get(SNAPSHOT_VAR), sid)
