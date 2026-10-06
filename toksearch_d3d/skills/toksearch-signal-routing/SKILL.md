@@ -66,11 +66,14 @@ def corr(rec):
 ## SQL shot metadata
 
 ```python
-from toksearch_d3d.sql import connect_d3drdb        # sets TDSVER for you
+from toksearch_d3d.sql import connect_d3drdb   # a published snapshot; live=True for SQL Server
 ```
-Canonical shot-type classification is the **`shots_type` table**
+`connect_d3drdb()` reads a published snapshot of d3drdb (run under
+`fdp run`); it stops at a shot ceiling, and `live=True` reaches newer shots
+on-site. Canonical shot-type classification is the **`shots_type` table**
 (`shot_type='plasma'`), joined on `shots.shot = shots_type.shot` — not the
-`shot_type` column on `shots`.
+`shot_type` column on `shots`. The **toksearch-d3d-d3drdb** skill has the
+table guide.
 
 ## API reminders
 
@@ -83,4 +86,5 @@ Canonical shot-type classification is the **`shots_type` table**
 
 - **toksearch-d3d-imas** — full ImasSignal API (ragged data, `split_by`, dims).
 - **toksearch-datasets** — `fetch_dataset`/`align` for multi-signal grids.
+- **toksearch-d3d-d3drdb** — shot metadata: the snapshot, `live=True`, and the tables.
 - **toksearch-d3d-ptdata** / **toksearch-mds** — per-backend details.

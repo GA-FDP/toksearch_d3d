@@ -41,8 +41,9 @@ paths, MDSplus tree paths, PTData configuration. The bearer token is
 resolved from the ``bearer_token`` argument, then ``$BEARER_TOKEN``, then
 ``~/.fdp/token``.
 
-Connecting to d3drdb needs no manual ``TDSVER`` — ``connect_d3drdb`` reads
-``tdsver`` from the ``d3d.yaml`` d3drdb locator and sets it for you.
+``connect_d3drdb()`` reads a published snapshot of d3drdb over the same
+token, so run d3drdb scripts under ``fdp run`` too (see "Shot List from
+d3drdb").
 
 Imports
 =======
@@ -53,7 +54,7 @@ Imports
     from toksearch_d3d import PtDataSignal     # DIII-D PTDATA diagnostics
     from toksearch_d3d import ImasSignal       # IMAS IDS paths (requires imas_composer)
     from toksearch_d3d import CakeSignal       # Equilibrium/profile via MDSplus+SQLite
-    from toksearch.sql.mssql import connect_d3drdb  # Shot metadata DB
+    from toksearch_d3d.sql import connect_d3drdb   # Shot metadata DB (d3drdb)
 
 Import ``PtDataSignal`` and ``ImasSignal`` from ``toksearch_d3d``, **not**
 ``toksearch``.
@@ -246,24 +247,40 @@ Common IDS paths::
 Shot List from d3drdb
 =====================
 
-::
+``connect_d3drdb()`` returns the newest **published snapshot** of d3drdb,
+read remotely (Parquet on the FDP origin, through DuckDB), on-site and off.
+Run under ``fdp run``, which supplies the token. Your T-SQL runs unchanged::
 
     import pandas as pd
-    from toksearch.sql.mssql import connect_d3drdb
+    from toksearch_d3d.sql import connect_d3drdb
 
     with connect_d3drdb() as conn:
         df = pd.read_sql(
-            \"\"\"SELECT s.shot, s.entered
+            \"\"\"SELECT s.shot AS shot, s.entered AS entered
             FROM shots s JOIN shots_type st ON s.shot = st.shot
             WHERE st.shot_type = 'plasma'
               AND s.entered >= '2024-06-01'\"\"\",
             conn,
         )
+        print(conn.snapshot)          # e.g. d3drdb_20261006T135944Z
     shots = df['shot'].tolist()
+
+- A snapshot stops at a **shot ceiling**,
+  ``conn.manifest["source"]["shot_ceiling"]``; the newest shots are only in
+  the live database.
+- ``connect_d3drdb(live=True)`` dials the live SQL Server instead: on-site
+  only, needs ``~/D3DRDB.sybase_login``. Neither falls back to the other.
+  ``connect_d3drdb(live=True)`` sets ``TDSVER`` for you; only the deprecated
+  ``toksearch.sql.mssql.connect_d3drdb`` needs ``TDSVER="7.0"`` exported.
+- A snapshot returns column names in the table's stored case (``SHOT``),
+  the live server in your query's case; alias them (``AS shot``) as above.
+- Pin a run with ``connect_d3drdb(snapshot="d3drdb_<stamp>")`` or
+  ``FDP_SQL_SNAPSHOT_D3DRDB``.
 
 Key tables: ``shots`` (shot number, ``entered`` timestamp),
 ``shots_type`` (``shot_type``: 'plasma', 'calibration', etc.).
-Join on ``shots.shot = shots_type.shot``.
+Join on ``shots.shot = shots_type.shot``. The ``toksearch-d3d-d3drdb``
+skill has the table guide, what T-SQL works, and what a snapshot excludes.
 
 fdp CLI
 =======
@@ -283,9 +300,8 @@ or ``-t TOKEN`` flag.
 DIII-D Gotchas
 ==============
 
-- ``connect_d3drdb`` sets ``TDSVER`` automatically (from the ``d3d.yaml``
-  d3drdb locator); the deprecated ``toksearch.sql.mssql.connect_d3drdb``
-  still needs ``TDSVER="7.0"`` set manually
+- ``connect_d3drdb()`` is a published snapshot, not the live database:
+  shots above its ceiling are missing; ``live=True`` reaches them on-site
 - ``PtDataSignal('pinj')`` returns "Invalid shot number" for recent shots —
   use ``ImasSignal('nbi.unit.power_launched.data')`` instead
 - ``PTDATA2`` TDI expressions hang inside ``fdp run`` due to XRootD
