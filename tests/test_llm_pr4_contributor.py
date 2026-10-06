@@ -59,6 +59,22 @@ class TestToksearchD3dContributor(unittest.TestCase):
         names = [n for n, _p in discover_skill_dirs()]
         self.assertIn("toksearch_d3d", names)
 
+    def test_the_d3drdb_skill_is_discovered_and_well_formed(self):
+        # discover_skill_dirs() yields (package, skills_dir) pairs; the
+        # skill is a subdirectory of toksearch_d3d's skills_dir.
+        dirs = dict(discover_skill_dirs())
+        self.assertIn("toksearch_d3d", dirs)
+        skill = dirs["toksearch_d3d"] / "toksearch-d3d-d3drdb" / "SKILL.md"
+        self.assertTrue(skill.is_file(), skill)
+        text = skill.read_text()
+        head = text.split("---")[1]
+        self.assertIn("name: toksearch-d3d-d3drdb", head)
+        self.assertIn("user-invocable: false", head)
+        self.assertIn("description:", head)
+        for phrase in ("live=True", "shot_ceiling", "FDP_SQL_SNAPSHOT_D3DRDB",
+                       "fdp run", "SHOTS_TYPE"):
+            self.assertIn(phrase, text)
+
     def test_amsc_preset_registered(self):
         self.assertIn("amsc", discover_presets())
 
