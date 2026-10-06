@@ -467,7 +467,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/tinycss2-1.4.0-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/tk-8.6.13-noxft_h1df4ec4_4.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/tokenizers-0.23.1-py312hf875000_0.conda
-      - conda: https://conda.anaconda.org/ga-fdp/label/staging/linux-64/toksearch-2.18.1-py312hccd2c79_0.conda
+      - conda: https://conda.anaconda.org/ga-fdp/label/staging/linux-64/toksearch-2.18.2-py312hccd2c79_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/tomli-2.4.1-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/tomlkit-0.14.0-pyha770c72_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/tornado-6.5.10-py312h5cc1888_0.conda
@@ -7895,9 +7895,9 @@ packages:
   - pkg:pypi/tokenizers?source=hash-mapping
   size: 2506096
   timestamp: 1782755479709
-- conda: https://conda.anaconda.org/ga-fdp/label/staging/linux-64/toksearch-2.18.1-py312hccd2c79_0.conda
-  sha256: 3c22c69f05bfc13b84e960c4b87712ff50e50cbf3476a5f114aa7f7cde301a24
-  md5: f5b020f0bb791b9c46edac35d9f01436
+- conda: https://conda.anaconda.org/ga-fdp/label/staging/linux-64/toksearch-2.18.2-py312hccd2c79_0.conda
+  sha256: 72cef8559411f2c87bb8604c57f6cdc4f52f094680ccce63553171ead3963e6c
+  md5: 86c23100a76b7cefba382a3917410053
   depends:
   - python 3.12.*
   - mdsplus-xrdcl >=1,<2
@@ -7931,8 +7931,8 @@ packages:
   constrains:
   - ptdata >=2.9.0
   license: Apache-2.0
-  size: 5513196
-  timestamp: 1791237414400
+  size: 5512767
+  timestamp: 1791308954842
 - pypi: ./
   name: toksearch-d3d
   version: 0.14.1+0.gf382ded.dirty
