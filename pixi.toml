@@ -15,7 +15,7 @@
 [workspace]
 name = "toksearch_d3d"
 # Siblings sit in staging until an fdp-core bless promotes them. Staging is
-# listed LAST and only toksearch is pinned to it below: pixi channel priority
+# listed LAST and only the packages that need it are pinned to it below: pixi channel priority
 # is strict, so staging listed first would hand this env any staged candidate
 # (an rc, an unblessed build) for every ga-fdp package, not just the one we
 # need. Found 2026-10-05 when a sibling env took xrdcl-pelican-fdp 0.3.0rc2.
@@ -28,14 +28,14 @@ python = ">=3.11"
 # the lowest, so the dev env ran toksearch 2.12.0 -- which still forwarded
 # `record=` to gather, a signature removed in 2.14.0. Tests then failed here
 # for a reason that had nothing to do with the code under test.
-toksearch = { version = ">=2.18.2", channel = "ga-fdp/label/staging" }
-ptdata = ">=2.6.0,<3"
+toksearch = { version = ">=2.19.0", channel = "ga-fdp/label/staging" }
+ptdata = { version = ">=2.11.3,<3", channel = "ga-fdp/label/staging" }
 matplotlib = "*"
 imas_composer = ">=0.2.4,<0.3"
 filelock = ">=3"
 # Phase 1 catalog migration. `fdp` is needed for the recipe test step
 # (which runs `fdp run testit.py`); `fdp-schema` is needed by fdp.catalog.
-fdp = ">=0.2.4"
+fdp = { version = ">=0.12.0", channel = "ga-fdp/label/staging" }
 fdp-schema = ">=0.3.0"
 # connect_d3drdb() reads a published snapshot through DuckDB (D2).
 python-duckdb = ">=1.5,<2"
