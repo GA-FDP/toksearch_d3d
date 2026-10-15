@@ -76,7 +76,11 @@ jobs:
       run:
         shell: bash -el {0}
     steps:
+      # tests/ only: a full checkout puts the source package beside it, and
+      # an import from the checkout root would test that, not the artifact.
       - uses: actions/checkout@v4
+        with:
+          sparse-checkout: tests
 
       - uses: actions/download-artifact@v4
         with:
@@ -110,7 +114,8 @@ jobs:
             -s "python ${{ matrix.python }}.*" \
             -s "toksearch_d3d ==${VERSION}" \
             -s "fdp >=0.12.1" \
-            -- bash -c "python -c 'import sys, toksearch_d3d; print(sys.version, toksearch_d3d.__file__)' \
+            -- bash -c "test ! -e toksearch_d3d \
+                && python -c 'import sys, toksearch_d3d; f = toksearch_d3d.__file__; print(sys.version, f); assert \"site-packages\" in f, f' \
                 && fdp run bash -c 'cd tests && python testit.py --fast-exit'"
 
   publish:
