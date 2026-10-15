@@ -23,32 +23,22 @@ source:
   path: ..
 
 build:
+  # Pure Python, nothing compiled (src/ptdata_plugin is not built or
+  # shipped): one build serves every platform and every python in the run
+  # range, osx-arm64 included.
+  noarch: python
   script:
     - ${{ PYTHON }} -m pip install . --no-deps --no-build-isolation -vv
 
 requirements:
   host:
-    - python
+    # The pythons toksearch is built for.
+    - python >=3.11,<3.13
     - setuptools
     - pip
     - versioneer
-  # rattler-build 0.39.0 synthesises a python run-export of
-  # `python 3.12.* *_debug_cpython` from a host python whose build string is
-  # plainly `h5f976f7_2_cpython`. conda-forge declares no python run-export on
-  # any 3.12.14 build, and the python_abi export beside it is correct, so the
-  # `debug_` prefix is invented by the tool -- and the resulting package is
-  # uninstallable because no such python exists.
-  #
-  # 0.75.0 does not do this (it emits `python *` plus a correct python_abi),
-  # and CI installs rattler-build unpinned while the dev env here is pinned at
-  # 0.39.0 -- so this guard is about not depending on which one runs, not
-  # about a live breakage. Ignore the synthesised export and state the
-  # constraint from the variant; python_abi pins the ABI either way.
-  ignore_run_exports:
-    by_name:
-      - python
   run:
-    - python ${{ python }}
+    - python >=3.11,<3.13
     # >=2.14.0, not >=2.12.0: this package's signals declare
     # gather(self, shot, version=None, snapshot=None). An older toksearch
     # calls gather(shot, record=record) and raises TypeError on the first
