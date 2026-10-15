@@ -1,0 +1,4 @@
+# One noarch package per OS; see the build string and run requirements.
+noarch_platform:
+  - linux
+  - osx
