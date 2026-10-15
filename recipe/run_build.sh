@@ -22,6 +22,11 @@ rattler-build build \
   --test skip \
   --output-dir "${OUTPUT_DIR}"
 
+# CI tests every python in a matrix instead (RUN_TESTS=0).
+if [ "${RUN_TESTS:-1}" = "0" ]; then
+    exit 0
+fi
+
 case "$(uname -s)" in
     Darwin) NATIVE=osx ;;
     *) NATIVE=linux ;;
