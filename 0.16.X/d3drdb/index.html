@@ -1,0 +1,1240 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="DIII-D shot metadata (d3drdb) through connect_d3drdb — the published snapshot you get by default and live=True for SQL Server, the shot ceiling, pinning, what T-SQL works, what is excluded, and a guide to the tables (SHOTS, SHOTS_TYPE, SUMMARIES, DISRUPTIONS, disruption_warning, SIGNAL_NAMES, RUNS, ENTRIES)">
+      
+      
+        <meta name="author" content="Brian Sammuli">
+      
+      
+        <link rel="canonical" href="https://ga-fdp.github.io/toksearch_d3d/0.16.X/d3drdb/">
+      
+      
+        <link rel="prev" href="../imas/">
+      
+      
+        <link rel="next" href="../imas_api/">
+      
+      
+      <link rel="icon" href="../favicon.ico">
+      <meta name="generator" content="mkdocs-1.5.3, mkdocs-material-9.5.20">
+    
+    
+      
+        <title>Shot metadata (d3drdb) - TokSearch DIII-D</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.66ac8b77.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce((e,_)=>(e<<5)-e+_.charCodeAt(0),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="black" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#diii-d-shot-metadata-d3drdb" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="TokSearch DIII-D" class="md-header__button md-logo" aria-label="TokSearch DIII-D" data-md-component="logo">
+      
+  <img src="../ts_just_logo.svg" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3V6m0 5h18v2H3v-2m0 5h18v2H3v-2Z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            TokSearch DIII-D
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Shot metadata (d3drdb)
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/GA-FDP/toksearch_d3d" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.5.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GA-FDP/toksearch_d3d
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="TokSearch DIII-D" class="md-nav__button md-logo" aria-label="TokSearch DIII-D" data-md-component="logo">
+      
+  <img src="../ts_just_logo.svg" alt="logo">
+
+    </a>
+    TokSearch DIII-D
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/GA-FDP/toksearch_d3d" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.5.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GA-FDP/toksearch_d3d
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Home
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Tutorials
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Tutorials
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ptdata/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    PTData Diagnostics
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../imas/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    IMAS Data Access
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    Shot metadata (d3drdb)
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    Shot metadata (d3drdb)
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-what-you-get" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. What you get
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-three-things-you-will-hit-first" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. Three things you will hit first
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-pinning-a-run" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. Pinning a run
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-what-t-sql-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      4. What T-SQL works
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-what-is-not-in-a-snapshot-and-why" class="md-nav__link">
+    <span class="md-ellipsis">
+      5. What is not in a snapshot, and why
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-the-tables" class="md-nav__link">
+    <span class="md-ellipsis">
+      6. The tables
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. The tables">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#shots-the-master-shot-list" class="md-nav__link">
+    <span class="md-ellipsis">
+      SHOTS — the master shot list
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#shots_type-clean-shot-classification" class="md-nav__link">
+    <span class="md-ellipsis">
+      SHOTS_TYPE — clean shot classification
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#summaries-per-shot-physics-scalars" class="md-nav__link">
+    <span class="md-ellipsis">
+      SUMMARIES — per-shot physics scalars
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#disruptions-one-row-per-disrupted-shot" class="md-nav__link">
+    <span class="md-ellipsis">
+      DISRUPTIONS — one row per disrupted shot
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#disruption_warning-time-resolved-disruption-ml-dataset" class="md-nav__link">
+    <span class="md-ellipsis">
+      disruption_warning — time-resolved disruption ML dataset
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#signal_names-and-signal_info-the-data-dictionary" class="md-nav__link">
+    <span class="md-ellipsis">
+      SIGNAL_NAMES and SIGNAL_INFO — the data dictionary
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#runs-run-day-and-experiment-metadata" class="md-nav__link">
+    <span class="md-ellipsis">
+      RUNS — run-day and experiment metadata
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#entries-the-electronic-logbook" class="md-nav__link">
+    <span class="md-ellipsis">
+      ENTRIES — the electronic logbook
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#views" class="md-nav__link">
+    <span class="md-ellipsis">
+      Views
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-they-fit-together" class="md-nav__link">
+    <span class="md-ellipsis">
+      How they fit together
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-queries" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example queries
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#practical-tips" class="md-nav__link">
+    <span class="md-ellipsis">
+      Practical tips
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    API
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            API
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../imas_api/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    ImasSignal
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ptdata_api/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    PtDataSignal / RDataSignal
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-what-you-get" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. What you get
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-three-things-you-will-hit-first" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. Three things you will hit first
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-pinning-a-run" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. Pinning a run
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-what-t-sql-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      4. What T-SQL works
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-what-is-not-in-a-snapshot-and-why" class="md-nav__link">
+    <span class="md-ellipsis">
+      5. What is not in a snapshot, and why
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-the-tables" class="md-nav__link">
+    <span class="md-ellipsis">
+      6. The tables
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. The tables">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#shots-the-master-shot-list" class="md-nav__link">
+    <span class="md-ellipsis">
+      SHOTS — the master shot list
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#shots_type-clean-shot-classification" class="md-nav__link">
+    <span class="md-ellipsis">
+      SHOTS_TYPE — clean shot classification
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#summaries-per-shot-physics-scalars" class="md-nav__link">
+    <span class="md-ellipsis">
+      SUMMARIES — per-shot physics scalars
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#disruptions-one-row-per-disrupted-shot" class="md-nav__link">
+    <span class="md-ellipsis">
+      DISRUPTIONS — one row per disrupted shot
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#disruption_warning-time-resolved-disruption-ml-dataset" class="md-nav__link">
+    <span class="md-ellipsis">
+      disruption_warning — time-resolved disruption ML dataset
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#signal_names-and-signal_info-the-data-dictionary" class="md-nav__link">
+    <span class="md-ellipsis">
+      SIGNAL_NAMES and SIGNAL_INFO — the data dictionary
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#runs-run-day-and-experiment-metadata" class="md-nav__link">
+    <span class="md-ellipsis">
+      RUNS — run-day and experiment metadata
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#entries-the-electronic-logbook" class="md-nav__link">
+    <span class="md-ellipsis">
+      ENTRIES — the electronic logbook
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#views" class="md-nav__link">
+    <span class="md-ellipsis">
+      Views
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-they-fit-together" class="md-nav__link">
+    <span class="md-ellipsis">
+      How they fit together
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-queries" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example queries
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#practical-tips" class="md-nav__link">
+    <span class="md-ellipsis">
+      Practical tips
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+<h1 id="diii-d-shot-metadata-d3drdb">DIII-D shot metadata: d3drdb</h1>
+<p><code>d3drdb</code> is DIII-D's operations and physics-summary database. Every plasma
+pulse has an integer <strong>shot</strong> number, and almost every table is keyed on
+<code>shot</code>. Use it to <em>select</em> shots and attach labels; the waveforms themselves
+live in PTDATA, MDSplus and IMAS, and you fetch them with TokSearch afterwards.</p>
+<p>Three things catch people out: the default connection is a <strong>published
+snapshot</strong>, not the live server; a snapshot stops at a <strong>shot ceiling</strong>; and
+some <code>SUMMARIES</code> scalars hold unphysical sentinel values.</p>
+<h2 id="1-what-you-get">1. What you get</h2>
+<p><code>connect_d3drdb()</code> returns the newest <strong>published snapshot</strong> of d3drdb:
+Parquet files on the FDP origin, read remotely through DuckDB. You get the same
+answer on-site and off. <code>connect_d3drdb(live=True)</code> dials the live SQL Server
+instead, which works only on-site. <strong>Neither falls back to the other.</strong> If the
+snapshot cannot be found or read, you get a <code>toksearch.sql.snapshot.SnapshotError</code>
+and no live connection. If <code>live=True</code> cannot connect, you get that error and no
+snapshot.</p>
+<p>Both return a DB-API-shaped connection: <code>with</code>, <code>cursor()</code> and
+<code>pd.read_sql(sql, conn)</code> all work. Your T-SQL runs unchanged on either (§4).</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">toksearch_d3d.sql</span><span class="w"> </span><span class="kn">import</span> <span class="n">connect_d3drdb</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="k">with</span> <span class="n">connect_d3drdb</span><span class="p">()</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>              <span class="c1"># the published snapshot</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_sql</span><span class="p">(</span><span class="s2">"SELECT TOP 10 shot, entered FROM shots ORDER BY shot"</span><span class="p">,</span> <span class="n">conn</span><span class="p">)</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="nb">print</span><span class="p">(</span><span class="n">conn</span><span class="o">.</span><span class="n">snapshot</span><span class="p">)</span>                    <span class="c1"># d3drdb_20261006T135944Z</span>
+</span></code></pre></div>
+<p>Run it under <code>fdp run python script.py</code>, which supplies the token (§2).</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">with</span> <span class="n">connect_d3drdb</span><span class="p">(</span><span class="n">live</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>     <span class="c1"># the live SQL Server, on-site only</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>    <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_sql</span><span class="p">(</span><span class="s2">"SELECT TOP 5 shot, entered FROM shots ORDER BY shot DESC"</span><span class="p">,</span> <span class="n">conn</span><span class="p">)</span>
+</span></code></pre></div>
+<p><code>live=True</code> needs the GA network and <code>~/D3DRDB.sybase_login</code>. Keyword overrides
+(<code>db=</code>, <code>host=</code>, <code>port=</code>, <code>username=</code>, <code>password=</code>, <code>password_file=</code>) apply only
+with <code>live=True</code>; passing one without it raises <code>TypeError</code>. Passing
+<code>live=True</code> together with <code>snapshot=</code> raises <code>ValueError</code>.</p>
+<p><strong><code>TDSVER</code> matters only on the live path, and only for the deprecated
+import.</strong> <code>toksearch_d3d.sql.connect_d3drdb(live=True)</code> sets it for you. The
+deprecated <code>toksearch.sql.mssql.connect_d3drdb</code> does not, so code still on
+that import must <code>export TDSVER=7.0</code> or the connection fails. A snapshot has no
+use for <code>TDSVER</code>.</p>
+<p>The first published snapshot is <code>d3drdb_20261006T135944Z</code>: cut 2026-10-06,
+shot ceiling 209,027, 67 tables (64 base tables and 3 materialized views),
+8.0 million rows. Every snapshot id ends in the UTC time of its cut,
+<code>YYYYMMDDTHHMMSSZ</code>. <code>conn.snapshot</code> is the id you read; <code>conn.manifest</code> is its
+manifest (tables, row counts, the ceiling, what was excluded and why).</p>
+<h2 id="2-three-things-you-will-hit-first">2. Three things you will hit first</h2>
+<p><strong>The shot ceiling.</strong> A snapshot holds every shot up to the largest shot
+number at the time of its cut, and none after. The newest shots are only in
+<code>live=True</code>.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">with</span> <span class="n">connect_d3drdb</span><span class="p">()</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>    <span class="nb">print</span><span class="p">(</span><span class="n">conn</span><span class="o">.</span><span class="n">manifest</span><span class="p">[</span><span class="s2">"source"</span><span class="p">][</span><span class="s2">"shot_ceiling"</span><span class="p">])</span>   <span class="c1"># 209027</span>
+</span></code></pre></div>
+<p>Rows whose <code>shot</code> is NULL are kept. They are run-level rows, not shots (22,778
+of them in <code>ENTRIES</code>), and the ceiling does not bound them.</p>
+<p><strong>The token.</strong> The snapshot is read from the FDP origin, which needs
+<code>BEARER_TOKEN</code>. Run your script under <code>fdp run python script.py</code> (or
+<code>fdp run jupyter lab</code>). A missing token raises before any request, naming
+<code>fdp run</code> and <code>fdp login</code>. A token that expires mid-session is re-read from the
+environment once; after that the error names <code>fdp login</code>.</p>
+<p><strong>The notice.</strong> The first snapshot connection in a process issues one
+<code>SnapshotNotice</code> warning naming the snapshot and <code>live=True</code>. Once you have
+read it, silence it:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">toksearch.sql.snapshot</span><span class="w"> </span><span class="kn">import</span> <span class="n">SnapshotNotice</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="n">warnings</span><span class="o">.</span><span class="n">filterwarnings</span><span class="p">(</span><span class="s2">"ignore"</span><span class="p">,</span> <span class="n">category</span><span class="o">=</span><span class="n">SnapshotNotice</span><span class="p">)</span>
+</span></code></pre></div>
+<p>pandas also warns that it "only supports SQLAlchemy connectable" objects. It
+says the same of the live <code>pymssql</code> connection, and both work.</p>
+<h2 id="3-pinning-a-run">3. Pinning a run</h2>
+<p>A new snapshot is published by hand from time to time, and the default moves to
+it. To keep a result reproducible, name the snapshot and record what you read:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">with</span> <span class="n">connect_d3drdb</span><span class="p">(</span><span class="n">snapshot</span><span class="o">=</span><span class="s2">"d3drdb_20261006T135944Z"</span><span class="p">)</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>    <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_sql</span><span class="p">(</span><span class="n">sql</span><span class="p">,</span> <span class="n">conn</span><span class="p">)</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>    <span class="n">used</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">snapshot</span>          <span class="c1"># store this beside your results</span>
+</span></code></pre></div>
+<p><code>FDP_SQL_SNAPSHOT_D3DRDB=d3drdb_20261006T135944Z</code> pins a whole process and its
+workers. The first connection exports the id it resolved into that variable,
+so forked, spawned, Ray and Spark workers read the same snapshot as the parent.
+One snapshot per process: code naming one snapshot while the environment names
+another raises <code>toksearch.sql.snapshot.SnapshotConflict</code>, not a choice of
+one. An id that has no manifest is an error, never "the newest instead".</p>
+<h2 id="4-what-t-sql-works">4. What T-SQL works</h2>
+<p>The snapshot rewrites T-SQL for DuckDB (via sqlglot), so existing queries run
+unchanged:</p>
+<ul>
+<li><code>SELECT TOP n</code> (becomes <code>LIMIT n</code>), <code>ISNULL</code>, <code>GETDATE()</code>, <code>DATEDIFF</code></li>
+<li><code>[bracketed]</code> identifiers and <code>dbo.</code> prefixes</li>
+<li>case-insensitive comparisons: <code>=</code> and <code>LIKE</code> ignore case, as on SQL Server;
+  trailing blanks are trimmed from <code>char</code>/<code>varchar</code> values, so they compare as
+  SQL Server would</li>
+<li>date strings against timestamps: <code>entered BETWEEN '2024-06-01' AND '2024-08-01'</code></li>
+<li>parameters: <code>%s</code> with a sequence, <code>%(name)s</code> with a mapping</li>
+</ul>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="n">pd</span><span class="o">.</span><span class="n">read_sql</span><span class="p">(</span><span class="s2">"SELECT shot, entered FROM shots WHERE shot = </span><span class="si">%s</span><span class="s2">"</span><span class="p">,</span> <span class="n">conn</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="p">(</span><span class="mi">194528</span><span class="p">,))</span>
+</span></code></pre></div>
+<p><strong>Refused, with an error rather than wrong rows:</strong> a <code>LIKE</code> pattern containing
+<code>[</code>, which is a T-SQL character class. <code>WHERE name LIKE 'ECE[0-9]%'</code> raises a
+<code>ValueError</code> that names <code>regexp_matches()</code>, the DuckDB equivalent:</p>
+<div class="language-sql highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">SELECT</span><span class="w"> </span><span class="n">Name</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">signal_names</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">regexp_matches</span><span class="p">(</span><span class="n">Name</span><span class="p">,</span><span class="w"> </span><span class="s1">'^ECE[0-9]'</span><span class="p">)</span>
+</span></code></pre></div>
+<p>A query written this way runs only on the snapshot, not on <code>live=True</code>.</p>
+<p><strong>Passed through:</strong> anything sqlglot cannot parse goes to DuckDB unchanged. If
+DuckDB rejects it too, the error carries sqlglot's message as a second line.</p>
+<p><strong>Column names.</strong> Result column names follow the query's spelling
+(<code>SELECT shot</code> → <code>shot</code>), as on SQL Server; <code>SELECT *</code> returns the stored names
+(<code>SHOT</code>), also as on SQL Server. Requires toksearch &gt;= 2.18.2; earlier versions
+return the stored names for every column, so <code>df["shot"]</code> raises <code>KeyError</code>
+there. Which case each table stores is shown in §6.</p>
+<h2 id="5-what-is-not-in-a-snapshot-and-why">5. What is not in a snapshot, and why</h2>
+<p>Excluded on purpose, by reason:</p>
+<table>
+<thead>
+<tr>
+<th>reason</th>
+<th>tables</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>people</td>
+<td><code>PERSONNEL</code>, <code>OPERATORS</code>, view <code>PEOPLE</code></td>
+</tr>
+<tr>
+<td>per-user application state</td>
+<td><code>PREFERENCES</code>, <code>ENTRY_DISPLAY_PREFS</code>, <code>ENTRY_DISPLAY_TEMPLATES</code>, <code>AOT_PRESETS</code>, <code>SAVES</code>, <code>SAVEDATA</code></td>
+</tr>
+<tr>
+<td>retired</td>
+<td><code>OLD___DB_DOC</code>, <code>OLD___IRTV_LabViewMDSPlusLog</code>, <code>OLD___legacy</code>, <code>OLD___TEST_ITPA_H</code></td>
+</tr>
+<tr>
+<td>size</td>
+<td><code>DAM</code>, <code>eqp</code>, <code>USAGE_LOG</code></td>
+</tr>
+<tr>
+<td>scratch copy</td>
+<td><code>disruption_warning_test</code> (a copy of <code>disruption_warning</code>)</td>
+</tr>
+</tbody>
+</table>
+<p>Skipped because they are broken at the source: the four views
+<code>BIGNODE_ATLAS_EXPORT_STATS</code>, <code>BIGNODE_HIGHLOAD_STATS</code>, <code>BIGNODE_ONESIG_STATS</code>
+and <code>BIGNODE_STATS</code> (<code>Invalid object name</code> on the live server too).</p>
+<p><code>EXPERIMENTS</code> is in neither list: the database login cannot see it, so it
+cannot be dumped. It is not readable on <code>live=True</code> with the same login either.</p>
+<p>Querying an excluded table says so. The error is a <code>SnapshotError</code> with a line
+reading, for example, <code>PERSONNEL is excluded from snapshots of this database
+(reason recorded in the manifest: 'people')</code>. The lists are also in
+<code>conn.manifest["excluded"]</code> and <code>conn.manifest["skipped"]</code>.</p>
+<p>Usernames stay in <code>SHOTS</code>, <code>RUNS</code> and <code>ENTRIES</code> (<code>USERNAME</code>, <code>CHIEF_OPERATOR</code>)
+as opaque login strings; the tables that map them to people are the excluded
+ones.</p>
+<h2 id="6-the-tables">6. The tables</h2>
+<p><code>conn.manifest["tables"]</code> lists all 67, with their kind and row count.
+<code>TABLE_DOC</code> holds a one-line description of most tables
+(<code>SELECT * FROM table_doc</code>). This section covers the ones you will actually use.</p>
+<h3 id="shots-the-master-shot-list"><code>SHOTS</code> — the master shot list</h3>
+<p>One row per shot, and the starting point for "which shots exist and when".
+Columns are upper case.</p>
+<ul>
+<li><code>SHOT</code> — the shot number (primary key)</li>
+<li><code>ENTERED</code> — when the shot was taken; use it for date ranges</li>
+<li><code>RUN</code> — the run-day label (joins to <code>RUNS</code>)</li>
+<li><code>BRIEF</code> — one-line description</li>
+<li><code>SHOT_TYPE</code>, <code>PLASMA_SHOT</code> — a rough classification; prefer <code>SHOTS_TYPE</code></li>
+<li><code>CHIEF_OPERATOR</code>, <code>USERNAME</code></li>
+</ul>
+<h3 id="shots_type-clean-shot-classification"><code>SHOTS_TYPE</code> — clean shot classification</h3>
+<p>The reliable way to separate real plasma discharges from test pulses. Columns
+are lower case: <code>shot</code>, <code>shot_type</code>, <code>source</code>. The values you want are
+<code>'plasma'</code>, <code>'power supply test'</code>, <code>'calibration'</code>, <code>'data acquisition'</code>,
+<code>'unknown test'</code> and <code>'undefined'</code>. The column also holds about 500 stray
+values (times of day, NULL), so filter with <code>= 'plasma'</code> and never with
+<code>&lt;&gt; 'undefined'</code>. Example 1 below is the standard plasma-shot query.</p>
+<h3 id="summaries-per-shot-physics-scalars"><code>SUMMARIES</code> — per-shot physics scalars</h3>
+<p>The most useful physics table: one row per shot with about 80 derived 0-D
+quantities, so you can filter and scatter shots without reading any
+time-series data. Columns include <code>pulse_length</code> (s), <code>topology</code>, minor and
+major radius (<code>a</code>, <code>r</code>), elongation <code>kappa</code>, triangularity (<code>delta_u</code>,
+<code>delta_l</code>), <code>betanmax</code>, <code>btor</code>, beam power <code>pbeam</code>, ECH power <code>pech</code>, radiated
+power <code>prad</code>, stored energy <code>wtotmax</code>, line density <code>nemax_co2</code> and
+<code>nemax_thomson</code>, <code>temax_ece</code>, and the times at which peaks occur (<code>t_*</code>).
+<strong>Powers are in watts</strong> (<code>pbeam &gt; 5e6</code> is 5 MW). Columns are lower case.
+Some scalar columns hold unphysical sentinel values (<code>betanmax</code> reaches
+2,204,480 on shot 104268), so range-filter any column you sort or scatter on;
+<code>betanmax &lt; 10</code> is the usual cut.</p>
+<h3 id="disruptions-one-row-per-disrupted-shot"><code>DISRUPTIONS</code> — one row per disrupted shot</h3>
+<p>A curated disruption catalog: <code>shot</code>, disruption time <code>t_disrupt</code>, current <code>ip</code>,
+<code>bt</code>, <code>wmhd</code>, halo currents (<code>i_halo_l</code>, <code>i_halo_u</code>), <code>cause</code>, a <code>vde</code> flag,
+<code>flattop</code>, and more. Use it to find and label disruptions at the shot level. It
+is not maintained every campaign: it covers shots 100,000 to 196,645 (through
+June 2023). Columns are lower case. (<code>DISRUPTION</code>, singular, is an older,
+different table of per-shot maxima.)</p>
+<h3 id="disruption_warning-time-resolved-disruption-ml-dataset"><code>disruption_warning</code> — time-resolved disruption ML dataset</h3>
+<p>The disruption-warning database: <strong>many rows per shot</strong>, one per time slice,
+with <code>time</code>, <code>time_until_disrupt</code> and a wide set of ML features (<code>beta_n</code>,
+<code>li</code>, <code>q95</code>, <code>n_equal_1_mode_IRLM</code>, <code>radiated_fraction</code>, <code>ip_error</code>, <code>v_loop</code>,
+…). Disruption-prediction work trains on it. It covers shots 156,199 to 177,061
+(2014 to 2018), about 3.0 million rows. Columns are mostly lower case.</p>
+<h3 id="signal_names-and-signal_info-the-data-dictionary"><code>SIGNAL_NAMES</code> and <code>SIGNAL_INFO</code> — the data dictionary</h3>
+<p>A catalog of stored signals, the metadata behind MDSplus and PTDATA, so you can
+find out what a pointname <em>is</em> without asking a DIII-D expert.</p>
+<ul>
+<li><code>SIGNAL_NAMES</code>: <code>Name</code>, <code>Tree</code>, <code>Full_Path</code>, <code>Experiment</code>, <code>Group_Id</code></li>
+<li><code>SIGNAL_INFO</code>: per <code>Group_Id</code>, <code>Diagnostic</code>, <code>Description</code>, <code>Units</code>,
+  <code>Contact</code>, <code>Example_Shot</code></li>
+</ul>
+<p>The view <code>signals</code> is the two joined (see Views, below).</p>
+<h3 id="runs-run-day-and-experiment-metadata"><code>RUNS</code> — run-day and experiment metadata</h3>
+<p>One row per run day: <code>RUN</code>, <code>BRIEF</code>, <code>MINIPROPOSAL</code> (for example
+<code>'2024-12-06'</code>), <code>experiment_number</code>, <code>configuration</code>, <code>REFSHOT</code>. Join to
+<code>SHOTS.RUN</code> to attach an experiment's purpose to its shots.</p>
+<h3 id="entries-the-electronic-logbook"><code>ENTRIES</code> — the electronic logbook</h3>
+<p>Free-text logbook entries keyed on <code>SHOT</code> and <code>RUN</code>, with a <code>TOPIC</code>, a <code>TEXT</code>
+body, a <code>VOIDED</code> marker and attached <code>image*_id</code>. Useful for human context on a
+shot. <strong>Run-level entries have <code>SHOT IS NULL</code></strong>: 22,778 of them, most carrying
+a <code>RUN</code> (2,869 have neither). Select a run day's with
+<code>WHERE run = ... AND shot IS NULL</code>.</p>
+<h3 id="views">Views</h3>
+<p>Three of d3drdb's views are materialized as tables in a snapshot:</p>
+<ul>
+<li><code>signals</code> — <code>SIGNAL_NAMES</code> joined to <code>SIGNAL_INFO</code> on <code>Group_Id</code>: one row
+  per signal with its tree, path, diagnostic, units and description. The
+  quickest way to look up a pointname:</li>
+</ul>
+<p><div class="language-sql highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="k">SELECT</span><span class="w"> </span><span class="n">Name</span><span class="p">,</span><span class="w"> </span><span class="n">Tree</span><span class="p">,</span><span class="w"> </span><span class="n">Diagnostic</span><span class="p">,</span><span class="w"> </span><span class="n">Units</span><span class="p">,</span><span class="w"> </span><span class="n">Description</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="k">FROM</span><span class="w"> </span><span class="n">signals</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="k">WHERE</span><span class="w"> </span><span class="n">Name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'IP'</span>
+</span></code></pre></div>
+- <code>shotvalvegas</code> — <code>SHOT</code>, <code>valve</code>, <code>gas</code>: which gas each valve held on each
+  shot.
+- <code>preshot_summaries</code> — per shot, the pre-shot comment (<code>precomment</code>), <code>RUN</code>,
+  <code>SHOT_TYPE</code> and miniproposal step (<code>mp_step</code>), beside a few scalars (<code>ip</code>,
+  <code>pbeam</code>, <code>pech</code>, <code>btor</code>) and <code>a_*</code> columns. <code>a_ip</code> is mostly amps, but a few
+  2013-era shots (152,775–153,042) store MA (values 0.8–1.25); check units
+  before use.</p>
+<h3 id="how-they-fit-together">How they fit together</h3>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>RUNS ──&lt; SHOTS ──&lt; ENTRIES            (run day → its shots → logbook notes;
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>          │                            run-level entries have SHOT IS NULL)
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>          │  └──── SHOTS_TYPE         (1:1 classification)
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>          │  └──── SUMMARIES          (1:1 physics scalars)
+</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>          │  └──&lt; shotvalvegas        (one row per valve per shot)
+</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>          │  └──── DISRUPTIONS        (0..1 row per shot: disrupted shots)
+</span><span id="__span-8-7"><a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>          └──&lt; disruption_warning     (many time slices per shot)
+</span><span id="__span-8-8"><a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>
+</span><span id="__span-8-9"><a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a>SIGNAL_INFO ──&lt; SIGNAL_NAMES          (data dictionary, not shot-keyed;
+</span><span id="__span-8-10"><a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a>                                       the view signals is the join)
+</span></code></pre></div>
+<h3 id="example-queries">Example queries</h3>
+<p>Each runs inside the connection from §1:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="k">with</span> <span class="n">connect_d3drdb</span><span class="p">()</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>    <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_sql</span><span class="p">(</span><span class="n">QUERY</span><span class="p">,</span> <span class="n">conn</span><span class="p">)</span>
+</span></code></pre></div>
+<p><strong>1. Plasma shots in a date window (the standard cohort).</strong> A two-month window
+is roughly 600–700 plasma shots.</p>
+<div class="language-sql highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="k">SELECT</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">shot</span><span class="p">,</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">entered</span><span class="p">,</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">brief</span>
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="k">FROM</span><span class="w"> </span><span class="n">shots</span><span class="w"> </span><span class="n">s</span><span class="w"> </span><span class="k">JOIN</span><span class="w"> </span><span class="n">shots_type</span><span class="w"> </span><span class="n">t</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">shot</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">t</span><span class="p">.</span><span class="n">shot</span>
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="k">WHERE</span><span class="w"> </span><span class="n">t</span><span class="p">.</span><span class="n">shot_type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'plasma'</span>
+</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="w">  </span><span class="k">AND</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">entered</span><span class="w"> </span><span class="k">BETWEEN</span><span class="w"> </span><span class="s1">'2024-06-01'</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="s1">'2024-08-01'</span>
+</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">shot</span>
+</span></code></pre></div>
+<p><strong>2. The N most recent plasma shots</strong> (in this snapshot; <code>live=True</code> for the
+ones above the ceiling).</p>
+<div class="language-sql highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="k">SELECT</span><span class="w"> </span><span class="n">TOP</span><span class="w"> </span><span class="mi">50</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">shot</span><span class="p">,</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">entered</span>
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="k">FROM</span><span class="w"> </span><span class="n">shots</span><span class="w"> </span><span class="n">s</span><span class="w"> </span><span class="k">JOIN</span><span class="w"> </span><span class="n">shots_type</span><span class="w"> </span><span class="n">t</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">shot</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">t</span><span class="p">.</span><span class="n">shot</span>
+</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="k">WHERE</span><span class="w"> </span><span class="n">t</span><span class="p">.</span><span class="n">shot_type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'plasma'</span>
+</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">shot</span><span class="w"> </span><span class="k">DESC</span>
+</span></code></pre></div>
+<p><strong>3. Physics-cohort selection without reading any waveforms.</strong> Pull derived
+scalars from <code>SUMMARIES</code> (here: high-βN, high-power, long shots):</p>
+<div class="language-sql highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="k">SELECT</span><span class="w"> </span><span class="n">su</span><span class="p">.</span><span class="n">shot</span><span class="p">,</span><span class="w"> </span><span class="n">su</span><span class="p">.</span><span class="n">betanmax</span><span class="p">,</span><span class="w"> </span><span class="n">su</span><span class="p">.</span><span class="n">pbeam</span><span class="p">,</span><span class="w"> </span><span class="n">su</span><span class="p">.</span><span class="n">kappa</span><span class="p">,</span><span class="w"> </span><span class="n">su</span><span class="p">.</span><span class="n">topology</span><span class="p">,</span><span class="w"> </span><span class="n">su</span><span class="p">.</span><span class="n">pulse_length</span>
+</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="k">FROM</span><span class="w"> </span><span class="n">summaries</span><span class="w"> </span><span class="n">su</span><span class="w"> </span><span class="k">JOIN</span><span class="w"> </span><span class="n">shots_type</span><span class="w"> </span><span class="n">t</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">su</span><span class="p">.</span><span class="n">shot</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">t</span><span class="p">.</span><span class="n">shot</span>
+</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="k">WHERE</span><span class="w"> </span><span class="n">t</span><span class="p">.</span><span class="n">shot_type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'plasma'</span>
+</span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="w">  </span><span class="k">AND</span><span class="w"> </span><span class="n">su</span><span class="p">.</span><span class="n">betanmax</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">2</span><span class="p">.</span><span class="mi">5</span>
+</span><span id="__span-12-5"><a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="w">  </span><span class="k">AND</span><span class="w"> </span><span class="n">su</span><span class="p">.</span><span class="n">betanmax</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">10</span><span class="w">          </span><span class="c1">-- drop sentinel values</span>
+</span><span id="__span-12-6"><a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a><span class="w">  </span><span class="k">AND</span><span class="w"> </span><span class="n">su</span><span class="p">.</span><span class="n">pbeam</span><span class="w">   </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">5</span><span class="n">e6</span><span class="w">          </span><span class="c1">-- watts: 5 MW</span>
+</span><span id="__span-12-7"><a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a><span class="w">  </span><span class="k">AND</span><span class="w"> </span><span class="n">su</span><span class="p">.</span><span class="n">pulse_length</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">2</span><span class="p">.</span><span class="mi">0</span><span class="w">     </span><span class="c1">-- seconds</span>
+</span><span id="__span-12-8"><a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a><span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">su</span><span class="p">.</span><span class="n">betanmax</span><span class="w"> </span><span class="k">DESC</span>
+</span></code></pre></div>
+<p>This is the right way to build a shot list for a TokSearch run: filter here,
+then fetch time series only for the survivors.</p>
+<p><strong>4. Attach physics scalars to a list of shots you already have.</strong></p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="n">shots</span> <span class="o">=</span> <span class="p">[</span><span class="mi">194528</span><span class="p">,</span> <span class="mi">194529</span><span class="p">,</span> <span class="mi">194530</span><span class="p">]</span>
+</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="n">placeholders</span> <span class="o">=</span> <span class="s2">","</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">s</span><span class="p">))</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">shots</span><span class="p">)</span>
+</span><span id="__span-13-3"><a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_sql</span><span class="p">(</span>
+</span><span id="__span-13-4"><a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>    <span class="sa">f</span><span class="s2">"SELECT shot, betanmax, btor, wtotmax, nemax_thomson "</span>
+</span><span id="__span-13-5"><a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a>    <span class="sa">f</span><span class="s2">"FROM summaries WHERE shot IN (</span><span class="si">{</span><span class="n">placeholders</span><span class="si">}</span><span class="s2">)"</span><span class="p">,</span>
+</span><span id="__span-13-6"><a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a>    <span class="n">conn</span><span class="p">,</span>
+</span><span id="__span-13-7"><a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a><span class="p">)</span>
+</span></code></pre></div>
+<p><strong>5. Disrupted shots in a campaign (shot-level labels).</strong> <code>DISRUPTIONS</code> ends at
+June 2023, so pick a window it covers:</p>
+<div class="language-sql highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="k">SELECT</span><span class="w"> </span><span class="n">d</span><span class="p">.</span><span class="n">shot</span><span class="p">,</span><span class="w"> </span><span class="n">d</span><span class="p">.</span><span class="n">t_disrupt</span><span class="p">,</span><span class="w"> </span><span class="n">d</span><span class="p">.</span><span class="n">ip</span><span class="p">,</span><span class="w"> </span><span class="n">d</span><span class="p">.</span><span class="n">cause</span><span class="p">,</span><span class="w"> </span><span class="n">d</span><span class="p">.</span><span class="n">vde</span><span class="p">,</span><span class="w"> </span><span class="n">d</span><span class="p">.</span><span class="n">flattop</span>
+</span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="k">FROM</span><span class="w"> </span><span class="n">disruptions</span><span class="w"> </span><span class="n">d</span><span class="w"> </span><span class="k">JOIN</span><span class="w"> </span><span class="n">shots</span><span class="w"> </span><span class="n">s</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">d</span><span class="p">.</span><span class="n">shot</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">shot</span>
+</span><span id="__span-14-3"><a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="k">WHERE</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">entered</span><span class="w"> </span><span class="k">BETWEEN</span><span class="w"> </span><span class="s1">'2022-01-01'</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="s1">'2023-01-01'</span>
+</span><span id="__span-14-4"><a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">d</span><span class="p">.</span><span class="n">shot</span>
+</span></code></pre></div>
+<p><strong>6. Disruption rate over a date window.</strong></p>
+<div class="language-sql highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="k">SELECT</span><span class="w"> </span><span class="k">COUNT</span><span class="p">(</span><span class="k">DISTINCT</span><span class="w"> </span><span class="n">d</span><span class="p">.</span><span class="n">shot</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">disrupted</span><span class="p">,</span>
+</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="w">       </span><span class="k">COUNT</span><span class="p">(</span><span class="k">DISTINCT</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">shot</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">total_plasma</span><span class="p">,</span>
+</span><span id="__span-15-3"><a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="w">       </span><span class="mi">100</span><span class="p">.</span><span class="mi">0</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">COUNT</span><span class="p">(</span><span class="k">DISTINCT</span><span class="w"> </span><span class="n">d</span><span class="p">.</span><span class="n">shot</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="k">COUNT</span><span class="p">(</span><span class="k">DISTINCT</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">shot</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">pct</span>
+</span><span id="__span-15-4"><a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="k">FROM</span><span class="w"> </span><span class="n">shots</span><span class="w"> </span><span class="n">s</span>
+</span><span id="__span-15-5"><a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="k">JOIN</span><span class="w"> </span><span class="n">shots_type</span><span class="w"> </span><span class="n">t</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">shot</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">t</span><span class="p">.</span><span class="n">shot</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="n">t</span><span class="p">.</span><span class="n">shot_type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'plasma'</span>
+</span><span id="__span-15-6"><a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a><span class="k">LEFT</span><span class="w"> </span><span class="k">JOIN</span><span class="w"> </span><span class="n">disruptions</span><span class="w"> </span><span class="n">d</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">shot</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">d</span><span class="p">.</span><span class="n">shot</span>
+</span><span id="__span-15-7"><a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a><span class="k">WHERE</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">entered</span><span class="w"> </span><span class="k">BETWEEN</span><span class="w"> </span><span class="s1">'2022-01-01'</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="s1">'2023-01-01'</span>
+</span></code></pre></div>
+<p><strong>7. Time-resolved disruption-warning ML features for a shot</strong> (many rows per
+shot, one per time slice; shots 156,199–177,061; not every feature is
+filled on every shot):</p>
+<div class="language-sql highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="k">SELECT</span><span class="w"> </span><span class="k">time</span><span class="p">,</span><span class="w"> </span><span class="n">time_until_disrupt</span><span class="p">,</span><span class="w"> </span><span class="n">beta_n</span><span class="p">,</span><span class="w"> </span><span class="n">li</span><span class="p">,</span><span class="w"> </span><span class="n">q95</span><span class="p">,</span><span class="w"> </span><span class="n">n_equal_1_mode_IRLM</span><span class="p">,</span>
+</span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="w">       </span><span class="n">radiated_fraction</span><span class="p">,</span><span class="w"> </span><span class="n">ip_error</span><span class="p">,</span><span class="w"> </span><span class="n">v_loop</span>
+</span><span id="__span-16-3"><a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="k">FROM</span><span class="w"> </span><span class="n">disruption_warning</span>
+</span><span id="__span-16-4"><a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="k">WHERE</span><span class="w"> </span><span class="n">shot</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">165454</span>
+</span><span id="__span-16-5"><a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a><span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="k">time</span>
+</span></code></pre></div>
+<p><strong>8. Look up what a signal or pointname is (the data dictionary).</strong></p>
+<div class="language-sql highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="k">SELECT</span><span class="w"> </span><span class="n">n</span><span class="p">.</span><span class="n">Name</span><span class="p">,</span><span class="w"> </span><span class="n">n</span><span class="p">.</span><span class="n">Tree</span><span class="p">,</span><span class="w"> </span><span class="n">n</span><span class="p">.</span><span class="n">Full_Path</span><span class="p">,</span><span class="w"> </span><span class="n">i</span><span class="p">.</span><span class="n">Diagnostic</span><span class="p">,</span><span class="w"> </span><span class="n">i</span><span class="p">.</span><span class="n">Units</span><span class="p">,</span><span class="w"> </span><span class="n">i</span><span class="p">.</span><span class="n">Description</span>
+</span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="k">FROM</span><span class="w"> </span><span class="n">signal_names</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="k">JOIN</span><span class="w"> </span><span class="n">signal_info</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">n</span><span class="p">.</span><span class="n">Group_Id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">i</span><span class="p">.</span><span class="n">Group_Id</span>
+</span><span id="__span-17-3"><a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="k">WHERE</span><span class="w"> </span><span class="n">n</span><span class="p">.</span><span class="n">Name</span><span class="w"> </span><span class="k">LIKE</span><span class="w"> </span><span class="s1">'%ip%'</span>
+</span></code></pre></div>
+<p>Or browse everything from one diagnostic through <code>signal_info.Diagnostic</code>, or
+use the <code>signals</code> view (Views, above).</p>
+<p><strong>9. Shots belonging to a particular experiment or miniproposal.</strong></p>
+<div class="language-sql highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="k">SELECT</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">shot</span><span class="p">,</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">entered</span><span class="p">,</span><span class="w"> </span><span class="n">r</span><span class="p">.</span><span class="n">brief</span><span class="p">,</span><span class="w"> </span><span class="n">r</span><span class="p">.</span><span class="n">miniproposal</span><span class="p">,</span><span class="w"> </span><span class="n">r</span><span class="p">.</span><span class="n">experiment_number</span>
+</span><span id="__span-18-2"><a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="k">FROM</span><span class="w"> </span><span class="n">shots</span><span class="w"> </span><span class="n">s</span><span class="w"> </span><span class="k">JOIN</span><span class="w"> </span><span class="n">runs</span><span class="w"> </span><span class="n">r</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">run</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">r</span><span class="p">.</span><span class="n">run</span>
+</span><span id="__span-18-3"><a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="k">WHERE</span><span class="w"> </span><span class="n">r</span><span class="p">.</span><span class="n">miniproposal</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'2024-12-06'</span>
+</span><span id="__span-18-4"><a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">shot</span>
+</span></code></pre></div>
+<p><strong>10. Read the logbook for a shot.</strong></p>
+<div class="language-sql highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="k">SELECT</span><span class="w"> </span><span class="n">entered</span><span class="p">,</span><span class="w"> </span><span class="n">username</span><span class="p">,</span><span class="w"> </span><span class="n">topic</span><span class="p">,</span><span class="w"> </span><span class="nb">text</span>
+</span><span id="__span-19-2"><a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="k">FROM</span><span class="w"> </span><span class="n">entries</span>
+</span><span id="__span-19-3"><a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="k">WHERE</span><span class="w"> </span><span class="n">shot</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">194528</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="n">voided</span><span class="w"> </span><span class="k">IS</span><span class="w"> </span><span class="k">NULL</span>
+</span><span id="__span-19-4"><a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">entered</span>
+</span></code></pre></div>
+<p><strong>11. Read the run-level logbook entries for a run day</strong> (<code>SHOT IS NULL</code>):</p>
+<div class="language-sql highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="k">SELECT</span><span class="w"> </span><span class="n">e</span><span class="p">.</span><span class="n">entered</span><span class="p">,</span><span class="w"> </span><span class="n">e</span><span class="p">.</span><span class="n">topic</span><span class="p">,</span><span class="w"> </span><span class="n">e</span><span class="p">.</span><span class="nb">text</span>
+</span><span id="__span-20-2"><a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="k">FROM</span><span class="w"> </span><span class="n">entries</span><span class="w"> </span><span class="n">e</span>
+</span><span id="__span-20-3"><a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="k">WHERE</span><span class="w"> </span><span class="n">e</span><span class="p">.</span><span class="n">shot</span><span class="w"> </span><span class="k">IS</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="n">e</span><span class="p">.</span><span class="n">voided</span><span class="w"> </span><span class="k">IS</span><span class="w"> </span><span class="k">NULL</span>
+</span><span id="__span-20-4"><a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a><span class="w">  </span><span class="k">AND</span><span class="w"> </span><span class="n">e</span><span class="p">.</span><span class="n">run</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="k">SELECT</span><span class="w"> </span><span class="n">run</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">shots</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">shot</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">194528</span><span class="p">)</span>
+</span><span id="__span-20-5"><a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a><span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">e</span><span class="p">.</span><span class="n">entered</span>
+</span></code></pre></div>
+<p><strong>12. Shot count per run day (operations overview).</strong></p>
+<div class="language-sql highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="k">SELECT</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">run</span><span class="p">,</span><span class="w"> </span><span class="k">MIN</span><span class="p">(</span><span class="n">s</span><span class="p">.</span><span class="n">entered</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="k">day</span><span class="p">,</span><span class="w"> </span><span class="k">COUNT</span><span class="p">(</span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">n_shots</span><span class="p">,</span>
+</span><span id="__span-21-2"><a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="w">       </span><span class="k">SUM</span><span class="p">(</span><span class="k">CASE</span><span class="w"> </span><span class="k">WHEN</span><span class="w"> </span><span class="n">t</span><span class="p">.</span><span class="n">shot_type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'plasma'</span><span class="w"> </span><span class="k">THEN</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="k">ELSE</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="k">END</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">n_plasma</span>
+</span><span id="__span-21-3"><a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a><span class="k">FROM</span><span class="w"> </span><span class="n">shots</span><span class="w"> </span><span class="n">s</span><span class="w"> </span><span class="k">LEFT</span><span class="w"> </span><span class="k">JOIN</span><span class="w"> </span><span class="n">shots_type</span><span class="w"> </span><span class="n">t</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">shot</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">t</span><span class="p">.</span><span class="n">shot</span>
+</span><span id="__span-21-4"><a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a><span class="k">GROUP</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">run</span>
+</span><span id="__span-21-5"><a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a><span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="k">day</span><span class="w"> </span><span class="k">DESC</span>
+</span></code></pre></div>
+<p><strong>13. Which gas each valve held on a shot.</strong></p>
+<div class="language-sql highlight"><pre><span></span><code><span id="__span-22-1"><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="k">SELECT</span><span class="w"> </span><span class="n">shot</span><span class="p">,</span><span class="w"> </span><span class="n">valve</span><span class="p">,</span><span class="w"> </span><span class="n">gas</span>
+</span><span id="__span-22-2"><a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a><span class="k">FROM</span><span class="w"> </span><span class="n">shotvalvegas</span>
+</span><span id="__span-22-3"><a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a><span class="k">WHERE</span><span class="w"> </span><span class="n">shot</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">194528</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="n">gas</span><span class="w"> </span><span class="k">IS</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span>
+</span><span id="__span-22-4"><a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a><span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">valve</span>
+</span></code></pre></div>
+<h3 id="practical-tips">Practical tips</h3>
+<ul>
+<li><strong>Filter on <code>SUMMARIES</code> and <code>SHOTS_TYPE</code> first</strong>, then fetch time series for
+  the surviving shots with TokSearch (<code>PtDataSignal</code>, <code>MdsSignal</code>,
+  <code>ImasSignal</code>). The database is for selection and labels; bulk waveform data
+  lives in MDSplus and PTDATA, not here.</li>
+<li>Use <code>SHOTS.ENTERED</code> for date filtering.</li>
+<li>Everything joins on <code>shot</code>. When in doubt, that is the key.</li>
+<li>The many other tables (<code>ZIPFIT_*</code>, <code>Gas*</code>, <code>RWM</code>, <code>SWIM</code>, the
+  diagnostic-specific ones) are special-purpose or legacy. Look them up in
+  <code>TABLE_DOC</code> before relying on one.</li>
+</ul>
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "..", "features": [], "search": "../assets/javascripts/workers/search.b8dbb3d2.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.dd8806f2.min.js"></script>
+      
+    
+  </body>
+</html>

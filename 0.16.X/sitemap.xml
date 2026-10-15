@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <url>
+         <loc>https://ga-fdp.github.io/toksearch_d3d/0.16.X/</loc>
+         <lastmod>2026-10-15</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://ga-fdp.github.io/toksearch_d3d/0.16.X/d3drdb/</loc>
+         <lastmod>2026-10-15</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://ga-fdp.github.io/toksearch_d3d/0.16.X/imas/</loc>
+         <lastmod>2026-10-15</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://ga-fdp.github.io/toksearch_d3d/0.16.X/imas_api/</loc>
+         <lastmod>2026-10-15</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://ga-fdp.github.io/toksearch_d3d/0.16.X/ptdata/</loc>
+         <lastmod>2026-10-15</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://ga-fdp.github.io/toksearch_d3d/0.16.X/ptdata_api/</loc>
+         <lastmod>2026-10-15</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+</urlset>
