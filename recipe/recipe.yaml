@@ -27,6 +27,10 @@ build:
   # shipped): one build serves every platform and every python in the run
   # range, osx-arm64 included.
   noarch: python
+  # One noarch build per OS (variants.yaml): only the Linux one can depend on
+  # conda-forge's duckdb-extension-httpfs. The OS is in the build string so
+  # each CI leg can pick its own.
+  string: pyh${{ hash }}_${{ noarch_platform }}
   script:
     - ${{ PYTHON }} -m pip install . --no-deps --no-build-isolation -vv
 
@@ -60,7 +64,17 @@ requirements:
     # pins it for its workers, and Pipeline.from_snapshot replays a saved one.
     - toksearch >=2.19.0
     - python-duckdb >=1.5,<2
-    - duckdb-extension-httpfs >=1.5,<2
+    # conda-forge's osx-arm64 extension cannot be installed (re-signing its
+    # prefix-rewritten binary fails), so macOS loads DuckDB's own signed
+    # httpfs instead -- which toksearch does from 2.22.0.
+    - if: noarch_platform == "linux"
+      then:
+        - __linux
+        - duckdb-extension-httpfs >=1.5,<2
+    - if: noarch_platform == "osx"
+      then:
+        - __osx
+        - toksearch >=2.22.0
     - sqlglot >=30
     # d3d.yaml declares a sql_snapshot locator. An older fdp-schema rejects
     # the WHOLE file (the locator union is discriminated on kind), not just

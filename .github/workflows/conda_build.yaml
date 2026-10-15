@@ -92,7 +92,7 @@ jobs:
           BEARER_TOKEN: ${{ secrets.BEARER_TOKEN }}
         run: |
           pixi global install rattler-build
-          for f in pkg/*.conda; do
+          for f in pkg/*_osx.conda; do
             rattler-build test --package-file "$f" \
               -c ga-fdp/label/staging -c ga-fdp -c conda-forge \
               --channel-priority disabled
