@@ -86,6 +86,9 @@ class PtDataSignal(Signal):
     legacy ``PtDataFetcher``'s separate header read + data fetch. Times are in
     milliseconds.
 
+    ASCII-type points, such as the PCS phase logs ``PHASESTKn``/``SEQSTKn``,
+    return their text as a ``str`` in ``'data'``, with no ``'times'``.
+
     Args:
         pointname: PTDATA point name (case-insensitive), e.g. `'ip'`.
         remote: Retained for backward compatibility; sets `PTDATA_LOC` for the
@@ -170,12 +173,19 @@ class PtDataSignal(Signal):
             result = reader.fetch(self.pointname, int(shot), params,
                                   version=version, snapshot=snapshot)
 
-            # Raw calibration populates raw_integer rather than data; fall
-            # through so 'data' is non-empty regardless of mode (matches the
-            # legacy fetch_ptdata contract).
-            data_source = result.data if len(result.data) > 0 else result.raw_integer
+            # An ASCII point (e.g. the PCS phase logs PHASESTKn) is its text:
+            # a str with no time base, whatever `ical` and `fetch_times` say.
+            is_text = bool(result.text)
+            if is_text:
+                data = result.text
+            else:
+                # Raw calibration populates raw_integer rather than data; fall
+                # through so 'data' is non-empty regardless of mode (matches
+                # the legacy fetch_ptdata contract).
+                data_source = result.data if len(result.data) > 0 else result.raw_integer
+                data = np.array(data_source)
             results = {
-                "data": np.array(data_source),
+                "data": data,
                 "n_over": result.n_over,
                 "n_under": result.n_under,
             }
@@ -195,7 +205,7 @@ class PtDataSignal(Signal):
                 # ExtractedData.units is the raw 4-char field; match the legacy
                 # PtDataHeader.units() normalization (lowercased, trimmed).
                 results["units"]["data"] = result.units.strip().lower()
-                if fetch_times:
+                if fetch_times and not is_text:
                     results["units"][dims[0]] = "ms"
 
         return results
