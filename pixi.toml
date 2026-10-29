@@ -24,7 +24,7 @@ python = ">=3.11"
 # `record=` to gather, a signature removed in 2.14.0. Tests then failed here
 # for a reason that had nothing to do with the code under test.
 toksearch = ">=2.20.0"
-ptdata = ">=2.11.3,<3"
+ptdata = ">=2.13.0,<3"
 matplotlib = "*"
 imas_composer = ">=0.2.4,<0.3"
 filelock = ">=3"
