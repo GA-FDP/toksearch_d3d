@@ -20,6 +20,7 @@ from toksearch_d3d.signal.ptdata import PtDataSignal, PtDataReaderRegistry
 class _StubResult:
     data = [1.0, 2.0, 3.0]
     raw_integer = []
+    text = ""
     times = [0.0, 1.0, 2.0]
     units = "AMPS"
     n_over = 0
