@@ -40,9 +40,10 @@ class TestPcssetupBytes(unittest.TestCase):
 class TestMain(unittest.TestCase):
     def test_writes_file_with_default_name(self):
         """main(["<shot>"]) writes <shot>.wa10 in cwd, returns 0."""
-        from toksearch_d3d.tools.pcssetup_to_wa10 import main, pcssetup_bytes
+        from toksearch_d3d.tools.pcssetup_to_wa10 import main
+        from toksearch_d3d.pcssetup import pcssetup_wa10_bytes
 
-        expected = pcssetup_bytes(SHOT)
+        expected = pcssetup_wa10_bytes(SHOT)
 
         with tempfile.TemporaryDirectory() as td:
             with contextlib.chdir(td), redirect_stdout(io.StringIO()):
@@ -51,13 +52,14 @@ class TestMain(unittest.TestCase):
             out = Path(td) / f"{SHOT}.wa10"
             self.assertEqual(rc, 0)
             self.assertTrue(out.is_file())
-            self.assertEqual(out.stat().st_size, len(expected))
+            self.assertEqual(out.read_bytes(), expected)
 
     def test_writes_file_with_explicit_output(self):
         """main(["<shot>", "-o", path]) writes to that path, returns 0."""
-        from toksearch_d3d.tools.pcssetup_to_wa10 import main, pcssetup_bytes
+        from toksearch_d3d.tools.pcssetup_to_wa10 import main
+        from toksearch_d3d.pcssetup import pcssetup_wa10_bytes
 
-        expected = pcssetup_bytes(SHOT)
+        expected = pcssetup_wa10_bytes(SHOT)
 
         with tempfile.TemporaryDirectory() as td:
             out = Path(td) / "custom.wa10"
@@ -66,7 +68,7 @@ class TestMain(unittest.TestCase):
 
             self.assertEqual(rc, 0)
             self.assertTrue(out.is_file())
-            self.assertEqual(out.stat().st_size, len(expected))
+            self.assertEqual(out.read_bytes(), expected)
 
 
 if __name__ == "__main__":

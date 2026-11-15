@@ -4,13 +4,16 @@
 # you may not use this file except in compliance with the License.
 
 """
-pcssetup-to-wa10: extract the PCSSETUP pointname for a shot and write
-the raw bytes to a .wa10 file -- the inverse of the PCS-side write that
-stores the wa10 file in PTDATA at shot start.
+pcssetup-to-wa10: rebuild a shot's .wa10 setup file from the PCSSETUP
+pointname -- the inverse of the PCS-side write that stores the setup in
+PTDATA at shot start.
 
-Working assumption: PCSSETUP's data payload is byte-for-byte identical
-to the original wa10 file. See
-docs/superpowers/specs/2026-05-04-pcssetup-to-wa10-design.md.
+The 2026-05-04 design assumed PCSSETUP's data payload is the whole file.
+It is not: the data words are only the setup's index records; the
+values live in the point's variable header. The file is rebuilt from
+both (toksearch_d3d.pcssetup.fetch); its body is byte-identical to what
+the PCS's own pcssetup_to_wa10 writes. See
+docs/superpowers/specs/2026-11-15-pcssetup-reader-design.md.
 """
 
 import argparse
@@ -22,14 +25,15 @@ from toksearch_d3d import PtDataSignal
 
 
 def pcssetup_bytes(shot: int) -> bytes:
-    """Return the raw PCSSETUP bytes for ``shot`` as a single ``bytes`` blob.
+    """Return PCSSETUP's raw data words for ``shot`` as one ``bytes`` blob.
 
     Fetches in raw mode (``ical=0``) with no time or units fetches, so the
-    returned bytes are the integer payload PTDATA stores -- the same byte
-    stream PCS wrote into PTDATA from the original wa10 file at shot start.
+    returned bytes are the integer payload PTDATA stores (native int32).
     With default ``ical=1`` (Full calibration) the engine would return
-    float64 calibrated values (8 bytes/sample, sign-flipped) which is not
-    the wa10 file.
+    float64 calibrated values (8 bytes/sample, sign-flipped).
+
+    These are only the setup's index records, not a ``.wa10`` file; use
+    :func:`toksearch_d3d.pcssetup.pcssetup_wa10_bytes` for the file.
     """
     result = PtDataSignal(
         "PCSSETUP", ical=0, fetch_times=False, fetch_units=False
@@ -45,8 +49,8 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="pcssetup-to-wa10",
         description=(
-            "Fetch the PCSSETUP pointname for a shot and write the raw "
-            "bytes to a .wa10 file. Run under `fdp run`."
+            "Rebuild a shot's .wa10 PCS setup file from its PCSSETUP "
+            "pointname. Run under `fdp run`."
         ),
     )
     parser.add_argument("shot", type=int, help="shot number")
@@ -60,8 +64,10 @@ def main(argv: list[str] | None = None) -> int:
 
     out_path = args.output or Path(f"{args.shot}.wa10")
 
+    from toksearch_d3d.pcssetup import pcssetup_wa10_bytes
+
     try:
-        data = pcssetup_bytes(args.shot)
+        data = pcssetup_wa10_bytes(args.shot)
     except PtDataError as e:
         print(f"error: PCSSETUP fetch failed for shot {args.shot}: {e}",
               file=sys.stderr)
