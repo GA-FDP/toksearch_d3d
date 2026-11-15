@@ -36,7 +36,7 @@ imas = ["imas_composer", "awkward>=2.0"]
 pcssetup-to-wa10 = "toksearch_d3d.tools.pcssetup_to_wa10:main"
 
 [tool.setuptools]
-packages = ["toksearch_d3d", "toksearch_d3d.data", "toksearch_d3d.llm", "toksearch_d3d.signal", "toksearch_d3d.tools"]
+packages = ["toksearch_d3d", "toksearch_d3d.data", "toksearch_d3d.llm", "toksearch_d3d.pcssetup", "toksearch_d3d.signal", "toksearch_d3d.tools"]
 zip-safe = false
 
 [tool.setuptools.package-data]
