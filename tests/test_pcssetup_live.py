@@ -24,6 +24,15 @@ LIVE = bool(os.environ.get("BEARER_TOKEN")) and \
     os.environ.get("TOKSEARCH_PTDATA_TEST", "yes") != "no"
 
 
+def _has_ptserver():
+    import socket
+    try:
+        socket.getservbyname("ptserver")
+        return True
+    except OSError:
+        return False
+
+
 @unittest.skipUnless(LIVE, "needs BEARER_TOKEN (run under `fdp run`)")
 class TestFetch(unittest.TestCase):
     def test_rebuilt_file(self):
@@ -70,6 +79,8 @@ class TestFetch(unittest.TestCase):
         self.assertIn("Gas|ShotStart", out)
         self.assertTrue(all(p.startswith("Gas|") for p in out))
 
+    # shot 90000 is not in the Pelican index, so PTDATA falls back to the on-site ptserver
+    @unittest.skipUnless(_has_ptserver(), "needs the on-site ptserver")
     def test_1997_setup(self):
         """16-bit data words and the pre-pcs_forarchive parameter layout."""
         from toksearch_d3d.pcssetup import pcssetup
