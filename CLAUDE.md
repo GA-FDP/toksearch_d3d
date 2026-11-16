@@ -35,6 +35,10 @@ Three main modules exported from `toksearch_d3d/__init__.py`:
 
 - **`toksearch_d3d.signal.ptdata`** — `PtDataSignal` and `RDataSignal` classes wrapping `ptdata.PtDataFetcher` for time-series diagnostic data. Inherits from `toksearch.Signal`.
 - **`toksearch_d3d.signal.cake`** — `CakeSignal` for equilibrium/profile data from MDSplus with SQLite database lookup. Inherits from `toksearch.MdsSignal`. Currently disabled in tests (needs rework away from sqlite).
+- **`toksearch_d3d.interfaces.req_interface`** — On import, patches the generic
+  `toksearch.interfaces.req_interface` with the DIII-D server order (FDP thin
+  client, then atlas if reachable) and tree-less batching of `__ptdata__` reqs
+  via `ptdata2`/`pthead2` TDI. `toksearch_d3d/__init__.py` imports it first.
 - **`toksearch_d3d.data`** — Ships `d3d.yaml`, the D3D tokamak catalog,
   declared via the `fdp_schema.catalogs` entry-point group. Consumed by
   `fdp.catalog` at runtime; replaces the old `fdp.devices` entry-point
