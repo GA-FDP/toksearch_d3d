@@ -42,8 +42,9 @@ paths, MDSplus tree paths, PTData configuration. The bearer token is
 resolved from the ``bearer_token`` argument, then ``$BEARER_TOKEN``, then
 ``~/.fdp/token``.
 
-Connecting to d3drdb needs no manual ``TDSVER`` — ``connect_d3drdb`` reads
-``tdsver`` from the ``d3d.yaml`` d3drdb locator and sets it for you.
+``connect_d3drdb()`` reads a published snapshot of d3drdb over the same
+token, so run d3drdb scripts under ``fdp run`` too (see "Shot List from
+d3drdb").
 
 Imports
 =======
@@ -54,7 +55,7 @@ Imports
     from toksearch_d3d import PtDataSignal     # DIII-D PTDATA diagnostics
     from toksearch_d3d import CakeSignal       # Equilibrium/profile via MDSplus+SQLite
     from toksearch_imas import ImasSignal      # IMAS IDS paths (separate package)
-    from toksearch.sql.mssql import connect_d3drdb  # Shot metadata DB
+    from toksearch_d3d.sql import connect_d3drdb   # Shot metadata DB (d3drdb)
 
 Import ``PtDataSignal`` from ``toksearch_d3d``, **not** ``toksearch``.
 
@@ -85,6 +86,36 @@ prad        Radiated power
 wmhd        MHD stored energy
 ==========  ============================
 
+=======
+Pinning a shot to a stored version
+----------------------------------
+
+The version travels with the SHOT, not the signal -- one PtDataSignal serves
+every shot in a pipeline, so a constructor kwarg would mean "v2 of
+everything".  Put it in the shot list::
+
+    Pipeline([
+        {'shot': 202159, 'version': 2},
+        {'shot': 202160, 'catalog': 'catalog_20260901T000000'},
+        {'shot': 202161},                  # unpinned
+    ])
+
+A pin is a GUARANTEE, not a preference: if the requested version cannot be
+served you get an error in ``record['errors']``, never data from a different
+version.  Silent fallback would make a reproduction run look successful while
+reading different bytes than the run it reproduces.
+
+``version`` and ``snapshot`` are reserved Record fields alongside ``shot`` and
+``errors`` -- they survive ``keep()`` and cannot be deleted, so a routine
+``keep(['max_ip'])`` cannot strip the provenance saying which bytes produced
+``max_ip``.  Read them back with an explicit default, since ``Record.get``
+requires one::
+
+    version = rec.get('version', None)     # not rec.get('version')
+
+Requires toksearch >= 2.12.0 and ptdata >= 2.6.0 (both floored by
+toksearch_d3d 0.13.0, so a correct environment cannot silently drop a pin).
+
 IMAS IDS data
 =============
 
@@ -101,10 +132,12 @@ See ``help(toksearch_imas)`` for leaf and prefix paths, ragged arrays,
 Shot List from d3drdb
 =====================
 
-::
+``connect_d3drdb()`` returns the newest **published snapshot** of d3drdb,
+read remotely (Parquet on the FDP origin, through DuckDB), on-site and off.
+Run under ``fdp run``, which supplies the token. Your T-SQL runs unchanged::
 
     import pandas as pd
-    from toksearch.sql.mssql import connect_d3drdb
+    from toksearch_d3d.sql import connect_d3drdb
 
     with connect_d3drdb() as conn:
         df = pd.read_sql(
@@ -114,11 +147,26 @@ Shot List from d3drdb
               AND s.entered >= '2024-06-01'\"\"\",
             conn,
         )
+        print(conn.snapshot)          # e.g. d3drdb_20261006T135944Z
     shots = df['shot'].tolist()
+
+- A snapshot stops at a **shot ceiling**,
+  ``conn.manifest["source"]["shot_ceiling"]``; the newest shots are only in
+  the live database.
+- ``connect_d3drdb(live=True)`` dials the live SQL Server instead: on-site
+  only, needs ``~/D3DRDB.sybase_login``. Neither falls back to the other.
+  ``connect_d3drdb(live=True)`` sets ``TDSVER`` for you; only the deprecated
+  ``toksearch.sql.mssql.connect_d3drdb`` needs ``TDSVER="7.0"`` exported.
+- Result column names follow the query's spelling (``SELECT shot`` ->
+  ``shot``), as on SQL Server; ``SELECT *`` returns the stored names
+  (``SHOT``), also as on SQL Server. Requires toksearch >= 2.18.2.
+- Pin a run with ``connect_d3drdb(snapshot="d3drdb_<stamp>")`` or
+  ``FDP_SQL_SNAPSHOT_D3DRDB``.
 
 Key tables: ``shots`` (shot number, ``entered`` timestamp),
 ``shots_type`` (``shot_type``: 'plasma', 'calibration', etc.).
-Join on ``shots.shot = shots_type.shot``.
+Join on ``shots.shot = shots_type.shot``. The ``toksearch-d3d-d3drdb``
+skill has the table guide, what T-SQL works, and what a snapshot excludes.
 
 fdp CLI
 =======
@@ -138,15 +186,13 @@ or ``-t TOKEN`` flag.
 DIII-D Gotchas
 ==============
 
-- ``connect_d3drdb`` sets ``TDSVER`` automatically (from the ``d3d.yaml``
-  d3drdb locator); the deprecated ``toksearch.sql.mssql.connect_d3drdb``
-  still needs ``TDSVER="7.0"`` set manually
+- ``connect_d3drdb()`` is a published snapshot, not the live database:
+  shots above its ceiling are missing; ``live=True`` reaches them on-site
 - ``PtDataSignal('pinj')`` returns "Invalid shot number" for recent shots —
   fetch NBI power from the separate ``toksearch_imas`` package instead:
   ``ImasSignal('nbi.unit.power_launched.data')``
-- ``PTDATA2`` TDI expressions hang inside ``fdp run`` due to XRootD
-  fork-after-threading — fetch via ``PtDataSignal`` directly
-- Only the ``efit01`` MDSplus tree is available via FDP Pelican
+- ``PTDATA2`` TDI expressions work under ``fdp run``; the fork-after-XrdCl hang is fixed in ``xrdcl-pelican-fdp`` 0.3.0
+- All DIII-D MDSplus trees (not just ``efit01``) are on the FDP Pelican origin
 - PTData JSON index has a coverage cap (~shot 201,299) — for newer shots use
   ``MdsSignal`` or the separate ``toksearch_imas`` package
 - ``pathlib.Path()`` mangles ``pelican://`` URLs — use f-strings

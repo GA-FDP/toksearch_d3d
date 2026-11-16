@@ -70,6 +70,57 @@ for rec in records:
 
 ---
 
+## Pinning a shot to a stored version
+
+The DIII-D store keeps shots under explicit versions, and a pipeline can ask for
+one. The version travels with the **shot**, not the signal: a single
+`PtDataSignal` serves every shot in the pipeline, so putting the version on the
+signal would mean "v2 of everything". Give the shot list dicts instead:
+
+```python
+pipeline = Pipeline([
+    {'shot': 202159, 'version': 2},
+    {'shot': 202160, 'version': 2},
+    {'shot': 202161},                 # unpinned -- whatever the catalog says now
+])
+pipeline.fetch('ip', PtDataSignal('ip'))
+```
+
+`snapshot` names a catalog snapshot instead of a version number, and the two may
+be given together or separately:
+
+```python
+Pipeline([{'shot': 202161, 'snapshot': 'catalog_20260901T000000'}])
+```
+
+**A pin is a guarantee, not a preference.** If the requested version cannot be
+served you get an error in `record['errors']` -- never data from some other
+version. This is deliberate: silently falling back would make a reproduction
+run look successful while reading different bytes than the run it reproduces.
+
+`version` and `snapshot` are reserved fields on the `Record`, alongside `shot`
+and `errors`. They survive `keep()` and cannot be deleted, so a routine
+`keep(['max_ip'])` in the middle of a pipeline cannot strip the provenance that
+says which bytes produced `max_ip`:
+
+```python
+records = pipeline.compute_serial()
+rec = records[0]
+print(rec['shot'], rec['version'])     # still there after keep(['max_ip'])
+```
+
+Reading them back is how you record what a run actually used. Note that
+`Record.get` requires an explicit default:
+
+```python
+version = rec.get('version', None)     # not rec.get('version')
+```
+
+Requires `toksearch >= 2.12.0` and `ptdata >= 2.6.0`; `toksearch_d3d 0.13.0`
+floors both, so a correct environment cannot silently drop the pin.
+
+---
+
 ## Calibration (`ical`)
 
 By default data are returned in physics units (`ical=1`).  Pass `ical=0` to

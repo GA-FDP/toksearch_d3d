@@ -41,6 +41,7 @@ class _StubResult:
 
     data = [1.0, 2.0, 3.0]
     raw_integer = []
+    text = ""
     times = [0.0, 1.0, 2.0]
     units = "AMPS"
     n_over = 0
@@ -53,7 +54,8 @@ class _RecordingReader:
     def __init__(self):
         self.calibrations = []
 
-    def fetch(self, pointname, shot, params):
+    def fetch(self, pointname, shot, params, source='',
+              version=None, snapshot=None):
         self.calibrations.append(params.calibration)
         return _StubResult()
 

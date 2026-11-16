@@ -1,20 +1,33 @@
 name: Conda Package CI/CD
 
+# Two events, one version. See
+# fdp-core/docs/specs/2026-09-15-staging-and-promotion.md section 3.
+#
+#   staging-X.Y.Z  -> build, upload to ga-fdp/label/staging
+#   release-X.Y.Z  -> relabel those exact bytes to main. NO rebuild.
+#
+# The release tag performs no build on purpose: promotion must ship the
+# bytes that were verified, and a rebuild would not.
 on:
   push:
     branches:
       - main
     tags:
+      - 'staging-*'
       - 'release-*'
   pull_request:
     branches:
       - main
 
+# deploy_docs pushes to gh-pages.
 permissions:
   contents: write
 
 jobs:
-  build_and_test:
+  build:
+    # Not on a release tag: that promotes an artifact that already exists.
+    # Builds both OS variants untested; the matrix below tests them.
+    if: "!startsWith(github.ref, 'refs/tags/release-')"
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -28,42 +41,216 @@ jobs:
         with:
           pixi-version: latest
 
-      - name: Set staging channel for pre-release builds
-        if: startsWith(github.ref, 'refs/tags/release-')
-        run: |
-          VERSION="${GITHUB_REF#refs/tags/release-}"
-          if [[ "$VERSION" =~ (rc|a|b)[0-9] ]]; then
-            echo "EXTRA_CHANNEL=ga-fdp/label/staging" >> $GITHUB_ENV
-          fi
-
-      - name: Build Conda package
+      - name: Build Conda packages
         env:
-          BEARER_TOKEN: ${{ secrets.BEARER_TOKEN }}
-          EXTRA_CHANNEL: ${{ env.EXTRA_CHANNEL }}
+          # Siblings live in staging until a bless promotes them. Without it
+          # a recipe floor on a sibling cannot resolve, which forced a serial
+          # release order on 2026-09-14.
+          EXTRA_CHANNEL: ga-fdp/label/staging
+          RUN_TESTS: "0"
         run: |
           pixi global install rattler-build
           cd recipe && bash run_build.sh ${HOME}/outdir
 
-      - name: Upload to Anaconda
-        if: startsWith(github.ref, 'refs/tags/release-')
+      - name: Keep the built packages for the test and publish jobs
+        uses: actions/upload-artifact@v4
+        with:
+          name: noarch-package
+          path: ~/outdir/noarch/
+          if-no-files-found: error
+
+  test:
+    # Every supported python on both OSes, in parallel, against the exact
+    # artifacts. rattler-build test runs one environment per package and
+    # cannot pin python, so each leg solves its own with pixi exec, from the
+    # built packages as a local channel; __linux/__osx picks the variant.
+    if: "!startsWith(github.ref, 'refs/tags/release-')"
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-15]
+        python: ["3.11", "3.12"]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash -el {0}
+    steps:
+      # tests/ only: a full checkout puts the source package beside it, and
+      # an import from the checkout root would test that, not the artifact.
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: tests
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: noarch-package
+          path: channel/noarch
+
+      - uses: prefix-dev/setup-pixi@v0.8.1
+        with:
+          pixi-version: latest
+          run-install: false
+
+      - name: Recipe test suite on python ${{ matrix.python }}
+        env:
+          # This repo's tests fetch from the live origin. Without the token
+          # they fall through to the ptserver tier and fail with
+          # "getservbyname failed for task 'PTSERVER'", which reads as a
+          # missing /etc/services entry rather than a missing credential.
+          BEARER_TOKEN: ${{ secrets.BEARER_TOKEN }}
+        run: |
+          # A channel needs every subdir it is asked for, not just noarch.
+          for sub in linux-64 osx-arm64; do
+            mkdir -p channel/$sub
+            echo "{\"info\":{\"subdir\":\"$sub\"},\"packages\":{},\"packages.conda\":{}}" \
+              > channel/$sub/repodata.json
+          done
+          f=$(ls channel/noarch/toksearch_d3d-*.conda | head -1)
+          VERSION=$(basename "$f" | cut -d- -f2)
+          # The same command and test requirement as the recipe's test.
+          pixi exec \
+            -c "file://${PWD}/channel" -c ga-fdp/label/staging -c ga-fdp -c conda-forge \
+            -s "python ${{ matrix.python }}.*" \
+            -s "toksearch_d3d ==${VERSION}" \
+            -s "fdp >=0.12.1" \
+            -- bash -c "test ! -e toksearch_d3d \
+                && python -c 'import sys, toksearch_d3d; f = toksearch_d3d.__file__; print(sys.version, f); assert \"site-packages\" in f, f' \
+                && fdp run bash -c 'cd tests && python testit.py --fast-exit'"
+
+  publish:
+    # Only after both platforms passed: nothing reaches staging untested.
+    if: startsWith(github.ref, 'refs/tags/staging-')
+    needs: [build, test]
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -el {0}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: noarch-package
+          path: ~/outdir/noarch
+
+      - uses: prefix-dev/setup-pixi@v0.8.1
+        with:
+          pixi-version: latest
+          run-install: false
+
+      - name: Install rattler-build
+        run: pixi global install rattler-build
+
+      - name: The built version must match the tag
+        # versioneer derives the version from `git describe`, which picks ONE
+        # tag when a commit carries several. Without this, a second staging
+        # tag on the same commit uploads the EARLIER version under the newer
+        # tag, and the retire step then files the just-published artifact in
+        # the attic. That happened during the pilot; nothing noticed.
+        if: startsWith(github.ref, 'refs/tags/staging-')
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/staging-}"
+          shopt -s nullglob
+          built=(${HOME}/outdir/*/*-${VERSION}-*.conda)
+          if [ ${#built[@]} -eq 0 ]; then
+            echo "::error::tag says ${VERSION}, but nothing of that version was built."
+            echo "::error::Usually: this commit carries another staging- tag and"
+            echo "::error::git describe chose it. Tag a fresh commit."
+            ls -la ${HOME}/outdir/*/ || true
+            exit 1
+          fi
+          printf 'ARTIFACTS<<EOF\n%s\nEOF\n' "$(printf '%s\n' "${built[@]}")" >> $GITHUB_ENV
+          echo "version ${VERSION}: ${#built[@]} artifact(s)"
+
+      - name: Upload to staging
+        if: startsWith(github.ref, 'refs/tags/staging-')
+        run: |
+          # Always staging. The old rc/a/b test is gone: a pre-release is now
+          # simply a staging tag that never earns a release tag.
+          echo "$ARTIFACTS" | while read -r f; do
+            [ -n "$f" ] && rattler-build upload anaconda \
+              --owner ga-fdp \
+              --channel staging \
+              --api-key ${{ secrets.ANACONDA_API_TOKEN }} \
+              --force \
+              "$f"
+          done
+
+      - name: Retire the superseded staging candidate
+        # AFTER the upload, never before. DELETES NOTHING: the old candidate
+        # is downloaded, checksum-verified and moved to the `attic` label.
+        # A failed candidate is evidence.
+        if: startsWith(github.ref, 'refs/tags/staging-')
+        env:
+          ANACONDA_API_TOKEN: ${{ secrets.ANACONDA_API_TOKEN }}
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/staging-}"
+          python .github/scripts/channel_tools.py retire \
+            toksearch_d3d "${VERSION}" "${RUNNER_TEMP}/attic"
+
+      - name: Keep the retired bytes off-channel
+        if: always() && startsWith(github.ref, 'refs/tags/staging-')
+        uses: actions/upload-artifact@v4
+        with:
+          name: retired-staging-candidates
+          path: ${{ runner.temp }}/attic
+          if-no-files-found: ignore
+          retention-days: 90
+
+  promote:
+    # No build. Relabels the artifact that was already built and verified.
+    if: startsWith(github.ref, 'refs/tags/release-')
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -el {0}
+    env:
+      ANACONDA_API_TOKEN: ${{ secrets.ANACONDA_API_TOKEN }}
+      PKG: toksearch_d3d
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Move staging -> main
         run: |
           VERSION="${GITHUB_REF#refs/tags/release-}"
-          if [[ "$VERSION" =~ (rc|a|b)[0-9] ]]; then
-            LABEL="staging"
-          else
-            LABEL="main"
-          fi
-          rattler-build upload anaconda \
-            --owner ga-fdp \
-            --channel "$LABEL" \
-            --api-key ${{ secrets.ANACONDA_API_TOKEN }} \
-            --force \
-            ${HOME}/outdir/linux-64/*.conda
+          # NOT `anaconda move`: it ignores the version and moves everything
+          # in the source label. See fdp-core spec section 4.2.
+          python .github/scripts/channel_tools.py promote "${PKG}" "${VERSION}"
+
+  deploy_docs:
+    # On the RELEASE tag, not the staging one: published docs should
+    # describe what is installable from the main label. Its own job because
+    # build_and_test no longer runs on a release tag.
+    if: startsWith(github.ref, 'refs/tags/release-')
+    needs: promote
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -el {0}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: prefix-dev/setup-pixi@v0.8.1
+        with:
+          pixi-version: latest
 
       - name: Deploy Docs
-        if: startsWith(github.ref, 'refs/tags/release-') && !contains(github.ref, 'rc') && !contains(github.ref, 'a') && !contains(github.ref, 'b')
+        # Pre-release detection happens in bash. The condition here used to be
+        #   !contains(github.ref, 'rc') && !contains(github.ref, 'a') && ...
+        # which can NEVER be true: every ref contains the letter 'a', in
+        # "refs/tAgs/". So this step never ran. gh-pages was last deployed on
+        # 2026-03-16 at version 0.3.X while the package reached 0.14.0 --
+        # roughly eleven releases with stale docs and a green tick on each.
+        # toksearch hit the same bug and fixed it; this repo never got it.
         run: |
           TAG=${GITHUB_REF#refs/tags/release-}
+          if [[ "$TAG" =~ (rc|a|b)[0-9] ]]; then
+            echo "Pre-release $TAG — skipping docs deploy"
+            exit 0
+          fi
           MAJOR=$(echo $TAG | cut -d. -f1)
           MINOR=$(echo $TAG | cut -d. -f2)
 

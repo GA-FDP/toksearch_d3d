@@ -86,6 +86,9 @@ class PtDataSignal(Signal):
     legacy ``PtDataFetcher``'s separate header read + data fetch. Times are in
     milliseconds.
 
+    ASCII-type points, such as the PCS phase logs ``PHASESTKn``/``SEQSTKn``,
+    return their text as a ``str`` in ``'data'``, with no ``'times'``.
+
     Args:
         pointname: PTDATA point name (case-insensitive), e.g. `'ip'`.
         remote: Retained for backward compatibility; sets `PTDATA_LOC` for the
@@ -133,8 +136,21 @@ class PtDataSignal(Signal):
             dims = None
         self.set_dims(dims)
 
+    def _spec_fields(self):
+        # `fetch_units` is deliberately absent: __init__ stores it as the base
+        # class's `with_units`, which Signal.spec() already records at the top
+        # level. The resolved CalibrationMode is absent too -- `ical` is the
+        # value the caller set and gather() re-resolves it per fetch.
+        return {
+            "pointname": self.pointname,
+            "remote": self.remote,
+            "ical": self.ical,
+            "keep_header": self.keep_header,
+            "fetch_times": self.fetch_times,
+        }
 
-    def gather(self, shot):
+
+    def gather(self, shot, version=None, snapshot=None):
         dims = self.dims
         fetch_units = self.with_units
 
@@ -148,14 +164,28 @@ class PtDataSignal(Signal):
             params.fetch_times = fetch_times
             params.calibration = calibration_mode_for_ical(self.ical)
 
-            result = reader.fetch(self.pointname, int(shot), params)
+            # The version travels with the SHOT, not the signal: one
+            # PtDataSignal serves every shot in a pipeline, so a constructor
+            # kwarg would mean "v2 of everything". The shot list carries it --
+            # Pipeline([{"shot": N, "version": V}]) -- and the pipeline hands
+            # the pin down as two values, so a signal never has to destructure
+            # a Record to find them.
+            result = reader.fetch(self.pointname, int(shot), params,
+                                  version=version, snapshot=snapshot)
 
-            # Raw calibration populates raw_integer rather than data; fall
-            # through so 'data' is non-empty regardless of mode (matches the
-            # legacy fetch_ptdata contract).
-            data_source = result.data if len(result.data) > 0 else result.raw_integer
+            # An ASCII point (e.g. the PCS phase logs PHASESTKn) is its text:
+            # a str with no time base, whatever `ical` and `fetch_times` say.
+            is_text = bool(result.text)
+            if is_text:
+                data = result.text
+            else:
+                # Raw calibration populates raw_integer rather than data; fall
+                # through so 'data' is non-empty regardless of mode (matches
+                # the legacy fetch_ptdata contract).
+                data_source = result.data if len(result.data) > 0 else result.raw_integer
+                data = np.array(data_source)
             results = {
-                "data": np.array(data_source),
+                "data": data,
                 "n_over": result.n_over,
                 "n_under": result.n_under,
             }
@@ -175,7 +205,7 @@ class PtDataSignal(Signal):
                 # ExtractedData.units is the raw 4-char field; match the legacy
                 # PtDataHeader.units() normalization (lowercased, trimmed).
                 results["units"]["data"] = result.units.strip().lower()
-                if fetch_times:
+                if fetch_times and not is_text:
                     results["units"][dims[0]] = "ms"
 
         return results

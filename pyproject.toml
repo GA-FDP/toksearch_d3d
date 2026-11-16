@@ -33,7 +33,7 @@ dependencies = []
 pcssetup-to-wa10 = "toksearch_d3d.tools.pcssetup_to_wa10:main"
 
 [tool.setuptools]
-packages = ["toksearch_d3d", "toksearch_d3d.data", "toksearch_d3d.llm", "toksearch_d3d.signal", "toksearch_d3d.tools"]
+packages = ["toksearch_d3d", "toksearch_d3d.data", "toksearch_d3d.llm", "toksearch_d3d.pcssetup", "toksearch_d3d.signal", "toksearch_d3d.tools"]
 zip-safe = false
 
 [tool.setuptools.package-data]
@@ -45,7 +45,10 @@ VCS = "git"
 style = "pep440"
 versionfile_source = "toksearch_d3d/_version.py"
 versionfile_build = "toksearch_d3d/_version.py"
-tag_prefix = "release-"
+# Two events, one version: fdp-core spec 2026-09-15 section 3. `staging-X.Y.Z`
+# builds; `release-X.Y.Z` promotes those exact bytes and must NOT rebuild, so
+# versioneer reads the staging tag.
+tag_prefix = "staging-"
 parentdir_prefix = "toksearch_d3d-"
 
 [project.entry-points."toksearch.llm.namespace"]

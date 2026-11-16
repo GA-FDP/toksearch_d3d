@@ -12,9 +12,14 @@ class TestD3DCatalog(unittest.TestCase):
         from toksearch_d3d.data import d3d_yaml
         t = load_tokamak(d3d_yaml)
         self.assertEqual(t.name, "d3d")
-        self.assertEqual(len(t.locators), 3)
+        self.assertEqual(len(t.locators), 4)
         kinds = {l.kind for l in t.locators}
-        self.assertEqual(kinds, {"mds_tree", "ptdata_indexed", "sql"})
+        self.assertEqual(kinds, {"mds_tree", "ptdata_indexed", "sql", "sql_snapshot"})
+        snap = next(l for l in t.locators if l.kind == "sql_snapshot")
+        self.assertEqual(snap.name, "d3drdb")
+        self.assertEqual(snap.base_url, "pelican://osg-htc.org:443/fdp-d3d/metadata/d3drdb")
+        self.assertEqual(snap.id_pattern, "d3drdb_*")
+        self.assertEqual(snap.auth.env, "BEARER_TOKEN")
 
     def test_entry_point_registered(self):
         from importlib.metadata import entry_points

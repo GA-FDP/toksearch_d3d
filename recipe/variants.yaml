@@ -1,3 +1,4 @@
-python:
-  - "3.11"
-  - "3.12"
+# One noarch package per OS; see the build string and run requirements.
+noarch_platform:
+  - linux
+  - osx

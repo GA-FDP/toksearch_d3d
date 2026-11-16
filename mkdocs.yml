@@ -49,6 +49,7 @@ nav:
   - Home: index.md
   - Tutorials:
     - "PTData Diagnostics": ptdata.md
+    - "Shot metadata (d3drdb)": d3drdb.md
   - API:
     - "PtDataSignal / RDataSignal": ptdata_api.md
 
