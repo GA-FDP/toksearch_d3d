@@ -17,14 +17,18 @@ jobs:
       - name: probe
         run: |
           curl -s -o /tmp/moz.pem https://curl.se/ca/cacert.pem
-          echo "runner ip: $(curl -s https://api.ipify.org)"
-          for i in 1 2 3; do
-            loc=$(curl -sI -H "Authorization: Bearer $BEARER_TOKEN" "$DIR$OBJ" | awk 'tolower($1)=="location:"{print $2}' | tr -d '\r')
-            host=$(echo "$loc" | sed -E 's#https://([^/:]+)(:([0-9]+))?.*#\1#'); port=$(echo "$loc" | sed -nE 's#https://[^/:]+:([0-9]+).*#\1#p'); port=${port:-443}
-            echo "== try $i -> $host:$port"
-            out=$(echo | openssl s_client -connect $host:$port -servername $host -showcerts -CAfile /tmp/moz.pem 2>&1)
-            echo "$out" | grep -E '^ *[0-9]+ s:|^ *i:|Verify return code'
-            curl -s -o /dev/null -w "curl(moz bundle) http=%{http_code} verify=%{ssl_verify_result}\n" --cacert /tmp/moz.pem -H "Authorization: Bearer $BEARER_TOKEN" "$loc" || echo "curl exit $?"
+          : > /tmp/hosts
+          for i in $(seq 1 60); do
+            curl -sI -H "Authorization: Bearer $BEARER_TOKEN" "$DIR$OBJ" | awk 'tolower($1)=="location:"{print $2}' | tr -d '\r' | sed -E 's#(https://[^/]+).*#\1#' >> /tmp/hosts
+          done
+          echo "redirect targets over 60 requests:"; sort /tmp/hosts | uniq -c | sort -rn
+          for h in $(sort -u /tmp/hosts); do
+            for k in 1 2 3; do
+              r=$(curl -s -o /dev/null -w "http=%{http_code} verify=%{ssl_verify_result}" --cacert /tmp/moz.pem -H "Authorization: Bearer $BEARER_TOKEN" "$h$OBJ" 2>&1); e=$?
+              echo "$h try$k: $r exit=$e"
+            done
+            hn=$(echo $h | sed -E 's#https://([^:/]+).*#\1#'); pt=$(echo $h | sed -nE 's#.*:([0-9]+)$#\1#p')
+            echo | openssl s_client -connect $hn:${pt:-443} -servername $hn -verify_hostname $hn -CAfile /tmp/moz.pem 2>&1 | grep -E 'Verify return|subject=|issuer=' | sed "s#^#  $hn #"
           done
       - name: duckdb with conda CA bundle
         run: |
