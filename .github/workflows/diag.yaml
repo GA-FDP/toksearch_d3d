@@ -38,11 +38,7 @@ jobs:
       fail-fast: false
       matrix:
         mode:
-          - live-only
-          - after-sql
-          - after-ptdata
-          - after-imas-cake
-          - after-rest
+          - xrd-bisect
     runs-on: macos-15
     defaults:
       run:
@@ -76,7 +72,9 @@ jobs:
               cd src/tests
               R="python $TRACE $GITHUB_WORKSPACE/probe/diag/run_order.py"
               L=test_sql_snapshot_live
+              X="python $GITHUB_WORKSPACE/probe/diag/xrd_probe.py"
               case "$MODE" in
+                xrd-bisect) for m in plain xrd curlplugin xrd-httplib plain; do fdp run $X $m 12 2>&1 | grep -vE "Warning|warn"; done ;;
                 live-only) for i in 1 2 3; do echo "=== live run $i $(date +%T)"; fdp run $R $L 2>&1 | grep -E "trace|ok$|ERROR|FAIL|Error|Ran "; done ;;
                 after-sql) fdp run $R test_sql $L ;;
                 after-ptdata) fdp run $R test_ptdata_signal test_ptdata_signal_calibration test_ptdata_signal_pinning test_ptdata_signal_reader_reuse test_ptdata_signal_text $L ;;
