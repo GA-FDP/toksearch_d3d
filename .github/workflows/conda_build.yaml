@@ -15,9 +15,6 @@ on:
     tags:
       - 'staging-*'
       - 'release-*'
-  pull_request:
-    branches:
-      - main
 
 # deploy_docs pushes to gh-pages.
 permissions:

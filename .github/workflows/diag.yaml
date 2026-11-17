@@ -1,0 +1,33 @@
+name: diag macOS TLS
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  probe:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash -el {0}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: diag
+      - uses: prefix-dev/setup-pixi@v0.8.1
+        with:
+          pixi-version: latest
+          run-install: false
+      - name: probe
+        env:
+          BEARER_TOKEN: ${{ secrets.BEARER_TOKEN }}
+        run: |
+          EXTRA=""
+          [ "$RUNNER_OS" = Linux ] && EXTRA='-s duckdb-extension-httpfs>=1.5,<2'
+          pixi exec -c ga-fdp/label/staging -c ga-fdp -c conda-forge \
+            -s "python 3.13.*" -s "toksearch ==2.23.2" -s "python-duckdb >=1.5,<2" -s curl -s openssl $EXTRA \
+            -- python -u diag/tls_probe.py
