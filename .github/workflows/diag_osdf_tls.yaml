@@ -1,47 +1,44 @@
 name: diag OSDF TLS
 on: pull_request
 jobs:
-  probe:
+  repro:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-15, macos-15, macos-15, macos-15, macos-15, macos-15, ubuntu-latest, ubuntu-latest]
-    runs-on: ${{ matrix.os }}
+        py: ["3.11", "3.12"]
+    runs-on: macos-15
     env:
       BEARER_TOKEN: ${{ secrets.BEARER_TOKEN }}
-      DIR: https://osdf-director.osg-htc.org
-      OBJ: /fdp-d3d/metadata/d3drdb/d3drdb_20261006T135944Z/SHOTS_TYPE.parquet
     steps:
       - uses: prefix-dev/setup-pixi@v0.8.1
         with: {pixi-version: latest, run-install: false}
-      - name: probe
+      - name: repro
         run: |
-          curl -s -o /tmp/moz.pem https://curl.se/ca/cacert.pem
-          : > /tmp/hosts
-          for i in $(seq 1 60); do
-            curl -sI -H "Authorization: Bearer $BEARER_TOKEN" "$DIR$OBJ" | awk 'tolower($1)=="location:"{print $2}' | tr -d '\r' | sed -E 's#(https://[^/]+).*#\1#' >> /tmp/hosts
-          done
-          echo "redirect targets over 60 requests:"; sort /tmp/hosts | uniq -c | sort -rn
-          for h in $(sort -u /tmp/hosts); do
-            for k in 1 2 3; do
-              r=$(curl -s -o /dev/null -w "http=%{http_code} verify=%{ssl_verify_result}" --cacert /tmp/moz.pem -H "Authorization: Bearer $BEARER_TOKEN" "$h$OBJ" 2>&1); e=$?
-              echo "$h try$k: $r exit=$e"
-            done
-            hn=$(echo $h | sed -E 's#https://([^:/]+).*#\1#'); pt=$(echo $h | sed -nE 's#.*:([0-9]+)$#\1#p')
-            echo | openssl s_client -connect $hn:${pt:-443} -servername $hn -verify_hostname $hn -CAfile /tmp/moz.pem 2>&1 | grep -E 'Verify return|subject=|issuer=' | sed "s#^#  $hn #"
-          done
-      - name: duckdb with conda CA bundle
-        run: |
-          pixi exec -c conda-forge -s "python 3.11.*" -s "python-duckdb >=1.5,<2" -s ca-certificates -- python - <<'PY'
-          import duckdb, os, ssl, sys
-          ca = ssl.get_default_verify_paths()
-          print("verify paths:", ca, "exists:", ca.cafile and os.path.exists(ca.cafile))
-          c = duckdb.connect()
-          c.execute("INSTALL httpfs" if sys.platform == "darwin" else "INSTALL httpfs"); c.execute("LOAD httpfs")
-          c.execute(f"CREATE SECRET (TYPE http, BEARER_TOKEN '{os.environ['BEARER_TOKEN']}')")
-          if ca.cafile: c.execute(f"SET ca_cert_file = '{ca.cafile}'")
-          url = os.environ["DIR"] + os.environ["OBJ"]
+          cat > /tmp/probe.py <<'PY'
+          import ssl, os, sys, duckdb, toksearch, platform
+          print("python", sys.version.split()[0], "duckdb", duckdb.__version__, "toksearch", toksearch.__version__)
+          print("verify paths", ssl.get_default_verify_paths())
+          print("SSL env", {k: v for k, v in os.environ.items() if "CERT" in k or "SSL" in k or "CA_" in k})
+          import toksearch.sql._snapshot_db as m, inspect
+          print("ca_cert_file in source:", "ca_cert_file" in inspect.getsource(m._open_duckdb), m.__file__)
+          orig = m._open_duckdb
+          def spy(duckdb_mod, token, base=None):
+              con = orig(duckdb_mod, token, base)
+              for name in ("ca_cert_file", "httpfs_client_implementation"):
+                  try: print("  setting", name, "=", con.execute(f"SELECT current_setting('{name}')").fetchone())
+                  except Exception as e: print("  setting", name, "ERR", str(e)[:120])
+              print("  httpfs ext:", con.execute("SELECT extension_version, install_path FROM duckdb_extensions() WHERE extension_name='httpfs'").fetchall())
+              return con
+          m._open_duckdb = spy
+          import pandas as pd
+          from toksearch_d3d.sql import connect_d3drdb
           for i in range(3):
-              try: print("try", i, c.execute(f"SELECT count(*) FROM read_parquet('{url}')").fetchone())
-              except Exception as e: print("try", i, "FAIL", str(e)[:200])
+              try:
+                  with connect_d3drdb() as c:
+                      print("try", i, pd.read_sql("SELECT count(*) n FROM shots_type", c).n[0])
+              except Exception as e:
+                  print("try", i, "FAIL", str(e)[:250])
           PY
+          pixi exec -c ga-fdp/label/staging -c ga-fdp -c conda-forge \
+            -s "python ${{ matrix.py }}.*" -s "toksearch ==2.23.1" -s "toksearch_d3d ==0.17.0" -s "fdp >=0.12.1" \
+            -- bash -c "pixi --version; fdp run python /tmp/probe.py"
