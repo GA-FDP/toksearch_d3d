@@ -11,6 +11,11 @@ def traced(duckdb, token, base=None):
     env = {k: v for k, v in os.environ.items() if "SSL" in k or "CERT" in k or "CA_BUNDLE" in k}
     print("\n[trace] open_duckdb verify_paths.cafile={} duckdb.ca_cert_file={} env={}".format(
         ssl.get_default_verify_paths().cafile, ca, env), file=sys.stderr, flush=True)
+    import subprocess
+    out = subprocess.run(["lsof", "-p", str(os.getpid())], capture_output=True, text=True).stdout
+    libs = sorted({ln.split()[-1] for ln in out.splitlines()
+                   if any(k in ln for k in ("ssl", "crypto", "curl", "httpfs", "Xrd"))})
+    print("[trace] libs " + " ".join(libs), file=sys.stderr, flush=True)
     return con
 
 

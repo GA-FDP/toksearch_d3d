@@ -6,6 +6,7 @@ on:
 
 jobs:
   probe:
+    if: false
     strategy:
       fail-fast: false
       matrix:
@@ -36,7 +37,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        mode: [module-x5, full-suite]
+        mode:
+          - live-only
+          - after-sql
+          - after-ptdata
+          - after-imas-cake
+          - after-rest
     runs-on: macos-15
     defaults:
       run:
@@ -68,12 +74,13 @@ jobs:
               python -m pip install --no-deps --no-build-isolation ./src >/dev/null 2>&1 || python -m pip install --no-deps ./src
               python -c "import toksearch_d3d, toksearch, ssl; print(toksearch_d3d.__file__, toksearch.__version__, ssl.get_default_verify_paths())"
               cd src/tests
-              if [ "$MODE" = module-x5 ]; then
-                for i in 1 2 3 4 5; do
-                  echo "=== module run $i $(date +%T)"
-                  fdp run python $TRACE -m unittest -v test_sql_snapshot_live 2>&1 | grep -E "trace|ok$|ERROR|FAIL|Error|Ran "
-                done
-              else
-                fdp run python $TRACE testit.py --fast-exit 2>&1 | grep -E "trace|test_sql_snapshot|ERROR|FAIL|Error:|Ran "
-              fi
+              R="python $TRACE $GITHUB_WORKSPACE/probe/diag/run_order.py"
+              L=test_sql_snapshot_live
+              case "$MODE" in
+                live-only) for i in 1 2 3; do echo "=== live run $i $(date +%T)"; fdp run $R $L 2>&1 | grep -E "trace|ok$|ERROR|FAIL|Error|Ran "; done ;;
+                after-sql) fdp run $R test_sql $L ;;
+                after-ptdata) fdp run $R test_ptdata_signal test_ptdata_signal_calibration test_ptdata_signal_pinning test_ptdata_signal_reader_reuse test_ptdata_signal_text $L ;;
+                after-imas-cake) fdp run $R test_imas_layout test_imas_redial test_imas_signal test_cake_cache test_cake_signal $L ;;
+                after-rest) fdp run $R test_catalog test_fdp_decoupling test_llm_pr4_contributor test_pcssetup_live test_pcssetup_reader test_pcssetup_to_wa10 test_signal_spec $L ;;
+              esac 2>&1 | grep -E "trace|test_sql_snapshot_live|ERROR|FAIL|Error:|Ran |^ok|\.\.\. ok" | cut -c1-400 | tail -60
             '
