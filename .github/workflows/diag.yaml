@@ -80,5 +80,5 @@ jobs:
                 after-ptdata) fdp run $R test_ptdata_signal test_ptdata_signal_calibration test_ptdata_signal_pinning test_ptdata_signal_reader_reuse test_ptdata_signal_text $L ;;
                 after-imas-cake) fdp run $R test_imas_layout test_imas_redial test_imas_signal test_cake_cache test_cake_signal $L ;;
                 after-rest) fdp run $R test_catalog test_fdp_decoupling test_llm_pr4_contributor test_pcssetup_live test_pcssetup_reader test_pcssetup_to_wa10 test_signal_spec $L ;;
-              esac 2>&1 | grep -E "trace|test_sql_snapshot_live|ERROR|FAIL|Error:|Ran |^ok|\.\.\. ok" | cut -c1-400 | tail -60
+              esac 2>&1 | grep -E "trace|test_sql_snapshot_live|ERROR|FAIL|Error|Ran |curl-says|SUMMARY|resolved|libs|^  [$/]|Traceback" | cut -c1-400 | tail -120
             '
