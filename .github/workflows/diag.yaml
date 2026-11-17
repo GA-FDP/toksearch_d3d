@@ -38,7 +38,7 @@ jobs:
       fail-fast: false
       matrix:
         mode:
-          - xrd-bisect
+          - sweep
     runs-on: macos-15
     defaults:
       run:
@@ -74,11 +74,12 @@ jobs:
               L=test_sql_snapshot_live
               X="python $GITHUB_WORKSPACE/probe/diag/xrd_probe.py"
               case "$MODE" in
+                sweep) fdp run python $GITHUB_WORKSPACE/probe/diag/sweep_probe.py ;;
                 xrd-bisect) for m in plain xrd curlplugin xrd-httplib plain; do fdp run $X $m 12 2>&1 | grep -vE "Warning|warn"; done ;;
                 live-only) for i in 1 2 3; do echo "=== live run $i $(date +%T)"; fdp run $R $L 2>&1 | grep -E "trace|ok$|ERROR|FAIL|Error|Ran "; done ;;
                 after-sql) fdp run $R test_sql $L ;;
                 after-ptdata) fdp run $R test_ptdata_signal test_ptdata_signal_calibration test_ptdata_signal_pinning test_ptdata_signal_reader_reuse test_ptdata_signal_text $L ;;
                 after-imas-cake) fdp run $R test_imas_layout test_imas_redial test_imas_signal test_cake_cache test_cake_signal $L ;;
                 after-rest) fdp run $R test_catalog test_fdp_decoupling test_llm_pr4_contributor test_pcssetup_live test_pcssetup_reader test_pcssetup_to_wa10 test_signal_spec $L ;;
-              esac 2>&1 | grep -E "trace|test_sql_snapshot_live|ERROR|FAIL|Error|Ran |curl-says|SUMMARY|resolved|libs|^  [$/]|Traceback" | cut -c1-400 | tail -120
+              esac 2>&1 | grep -E "trace|test_sql_snapshot_live|ERROR|FAIL|Error|Ran |curl-says|SUMMARY|resolved|libs|^  [$/]|Traceback|sweep|raw \\[|connect_d3drdb \\[|log|cafile|  \\(|      " | cut -c1-400 | tail -300
             '
