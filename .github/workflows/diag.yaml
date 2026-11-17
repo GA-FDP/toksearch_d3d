@@ -31,3 +31,49 @@ jobs:
           pixi exec -c ga-fdp/label/staging -c ga-fdp -c conda-forge \
             -s "python 3.13.*" -s "toksearch ==2.23.2" -s "python-duckdb >=1.5,<2" -s curl -s openssl $EXTRA \
             -- python -u diag/tls_probe.py
+
+  suite:
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [module-x5, full-suite]
+    runs-on: macos-15
+    defaults:
+      run:
+        shell: bash -el {0}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: python-313-cap
+          path: src
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: diag
+          path: probe
+      - uses: prefix-dev/setup-pixi@v0.8.1
+        with:
+          pixi-version: latest
+          run-install: false
+      - name: ${{ matrix.mode }}
+        env:
+          BEARER_TOKEN: ${{ secrets.BEARER_TOKEN }}
+          MODE: ${{ matrix.mode }}
+          TRACE: ${{ github.workspace }}/probe/diag/trace_run.py
+        run: |
+          pixi exec -c ga-fdp/label/staging -c ga-fdp -c conda-forge \
+            -s "python 3.13.*" -s "toksearch ==2.23.2" -s "ptdata >=2.13.0,<3" \
+            -s "python-duckdb >=1.5,<2" -s "fdp >=0.12.1" -s toksearch_d3d -s pip \
+            -- bash -c '
+              set -x
+              python -m pip install --no-deps --no-build-isolation ./src >/dev/null 2>&1 || python -m pip install --no-deps ./src
+              python -c "import toksearch_d3d, toksearch, ssl; print(toksearch_d3d.__file__, toksearch.__version__, ssl.get_default_verify_paths())"
+              cd src/tests
+              if [ "$MODE" = module-x5 ]; then
+                for i in 1 2 3 4 5; do
+                  echo "=== module run $i $(date +%T)"
+                  fdp run python $TRACE -m unittest -v test_sql_snapshot_live 2>&1 | grep -E "trace|ok$|ERROR|FAIL|Error|Ran "
+                done
+              else
+                fdp run python $TRACE testit.py --fast-exit 2>&1 | grep -E "trace|test_sql_snapshot|ERROR|FAIL|Error:|Ran "
+              fi
+            '
