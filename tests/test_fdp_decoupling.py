@@ -129,5 +129,64 @@ class TestSetupEnvironmentIntegration(unittest.TestCase):
         self.assertIn("OK", result.stdout)
 
 
+def _jwt(lifetime=86400):
+    import base64, json, time
+    enc = lambda b: base64.urlsafe_b64encode(b).rstrip(b"=").decode()
+    payload = json.dumps({"exp": int(time.time()) + lifetime}).encode()
+    return f"{enc(b'{}')}.{enc(payload)}.sig"
+
+
+def _fresh_env(home):
+    env = {"PATH": os.environ.get("PATH", ""), "HOME": str(home)}
+    for k in ("CONDA_PREFIX", "PYTHONPATH", "http_proxy", "https_proxy", "no_proxy",
+              "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY"):
+        if k in os.environ:
+            env[k] = os.environ[k]
+    return env
+
+
+class TestImportResolvesBearerToken(unittest.TestCase):
+    """The Pelican plugin copies BEARER_TOKEN once, when the signal imports
+    load libXrdCl, so ``import toksearch_d3d`` has to export the token from
+    the `fdp login` cache before them (GA-FDP/fdp#15)."""
+
+    def test_import_exports_cached_token(self):
+        import tempfile
+        from pathlib import Path
+        token = _jwt()
+        with tempfile.TemporaryDirectory() as td:
+            cache = Path(td) / ".fdp" / "cache"
+            cache.mkdir(parents=True)
+            (cache / "d3d.token").write_text(token)
+            out = subprocess.run(
+                [sys.executable, "-c",
+                 "import os, toksearch_d3d; print(os.environ.get('BEARER_TOKEN'))"],
+                env=_fresh_env(td), capture_output=True, text=True, timeout=120)
+        self.assertEqual(out.returncode, 0, out.stderr)
+        self.assertEqual(out.stdout.strip().splitlines()[-1], token)
+
+    def test_mds_fetch_with_token_only_in_login_cache(self):
+        from pathlib import Path
+        cached = Path.home() / ".fdp" / "cache" / "d3d.token"
+        if not cached.exists() or not os.environ.get("CONDA_PREFIX"):
+            self.skipTest("requires `fdp login` cache and CONDA_PREFIX")
+        from fdp.auth import _is_unexpired
+        if not _is_unexpired(cached.read_text().strip()):
+            self.skipTest("cached d3d token is expired")
+        script = textwrap.dedent(r"""
+            import toksearch_d3d
+            from toksearch import MdsSignal
+            res = MdsSignal(r'\ipmhd', 'efit01').fetch(198873)
+            assert len(res["data"]) > 1, "empty data"
+            print("OK")
+        """)
+        result = subprocess.run([sys.executable, "-c", script],
+                                env=_fresh_env(Path.home()),
+                                capture_output=True, text=True, timeout=300)
+        self.assertEqual(result.returncode, 0,
+                         f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}")
+        self.assertIn("OK", result.stdout)
+
+
 if __name__ == "__main__":
     unittest.main()
