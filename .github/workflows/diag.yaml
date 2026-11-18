@@ -68,6 +68,7 @@ jobs:
             -- bash -c '
               set -x
               python -m pip install --no-deps --no-build-isolation ./src >/dev/null 2>&1 || python -m pip install --no-deps ./src
+              python -m pip install -q --no-deps "git+https://github.com/GA-FDP/toksearch@fix-ca-cert-global"
               python -c "import toksearch_d3d, toksearch, ssl; print(toksearch_d3d.__file__, toksearch.__version__, ssl.get_default_verify_paths())"
               cd src/tests
               R="python $TRACE $GITHUB_WORKSPACE/probe/diag/run_order.py"
@@ -81,5 +82,5 @@ jobs:
                 after-ptdata) fdp run $R test_ptdata_signal test_ptdata_signal_calibration test_ptdata_signal_pinning test_ptdata_signal_reader_reuse test_ptdata_signal_text $L ;;
                 after-imas-cake) fdp run $R test_imas_layout test_imas_redial test_imas_signal test_cake_cache test_cake_signal $L ;;
                 after-rest) fdp run $R test_catalog test_fdp_decoupling test_llm_pr4_contributor test_pcssetup_live test_pcssetup_reader test_pcssetup_to_wa10 test_signal_spec $L ;;
-              esac 2>&1 | grep -E "trace|test_sql_snapshot_live|ERROR|FAIL|Error|Ran |curl-says|SUMMARY|resolved|libs|^  [$/]|Traceback|sweep|raw \\[|connect_d3drdb \\[|log|cafile|  \\(|      " | cut -c1-400 | tail -300
+              esac 2>&1 | grep -E "trace|test_sql_snapshot_live|ERROR|FAIL|Error|Ran |curl-says|SUMMARY|resolved|libs|^  [$/]|Traceback|sweep|raw \\[|connect_d3drdb \\[|log|cafile|GLOBAL fix|  \\(|      " | cut -c1-400 | tail -300
             '

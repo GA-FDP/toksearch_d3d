@@ -82,8 +82,10 @@ def toolkit_cohort(i):
 
 
 p("cafile", CAF, "duckdb", duckdb.__version__)
-t = time.time(); sweep(int(os.environ.get("SWEEP", "400"))); p("  sweep took {:.0f}s".format(time.time() - t))
+import toksearch.sql._snapshot_db as _m, inspect
+p("GLOBAL fix present:", "SET GLOBAL ca_cert_file" in inspect.getsource(_m))
+sweep(60)
 for i in range(6):
     t = time.time(); raw_cohort(i + 1); p("    ({:.0f}s)".format(time.time() - t))
     t = time.time(); toolkit_cohort(i + 1); p("    ({:.0f}s)".format(time.time() - t))
-sweep(200)
+sweep(60)
