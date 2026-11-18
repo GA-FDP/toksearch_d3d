@@ -337,10 +337,20 @@ _os.environ.setdefault(
 from fdp.environment import build_device_config as _fdp_build_device_config
 from fdp.environment import _resolve_device_handle as _fdp_resolve_device_handle
 from fdp.environment import apply_environment as _fdp_apply_environment
-_fdp_cfg = _fdp_build_device_config(_fdp_resolve_device_handle("d3d"))
+from fdp.environment import resolve_bearer_token as _fdp_resolve_bearer_token
+from fdp.auth import bearer_env as _fdp_bearer_env
+_fdp_handle = _fdp_resolve_device_handle("d3d")
+_fdp_cfg = _fdp_build_device_config(_fdp_handle)
 _fdp_apply_environment(_fdp_cfg, _os.environ)
+# The Pelican plugin copies BEARER_TOKEN once, when libXrdCl loads below;
+# a token set after this point (e.g. by setup_environment()) is ignored.
+_fdp_token_env = _fdp_bearer_env(_fdp_handle)
+_fdp_token = _fdp_resolve_bearer_token(_fdp_handle)
+if _fdp_token_env and _fdp_token:
+    _os.environ[_fdp_token_env] = _fdp_token
 del _os, _sys, _conda_prefix
 del _fdp_build_device_config, _fdp_resolve_device_handle, _fdp_apply_environment, _fdp_cfg
+del _fdp_resolve_bearer_token, _fdp_bearer_env, _fdp_handle, _fdp_token_env, _fdp_token
 
 # Patches the DIII-D servers and PTDATA support into
 # toksearch.interfaces.req_interface.
