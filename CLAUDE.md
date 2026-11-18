@@ -68,5 +68,5 @@ The `fdp` CLI (from the `fdp` package, configured via `fdp.catalog["d3d"]`) sets
 - `pixi.toml` — Workspace config (uses `[workspace]` not `[project]`)
 - `pyproject.toml` — Package metadata, entry points, versioneer config
 - `recipe/recipe.yaml` — rattler-build recipe (replaces old meta.yaml)
-- `recipe/variants.yaml` — Python 3.11 and 3.12 variants
+- `recipe/variants.yaml` — one noarch package per OS (`noarch_platform`: linux, osx); the Python range is the `python` run requirement in `recipe/recipe.yaml`
 - `recipe/run_build.sh` — Wrapper that sets PKG_VERSION before rattler-build
