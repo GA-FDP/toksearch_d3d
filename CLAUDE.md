@@ -39,6 +39,11 @@ Three main modules exported from `toksearch_d3d/__init__.py`:
   declared via the `fdp_schema.catalogs` entry-point group. Consumed by
   `fdp.catalog` at runtime; replaces the old `fdp.devices` entry-point
   contribution.
+- **IMAS** — `ImasSignal` was split out into the separate `toksearch_imas`
+  package (`ga-fdp` channel) as of 0.11.0. There is **no back-compat shim**
+  here. The dependency arrow points `toksearch_imas → toksearch_d3d` (it needs
+  `PtDataSignal` and the FDP env bootstrap), not the other way round — do not
+  add an `imas_composer` dependency back to this package.
 - **`toksearch_d3d.fdp`** — Thin back-compat shim exposing `setup_environment()`,
   which delegates to `fdp.setup_environment(device="d3d", ...)`. The `fdp` CLI
   itself now lives in the separate `fdp` package.
