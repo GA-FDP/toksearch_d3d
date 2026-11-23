@@ -80,22 +80,26 @@ def _fetch_ptdata_group_via_server(server, reqs):
     conn = MdsConnectionRegistry().connect(server)
     many = conn.getMany()
     for i, req in enumerate(reqs):
-        many.append(f"d{i}", f'ptdata2("{req.mds_path}", {req.shot})')
-        many.append(f"t{i}", f'dim_of(ptdata2("{req.mds_path}", {req.shot}), 0)')
-        many.append(f"r{i}", f'pthead2("{req.mds_path}", {req.shot}), __rarray')
+        # Placeholders, not string splicing: a pointname is data, never TDI.
+        args = (str(req.mds_path), int(req.shot))
+        many.append(f"d{i}", "ptdata2($, $)", *args)
+        many.append(f"t{i}", "dim_of(ptdata2($, $), 0)", *args)
+        many.append(f"r{i}", "pthead2($, $), __rarray", *args)
     many.execute()
     results = {}
     for i, req in enumerate(reqs):
         try:
-            results[_ri._req_key(req)] = {
+            results[_ri.req_key(req)] = {
                 "data": many.get(f"d{i}").data(),
                 "times": many.get(f"t{i}").data(),
                 "rarray": many.get(f"r{i}").data(),
             }
         except Exception as e:
-            results[_ri._req_key(req)] = e
+            results[_ri.req_key(req)] = e
     return results
 
 
-_ri._servers = _servers
-_ri._TREELESS_GROUP_FETCHERS[_PTDATA_TREENAME] = _fetch_ptdata_group_via_server
+_ri.register_device(
+    servers=_servers,
+    treeless_fetchers={_PTDATA_TREENAME: _fetch_ptdata_group_via_server},
+)

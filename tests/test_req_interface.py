@@ -123,10 +123,10 @@ class TestFetchPtdataGroupViaServer(unittest.TestCase):
         mock_conn.getMany.assert_called_once()
         # Three TDI forms per req, all in one getMany.
         self.assertEqual(mock_many.append.call_count, 6)
-        mock_many.append.assert_any_call("d0", 'ptdata2("BT", 12345)')
-        mock_many.append.assert_any_call("t0", 'dim_of(ptdata2("BT", 12345), 0)')
-        mock_many.append.assert_any_call("r0", 'pthead2("BT", 12345), __rarray')
-        mock_many.append.assert_any_call("d1", 'ptdata2("IP", 200000)')
+        mock_many.append.assert_any_call("d0", "ptdata2($, $)", "BT", 12345)
+        mock_many.append.assert_any_call("t0", "dim_of(ptdata2($, $), 0)", "BT", 12345)
+        mock_many.append.assert_any_call("r0", "pthead2($, $), __rarray", "BT", 12345)
+        mock_many.append.assert_any_call("d1", "ptdata2($, $)", "IP", 200000)
         mock_many.execute.assert_called_once()
         self.assertEqual(
             result[reqs[0].as_key()],
@@ -152,6 +152,23 @@ class TestFetchPtdataGroupViaServer(unittest.TestCase):
             )
 
         self.assertIsInstance(result[reqs[0].as_key()], ValueError)
+
+    def test_pointname_and_shot_go_as_arguments_not_tdi_text(self):
+        import numpy as np
+
+        reqs = [FakeReq('BAD"NAME', np.int64(12345))]
+        mock_conn = MagicMock()
+        mock_many = MagicMock()
+        mock_conn.getMany.return_value = mock_many
+
+        with patch.object(d3d_ri, "MdsConnectionRegistry") as mock_registry_cls:
+            mock_registry_cls.return_value.connect.return_value = mock_conn
+            d3d_ri._fetch_ptdata_group_via_server(d3d_ri._FDP_THINCLIENT_SERVER, reqs)
+
+        name, exp, pointname, shot = mock_many.append.call_args_list[0].args
+        self.assertEqual(exp, "ptdata2($, $)")
+        self.assertEqual(pointname, 'BAD"NAME')
+        self.assertIs(type(shot), int)
 
 
 class TestFetchManyFromReqPtdata(unittest.TestCase):
