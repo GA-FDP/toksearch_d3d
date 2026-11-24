@@ -21,12 +21,13 @@ fails with `PtDataError: Shot.extension not found`. Use this table.
 | Thomson Te (per channel) | `ImasSignal('thomson_scattering.channel.t_e.data', split_by='channel')` | dict keyed by channel |
 | Plasma boundary outline | `ImasSignal('equilibrium.time_slice.boundary.outline.r')` | ragged object array |
 
-`PtDataSignal`/`ImasSignal` come from `toksearch_d3d`; `MdsSignal` from `toksearch`.
+`PtDataSignal` comes from `toksearch_d3d`, `MdsSignal` from `toksearch`, and
+`ImasSignal` from the separate `toksearch_imas` package.
 
 ## Discovering IMAS paths (don't guess)
 
 ```python
-from toksearch_d3d import list_imas_fields
+from toksearch_imas import list_imas_fields
 list_imas_fields()          # all supported IDS names -> fields
 list_imas_fields('nbi')     # fields under one IDS
 ```
@@ -84,7 +85,8 @@ table guide.
 
 ## See also
 
-- **toksearch-d3d-imas** — full ImasSignal API (ragged data, `split_by`, dims).
+- **toksearch-imas** — full ImasSignal API (ragged data, `split_by`, dims); ships
+  with `toksearch_imas`.
 - **toksearch-datasets** — `fetch_dataset`/`align` for multi-signal grids.
 - **toksearch-d3d-d3drdb** — shot metadata: the snapshot, `live=True`, and the tables.
 - **toksearch-d3d-ptdata** / **toksearch-mds** — per-backend details.
