@@ -14,7 +14,11 @@
 
 [workspace]
 name = "toksearch_d3d"
-channels = ["conda-forge", "ga-fdp"]
+# toksearch 2.24.0 sits in staging until an fdp-core bless promotes it.
+# Staging is LAST and only toksearch is pinned to it: pixi channel priority
+# is strict, so staging listed first would hand this env every staged
+# candidate. Drop it once 2.24.0 is promoted, or the locked URLs 404.
+channels = ["conda-forge", "ga-fdp", "ga-fdp/label/staging"]
 platforms = ["linux-64"]
 
 [dependencies]
@@ -23,7 +27,7 @@ python = ">=3.11"
 # the lowest, so the dev env ran toksearch 2.12.0 -- which still forwarded
 # `record=` to gather, a signature removed in 2.14.0. Tests then failed here
 # for a reason that had nothing to do with the code under test.
-toksearch = ">=2.20.0"
+toksearch = { version = ">=2.24.0", channel = "ga-fdp/label/staging" }
 ptdata = ">=2.13.0,<3"
 matplotlib = "*"
 imas_composer = ">=0.2.4,<0.3"

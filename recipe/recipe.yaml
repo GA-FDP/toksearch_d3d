@@ -63,7 +63,9 @@ requirements:
     # pairing with 2.18.1 would document something false (df["shot"] raises).
     # 2.19.0 settles and replays the d3drdb snapshot at compute(): a pipeline
     # pins it for its workers, and Pipeline.from_snapshot replays a saved one.
-    - toksearch >=2.19.0
+    # 2.24.0 ships toksearch.interfaces.req_interface, which
+    # toksearch_d3d.interfaces.req_interface imports and registers into.
+    - toksearch >=2.24.0
     - python-duckdb >=1.5,<2
     # conda-forge's osx-arm64 extension cannot be installed (re-signing its
     # prefix-rewritten binary fails), so macOS loads DuckDB's own signed
