@@ -16,7 +16,9 @@
 toksearch_d3d — DIII-D signal classes and FDP CLI for the TokSearch framework.
 
 Extends ``toksearch`` with DIII-D-specific signal types (PtDataSignal,
-ImasSignal, CakeSignal) and the ``fdp`` CLI for Pelican/OSDF data access.
+RDataSignal, CakeSignal) and the ``fdp`` CLI for Pelican/OSDF data access.
+IMAS IDS access (``ImasSignal``) lives in the separate ``toksearch_imas``
+package.
 For core Pipeline documentation, see ``help(toksearch)``.
 
 Invocation
@@ -52,12 +54,11 @@ Imports
 
     from toksearch import Pipeline
     from toksearch_d3d import PtDataSignal     # DIII-D PTDATA diagnostics
-    from toksearch_d3d import ImasSignal       # IMAS IDS paths (requires imas_composer)
+    from toksearch_imas import ImasSignal      # IMAS IDS paths (separate package)
     from toksearch_d3d import CakeSignal       # Equilibrium/profile via MDSplus+SQLite
     from toksearch_d3d.sql import connect_d3drdb   # Shot metadata DB (d3drdb)
 
-Import ``PtDataSignal`` and ``ImasSignal`` from ``toksearch_d3d``, **not**
-``toksearch``.
+Import ``PtDataSignal`` from ``toksearch_d3d``, **not** ``toksearch``.
 
 PtDataSignal
 ============
@@ -80,7 +81,7 @@ Point       Description
 ip          Plasma current (A)
 dssdenest   Line-averaged electron density
 btor        Toroidal magnetic field
-pinj        NBI power (unreliable for recent shots — prefer ImasSignal)
+pinj        NBI power (unreliable for recent shots — prefer toksearch_imas)
 echpwr      ECH power
 prad        Radiated power
 wmhd        MHD stored energy
@@ -115,134 +116,18 @@ requires one::
 Requires toksearch >= 2.12.0 and ptdata >= 2.6.0 (both floored by
 toksearch_d3d 0.13.0, so a correct environment cannot silently drop a pin).
 
-ImasSignal
-==========
+IMAS IDS data
+=============
 
-Fetches DIII-D data via the IMAS IDS schema using ``imas_composer``.
-Only available when ``imas_composer`` is installed. Also exported as
-``D3dImasSignal`` (an exact alias) for device-prefixed symmetry with other
-device packages, e.g. ``toksearch_mast.MastImasSignal``.
+``ImasSignal``, ``D3dImasSignal`` and ``list_imas_fields`` moved to the
+separate ``toksearch_imas`` package, which depends on ``toksearch_d3d``::
 
-**Leaf path** — fetches one field::
+    from toksearch_imas import ImasSignal, list_imas_fields
 
-    ImasSignal('equilibrium.time_slice.global_quantities.ip')
-
-**Prefix path** — fetches all fields under a subtree, returning a dict keyed
-by full leaf path::
-
-    ImasSignal('equilibrium.time_slice.global_quantities')
-
-*Prefix restrictions*: ``dims``, ``split_by`` and ``fetch_as_xarray()`` are
-not supported for prefix paths — prefix mode returns plain arrays only.
-
-**Ragged arrays**: channel-indexed data returns a numpy object array.
-Use ``split_by='channel'`` for a dict keyed by channel name::
-
-    ImasSignal('thomson_scattering.channel.n_e.data', split_by='channel')
-
-**Controlling shape with** ``layout=``: imas_composer 0.2.4 puts every
-``core_profiles.profiles_1d`` quantity on one shared time axis, leaving an
-*empty* slot where that quantity has no data.  ``layout=`` chooses how that
-is presented:
-
-- ``'compact'`` — drop the empty slots, filtering ``times`` in lockstep.
-  Rectangular when one common inner length remains.  **Default for leaf
-  paths.**
-- ``'filled'`` — keep every slot, NaN-padding the gaps so all leaves stay
-  index-aligned to one time axis.  **Default for prefix paths.**
-- ``'ragged'`` — no transformation; the object array as composed.
-- ``'awkward'`` — the raw ``ak.Array``.
-
-::
-
-    # rectangular (n_time, n_rho), the default
-    ImasSignal('core_profiles.profiles_1d.electrons.density')
-
-    # every slot kept, gaps NaN
-    ImasSignal('core_profiles.profiles_1d.electrons.density', layout='filled')
-
-Layout applies **only** when the outer axis is provably a time axis, so
-channel- and measurement-indexed data (ECE channels, ``magnetics.ip``) is
-never reshaped — entries there are matched positionally against sibling
-name arrays.  ``as_awkward`` is deprecated in favour of ``layout='awkward'``.
-
-**NBI power recipe** — 8 per-unit time series.  Object array under
-imas_composer 0.2; rectangular ``(8, n_time)`` under 0.2.4.  ``np.stack``
-handles both::
-
-    import numpy as np
-    nbi_data = rec.get('nbi', None)
-    if nbi_data is not None and nbi_data.get('data') is not None:
-        units = np.stack(list(nbi_data['data']), axis=0).astype(float)
-        total_mw = np.nanmax(np.nansum(units, axis=0)) / 1e6
-
-**Supplementary dimension arrays with** ``dims``: each key becomes a field in
-the result dict; each value is ``'auto'`` or an explicit IMAS path.  The
-default is ``dims={'times': 'auto'}``.
-
-``'auto'`` resolution: if ``ids_path`` ends in ``.data`` or
-``.data_error_upper``, the suffix is stripped, the dim name appended, and the
-path traversed upward toward the IDS root until one resolves — for
-``ece.channel.t_e.data`` with ``dim='times'`` the candidates are
-``ece.channel.t_e.time`` → ``ece.channel.time`` → ``ece.time``.  Otherwise
-the fallback is ``{ids_name}.{dim_name}``::
-
-    # add a second dimension
-    ImasSignal('thomson_scattering.channel.position.r',
-               dims={'times': 'auto',
-                     'z': 'thomson_scattering.channel.position.z'})
-    # -> keys: 'data', 'times', 'z'
-
-    # suppress times entirely
-    ImasSignal('equilibrium.time_slice.global_quantities.ip', dims={})
-    # -> keys: 'data'
-
-**Time units with** ``dim_scales``: dimensions are scaled by these factors.
-The default ``{'times': 1000.0}`` converts IMAS seconds to milliseconds,
-matching the PTData/toksearch convention.  Pass ``{'times': 1.0}`` for raw
-IMAS seconds.  Applies to any dimension, not just ``'times'``.
-
-**Converting to xarray** with ``fetch_as_xarray()``: scalar and profile
-signals return an ``xr.DataArray`` (dimension names come from resolved
-``dims``; unmatched axes get ``'dim_N'``); ``split_by='channel'`` returns an
-``xr.Dataset`` with one variable per channel.  It raises
-``NotImplementedError`` for prefix paths and for ragged object arrays — for
-the latter, ``layout='compact'`` or ``'filled'`` often yields a rectangular
-array it accepts.  Channels on heterogeneous time bases are merged with an
-outer join, so a channel is NaN where it has no measurement; use
-``Pipeline.align()`` for a uniform grid.
-
-**Specifying a data location** with ``location=``: accepts the same formats
-as ``MdsSignal`` — a filesystem path for local trees, or
-``'remote://server'``.  Under the FDP/Pelican stack ``fdp run`` sets the
-environment up, so the default ``None`` is correct::
-
-    ImasSignal('equilibrium.time_slice.global_quantities.ip',
-               location='remote://atlas.gat.com')
-
-**Sharing a composer** avoids repeated mapper init::
-
-    from imas_composer import ImasComposer
-    composer = ImasComposer(efit_tree='EFIT01')
-    ImasSignal('equilibrium.time_slice.global_quantities.ip', composer=composer)
-
-**Discovering fields**::
-
-    from toksearch_d3d import list_imas_fields
-    fields = list_imas_fields()          # all IDS
-    fields = list_imas_fields('ece')     # one IDS
-
-Common IDS paths::
-
-    equilibrium.time_slice.global_quantities.ip
-    equilibrium.time_slice.global_quantities.q_95
-    equilibrium.time_slice.global_quantities.beta_normal
-    equilibrium.time_slice.profiles_1d.q
-    nbi.unit.power_launched.data
-    ece.channel.t_e.data
-    magnetics.ip.data
-    core_profiles.profiles_1d.electrons.density
-    thomson_scattering.channel.n_e.data
+``from toksearch_d3d import ImasSignal`` still works while ``toksearch_imas``
+is installed, with a ``DeprecationWarning``; it will be removed. See
+``help(toksearch_imas)`` for leaf and prefix paths, ``layout=``, ragged
+arrays, ``split_by='channel'``, the NBI power recipe, and common IDS paths.
 
 Shot List from d3drdb
 =====================
@@ -304,11 +189,11 @@ DIII-D Gotchas
 - ``connect_d3drdb()`` is a published snapshot, not the live database:
   shots above its ceiling are missing; ``live=True`` reaches them on-site
 - ``PtDataSignal('pinj')`` returns "Invalid shot number" for recent shots —
-  use ``ImasSignal('nbi.unit.power_launched.data')`` instead
+  use ``toksearch_imas.ImasSignal('nbi.unit.power_launched.data')`` instead
 - ``PTDATA2`` TDI expressions work under ``fdp run``; the fork-after-XrdCl hang is fixed in ``xrdcl-pelican-fdp`` 0.3.0
 - All DIII-D MDSplus trees (not just ``efit01``) are on the FDP Pelican origin
-- PTData JSON index has a coverage cap (~shot 201,299) — use ImasSignal
-  for newer shots
+- PTData JSON index has a coverage cap (~shot 201,299) — use
+  ``toksearch_imas.ImasSignal`` for newer shots
 - ``pathlib.Path()`` mangles ``pelican://`` URLs — use f-strings
 """
 
@@ -360,10 +245,32 @@ from .signal.ptdata import PtDataSignal
 from .signal.ptdata import RDataSignal
 from .signal.cake import CakeSignal
 
-try:
-    from .signal.imas import ImasSignal, D3dImasSignal, list_imas_fields
-except ImportError:
-    pass
+_MOVED_TO_TOKSEARCH_IMAS = frozenset({"ImasSignal", "D3dImasSignal", "list_imas_fields"})
+
+
+def __getattr__(name):
+    # No declared dependency on toksearch_imas: it depends on this package,
+    # so declaring it here would make a cycle.
+    if name not in _MOVED_TO_TOKSEARCH_IMAS:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    try:
+        import toksearch_imas
+    except ImportError as exc:
+        raise ImportError(
+            f"{name} moved to the toksearch_imas package. Install it with "
+            "`conda install -c ga-fdp -c conda-forge toksearch_imas`, then "
+            f"`from toksearch_imas import {name}`.",
+            name="toksearch_imas",
+        ) from exc
+    import warnings
+    warnings.warn(
+        f"toksearch_d3d.{name} moved to toksearch_imas; use "
+        f"`from toksearch_imas import {name}`. The toksearch_d3d name will "
+        "be removed.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return getattr(toksearch_imas, name)
 
 from .fdp import setup_environment
 
@@ -371,6 +278,6 @@ from . import _version
 __version__ = _version.get_versions()['version']
 
 __llm_description__ = (
-    "toksearch_d3d - DIII-D signal classes (PtDataSignal, ImasSignal, "
+    "toksearch_d3d - DIII-D signal classes (PtDataSignal, RDataSignal, "
     "CakeSignal) + FDP/Pelican data access via the `fdp` CLI"
 )

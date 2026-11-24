@@ -13,7 +13,6 @@ environments:
       linux-64:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/_openmp_mutex-4.5-20_gnu.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/_python_abi3_support-1.0-hd8ed1ab_3.conda
-      - conda: https://conda.anaconda.org/conda-forge/noarch/_x86_64-microarch-level-1-5_level1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/adwaita-icon-theme-51.0-unix_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/aiofiles-24.1.0-pyhd8ed1ab_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/aiohappyeyeballs-2.7.1-pyhd8ed1ab_0.conda
@@ -35,8 +34,6 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/atk-1.0-2.38.0-hc5c8e38_3.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/attrs-26.1.0-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/audioop-lts-0.2.2-py313hd42f317_3.conda
-      - conda: https://conda.anaconda.org/conda-forge/noarch/awkward-2.15.1-pyh5ded981_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/awkward-cpp-59-py313h8debf8b_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/aws-c-auth-1.0.0-h7648d90_2.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/aws-c-cal-1.0.0-hcf7459e_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/aws-c-common-1.0.6-hebe6cf0_0.conda
@@ -153,7 +150,6 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/hyperframe-6.1.0-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/icu-78.3-py310h44b86e0_2.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/idna-3.20-pyh5ded981_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/noarch/imas_composer-0.2.4-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/importlib-metadata-10.0.0-pyh5ded981_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/intel-gmmlib-22.10.2-h7148c6a_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/intel-media-driver-26.1.6-hecca717_0.conda
@@ -691,17 +687,6 @@ packages:
   purls: []
   size: 8144
   timestamp: 1784221492234
-- conda: https://conda.anaconda.org/conda-forge/noarch/_x86_64-microarch-level-1-5_level1.conda
-  build_number: 5
-  sha256: 6d0b13c7ebf525332a54ff6d44bfd496e5b37182ac736efa8ade4af52ec14313
-  md5: 9140f450bfb424deda6cc5a1515919f3
-  depends:
-  - __archspec 1.* ^(core2|k10|nocona|x86_64|bulldozer|ivybridge|nehalem|piledriver|sandybridge|steamroller|westmere|x86_64_v2|broadwell|cannonlake|excavator|haswell|mic_knl|skylake|x86_64_v3|zen|zen2|zen3|cascadelake|icelake|sapphirerapids|skylake_avx512|x86_64_v4|zen4|zen5)$
-  license: BSD-3-Clause
-  license_family: BSD
-  purls: []
-  size: 9415
-  timestamp: 1787670508828
 - conda: https://conda.anaconda.org/conda-forge/noarch/adwaita-icon-theme-51.0-unix_0.conda
   sha256: def01b148aa54d4de29b7d4bf58d941c8699582201db14cf78c6c89fa1666434
   md5: 6f62266fb2bfc35a5071cfa1d6ffdcc9
@@ -1003,40 +988,6 @@ packages:
   - pkg:pypi/audioop-lts?source=compressed-mapping
   size: 40367
   timestamp: 1789245166934
-- conda: https://conda.anaconda.org/conda-forge/noarch/awkward-2.15.1-pyh5ded981_0.conda
-  sha256: eb57551cc525898e734449fdff1358fd2c6255e8b7124f8aafc5b2563e98fe2f
-  md5: 15e639dedeefdcf9527d63c49f67ee5e
-  depends:
-  - python >=3.11
-  - awkward-cpp ==59
-  - importlib-metadata >=4.13.0
-  - numpy >=1.21.3
-  - packaging
-  - fsspec >=2022.11.0
-  - python
-  license: BSD-3-Clause
-  license_family: BSD
-  purls:
-  - pkg:pypi/awkward?source=hash-mapping
-  size: 533781
-  timestamp: 1795099420342
-- conda: https://conda.anaconda.org/conda-forge/linux-64/awkward-cpp-59-py313h8debf8b_0.conda
-  sha256: b0fb3c2fa5406244182ded186bbc3d7e2306ab21409cb5da956ac44ff9f24a96
-  md5: 07ad5e1c4e90ae5373316a48cc47b1de
-  depends:
-  - python
-  - numpy >=1.21.3
-  - _x86_64-microarch-level >=1
-  - libstdcxx >=15
-  - libgcc >=15
-  - __glibc >=2.17,<3.0.a0
-  - python_abi 3.13.* *_cp313
-  license: BSD-3-Clause
-  license_family: BSD
-  purls:
-  - pkg:pypi/awkward-cpp?source=hash-mapping
-  size: 671452
-  timestamp: 1795046412611
 - conda: https://conda.anaconda.org/conda-forge/linux-64/aws-c-auth-1.0.0-h7648d90_2.conda
   sha256: fa688894e3c774161b0ce2e3a396090bb60847721f52984c130e5fbd727f9a18
   md5: f4f169a23884de1bdb9c25ded8f2aec1
@@ -2829,20 +2780,6 @@ packages:
   - pkg:pypi/idna?source=compressed-mapping
   size: 178572
   timestamp: 1790020377150
-- conda: https://conda.anaconda.org/conda-forge/noarch/imas_composer-0.2.4-pyhd8ed1ab_0.conda
-  sha256: c08a75204a5da83410f94d3e1065ab99d587d4359dd65eaf5a3e3b56f0313f38
-  md5: 1784068b3b397febb1c15459a4ab3480
-  depends:
-  - awkward >=2.0
-  - numpy >=1.20
-  - python >=3.10
-  - pyyaml >=5.4
-  license: Apache-2.0
-  license_family: APACHE
-  purls:
-  - pkg:pypi/imas-composer?source=hash-mapping
-  size: 145754
-  timestamp: 1785798742820
 - conda: https://conda.anaconda.org/conda-forge/noarch/importlib-metadata-10.0.0-pyh5ded981_0.conda
   sha256: 43151c94c02fa67e8105cfe64c8c27a1b260b22bae6ddbe9c33b56a9c302e459
   md5: 8401f0ee3de84b5a549c47cf3038909b
@@ -8119,11 +8056,8 @@ packages:
   timestamp: 1795478201391
 - pypi: ./
   name: toksearch-d3d
-  version: 0.18.1+0.g2f71633.dirty
-  sha256: f5f579043d520e4d6299f4ba8b9fd8a31aedc5add6cca45d32374a776df984bb
-  requires_dist:
-  - imas-composer ; extra == 'imas'
-  - awkward>=2.0 ; extra == 'imas'
+  version: 0.19.0+0.g23c62c5.dirty
+  sha256: a7bcdd9617cd7d89fb6e6797f7d7fc888e936c9578bcb69e5e6c10e60687d601
   requires_python: '>=3.11'
 - conda: https://conda.anaconda.org/conda-forge/noarch/tomli-2.4.1-pyhcf101f3_0.conda
   sha256: 91cafdb64268e43e0e10d30bd1bef5af392e69f00edd34dfaf909f69ab2da6bd
