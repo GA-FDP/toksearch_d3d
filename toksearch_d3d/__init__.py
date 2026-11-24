@@ -342,6 +342,10 @@ _fdp_apply_environment(_fdp_cfg, _os.environ)
 del _os, _sys, _conda_prefix
 del _fdp_build_device_config, _fdp_resolve_device_handle, _fdp_apply_environment, _fdp_cfg
 
+# Patches the DIII-D servers and PTDATA support into
+# toksearch.interfaces.req_interface.
+from .interfaces import req_interface as _req_interface
+
 from .signal.ptdata import PtDataSignal
 from .signal.ptdata import RDataSignal
 from .signal.cake import CakeSignal
