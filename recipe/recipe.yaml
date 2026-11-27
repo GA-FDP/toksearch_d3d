@@ -85,7 +85,6 @@ requirements:
     - fdp-schema >=0.3.0
     # PtDataSignal reads ExtractedData.text, the decoded text of an ASCII point.
     - ptdata >=2.13.0,<3
-    - imas_composer >=0.2.4,<0.3
     - filelock >=3
     # CakeSignal fetches the CAKE DB by shelling out to the `pelican` CLI
     # (toksearch_d3d/signal/_cake_cache.py). Declare it so a standalone

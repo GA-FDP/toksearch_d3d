@@ -235,7 +235,7 @@ generic, so any tree name resolves. Nothing restricts you to `efit01`.
 
 ```python
 MdsSignal(r'\efit02::top.results.aeqdsk:q95', 'efit02')
-ImasSignal('equilibrium.time_slice.global_quantities.q_95', efit_tree='EFIT02')
+ImasSignal('equilibrium.time_slice.global_quantities.q_95', efit_tree='EFIT02')  # toksearch_imas
 ```
 
 `fdp ls /fdp-d3d/archives/mdsplus/codes/` lists the 54 code trees available.
@@ -246,7 +246,7 @@ use, or use the `spawn` start method — see the FDP notes on fork-after-XrdCl.
 ## Authority order for definitions
 
 1. In-tree `:LABEL`/`:UNITS`/`:INFO`/`:MULTIPLIER`/`:EFIT_NAME` (§3).
-2. IMAS Data Dictionary via `ImasSignal` — formal, machine-readable definitions;
+2. IMAS Data Dictionary via `ImasSignal` (from `toksearch_imas`) — formal, machine-readable definitions;
    `imas_composer` maps EFIT nodes to IDS paths, default `efit_tree='EFIT01'`.
 3. EFIT literature for the undocumented remainder: Lao et al., *Nucl. Fusion*
    **25** (1985) 1611; Lao et al., *Fusion Sci. Technol.* **48** (2005) 968.

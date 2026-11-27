@@ -42,6 +42,11 @@ Three main modules exported from `toksearch_d3d/__init__.py`:
 - **`toksearch_d3d.fdp`** — Thin back-compat shim exposing `setup_environment()`,
   which delegates to `fdp.setup_environment(device="d3d", ...)`. The `fdp` CLI
   itself now lives in the separate `fdp` package.
+- **IMAS** — `ImasSignal`, `D3dImasSignal` and `list_imas_fields` live in the
+  separate `toksearch_imas` package, which depends on this one. A module
+  `__getattr__` in `__init__.py` forwards those names to `toksearch_imas` with a
+  `DeprecationWarning`. Do not add `imas_composer` or `toksearch_imas` as a
+  dependency here: the arrow points `toksearch_imas → toksearch_d3d`.
 
 ## Key Dependencies
 
